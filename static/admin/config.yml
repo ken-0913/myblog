@@ -1,0 +1,23 @@
+backend:
+  name: github
+  repo: username/저장소명     # 본인 것으로 수정
+  branch: main
+
+# 업로드한 이미지가 저장될 위치
+media_folder: static/images/uploads
+public_folder: /images/uploads
+
+collections:
+  - name: posts
+    label: 글
+    folder: content/posts
+    create: true
+    slug: "{{slug}}"
+    extension: md
+    format: yaml-frontmatter   # YAML(---) front matter로 생성
+    fields:
+      - { label: 제목, name: title, widget: string }
+      - { label: 작성일, name: date, widget: datetime }
+      - { label: 초안, name: draft, widget: boolean, default: false }
+      - { label: 태그, name: tags, widget: list, required: false }
+      - { label: 본문, name: body, widget: markdown }
