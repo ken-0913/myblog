@@ -1,0 +1,19 @@
+# 사용자/조직 사이트(username.github.io 저장소)인 경우:
+baseURL: "https://ken-0913.github.io/"
+
+# 프로젝트 사이트(저장소 이름이 따로 있는 경우)라면:
+# baseURL: "https://ken-0913.github.io/저장소명/"
+
+languageCode: "ko-kr"
+title: "내 블로그"
+theme: "PaperMod"
+
+# 글 작성 시 기본 front matter 형식을 YAML로 고정
+frontmatter:
+  date: [date, publishDate]
+
+# 마크다운에서 원시 HTML 허용(테마에 따라 필요)
+markup:
+  goldmark:
+    renderer:
+      unsafe: true
