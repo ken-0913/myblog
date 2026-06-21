@@ -37,6 +37,12 @@ jobs:
       - name: Setup Pages
         id: pages
         uses: actions/configure-pages@v5
+      - name: Normalize front matter dates
+        run: |
+          # date: 2026-06-21T21:51 처럼 초·타임존이 없는 값에 :00+09:00 을 붙임
+          find content/posts -name '*.md' -print0 \
+            | xargs -0 --no-run-if-empty sed -i -E \
+              's/^([[:space:]]*date:[[:space:]]*[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2})[[:space:]]*$/\1:00+09:00/'
       - name: Build with Hugo
         env:
           HUGO_ENVIRONMENT: production
