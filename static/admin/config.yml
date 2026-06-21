@@ -2,6 +2,7 @@ backend:
   name: github
   repo: ken-0913/myblog    # 본인 것으로 수정
   branch: main
+  base_url: https://sveltia-cms-auth.hyeonjae0913.workers.dev
 
 # 업로드한 이미지가 저장될 위치
 media_folder: static/images/uploads
