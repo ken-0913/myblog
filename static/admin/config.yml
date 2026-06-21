@@ -18,7 +18,7 @@ collections:
     format: yaml-frontmatter   # YAML(---) front matter로 생성
     fields:
       - { label: 제목, name: title, widget: string }
-      - { label: 작성일, name: date, widget: datetime }
+      - { label: 작성일, name: date, widget: datetime, format: "YYYY-MM-DDTHH:mm:ssZ" }
       - { label: 초안, name: draft, widget: boolean, default: false }
       - { label: 태그, name: tags, widget: list, required: false }
       - { label: 본문, name: body, widget: markdown }
