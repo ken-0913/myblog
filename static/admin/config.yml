@@ -1,6 +1,6 @@
 backend:
   name: github
-  repo: username/저장소명     # 본인 것으로 수정
+  repo: ken-0913/myblog    # 본인 것으로 수정
   branch: main
 
 # 업로드한 이미지가 저장될 위치
