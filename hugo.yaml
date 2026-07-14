@@ -1,19 +1,60 @@
-# 사용자/조직 사이트(username.github.io 저장소)인 경우:
+# 사용자/조직 사이트(username.github.io 저장소)
 baseURL: "https://ken-0913.github.io/"
 
-# 프로젝트 사이트(저장소 이름이 따로 있는 경우)라면:
-# baseURL: "https://ken-0913.github.io/저장소명/"
-
+defaultContentLanguage: "ko"
 languageCode: "ko-kr"
 title: "내 블로그"
-theme: "PaperMod"
+theme: "DoIt"
 
 # 글 작성 시 기본 front matter 형식을 YAML로 고정
 frontmatter:
   date: [date, publishDate]
 
-# 마크다운에서 원시 HTML 허용(테마에 따라 필요)
+# 마크다운에서 원시 HTML 허용
 markup:
   goldmark:
     renderer:
       unsafe: true
+
+# 상단 네비게이션 메뉴
+menu:
+  main:
+    - identifier: posts
+      name: "글"
+      url: "/posts/"
+      weight: 1
+    - identifier: tags
+      name: "태그"
+      url: "/tags/"
+      weight: 2
+    - identifier: categories
+      name: "카테고리"
+      url: "/categories/"
+      weight: 3
+
+params:
+  # 기본 테마 모드: light / dark / auto
+  defaultTheme: "auto"
+  # 날짜 표시 형식
+  dateFormat: "2006-01-02"
+
+  author:
+    name: "ken-0913"
+    email: "hyeonjae0913@gmail.com"
+    link: "https://github.com/ken-0913"
+
+  # 홈페이지 프로필
+  home:
+    profile:
+      enable: true
+      title: "내 블로그"
+      subtitle: "Hugo + DoIt 테마로 만든 블로그입니다."
+      social: true
+    posts:
+      enable: true
+      paginate: 6
+
+  # 소셜 링크
+  social:
+    GitHub: "ken-0913"
+    Email: "hyeonjae0913@gmail.com"
