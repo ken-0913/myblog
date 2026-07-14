@@ -1,1 +1,15 @@
-<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>모든 글 - 내 블로그</title><link>https://ken-0913.github.io/posts/</link><description>모든 글 | 내 블로그</description><generator>Hugo -- gohugo.io</generator><language>ko-kr</language><managingEditor>hyeonjae0913@gmail.com (ken-0913)</managingEditor><webMaster>hyeonjae0913@gmail.com (ken-0913)</webMaster><lastBuildDate>Sun, 21 Jun 2026 22:07:00 +0900</lastBuildDate><atom:link href="https://ken-0913.github.io/posts/" rel="self" type="application/rss+xml"/><item><title>포스팅 테스트합니다.</title><link>https://ken-0913.github.io/posts/%ED%8F%AC%EC%8A%A4%ED%8C%85-%ED%85%8C%EC%8A%A4%ED%8A%B8%ED%95%A9%EB%8B%88%EB%8B%A4./</link><pubDate>Sun, 21 Jun 2026 22:07:00 +0900</pubDate><author><name>ken-0913</name></author><guid>https://ken-0913.github.io/posts/%ED%8F%AC%EC%8A%A4%ED%8C%85-%ED%85%8C%EC%8A%A4%ED%8A%B8%ED%95%A9%EB%8B%88%EB%8B%A4./</guid><description>&lt;p>테스트&lt;/p></description></item></channel></rss>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+        <title>모든 글 - 내 블로그</title>
+        <link>https://ken-0913.github.io/posts/</link>
+        <description>모든 글 | 내 블로그</description>
+        <generator>Hugo -- gohugo.io</generator><language>ko-kr</language><managingEditor>hyeonjae0913@gmail.com (ken-0913)</managingEditor>
+            <webMaster>hyeonjae0913@gmail.com (ken-0913)</webMaster><lastBuildDate>Sun, 21 Jun 2026 22:07:00 &#43;0900</lastBuildDate><atom:link href="https://ken-0913.github.io/posts/" rel="self" type="application/rss+xml" /><item>
+    <title>포스팅 테스트합니다.</title>
+    <link>https://ken-0913.github.io/posts/%ED%8F%AC%EC%8A%A4%ED%8C%85-%ED%85%8C%EC%8A%A4%ED%8A%B8%ED%95%A9%EB%8B%88%EB%8B%A4./</link>
+    <pubDate>Sun, 21 Jun 2026 22:07:00 &#43;0900</pubDate><author>
+        <name>ken-0913</name>
+    </author><guid>https://ken-0913.github.io/posts/%ED%8F%AC%EC%8A%A4%ED%8C%85-%ED%85%8C%EC%8A%A4%ED%8A%B8%ED%95%A9%EB%8B%88%EB%8B%A4./</guid>
+    <description><![CDATA[<p>테스트</p>]]></description>
+</item></channel>
+</rss>

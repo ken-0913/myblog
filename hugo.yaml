@@ -10,6 +10,13 @@ theme: "DoIt"
 frontmatter:
   date: [date, publishDate]
 
+# 검색 인덱스(JSON) 생성을 위해 홈 출력에 JSON 추가
+outputs:
+  home:
+    - HTML
+    - RSS
+    - JSON
+
 # 마크다운에서 원시 HTML 허용
 markup:
   goldmark:
@@ -20,23 +27,48 @@ markup:
 menu:
   main:
     - identifier: posts
-      name: "글"
+      name: "Posts"
       url: "/posts/"
       weight: 1
-    - identifier: tags
-      name: "태그"
-      url: "/tags/"
-      weight: 2
     - identifier: categories
-      name: "카테고리"
+      name: "Categories"
       url: "/categories/"
+      weight: 2
+    - identifier: tags
+      name: "Tags"
+      url: "/tags/"
       weight: 3
+    - identifier: archive
+      name: "Archive"
+      url: "/archives/"
+      weight: 4
+    - identifier: about
+      name: "About"
+      url: "/about/"
+      weight: 5
+    - identifier: github
+      name: "GitHub"
+      url: "https://github.com/ken-0913"
+      weight: 6
+      params:
+        rel: "external nofollow noopener noreferrer"
+        target: "_blank"
 
 params:
   # 기본 테마 모드: light / dark / auto
   defaultTheme: "auto"
   # 날짜 표시 형식
   dateFormat: "2006-01-02"
+
+  # 검색 기능 (네비게이션 바에 검색 아이콘 표시)
+  search:
+    enable: true
+    type: "fuse"
+    contentLength: 4000
+    placeholder: ""
+    maxResultLength: 10
+    snippetLength: 30
+    highlightTag: "em"
 
   author:
     name: "ken-0913"
