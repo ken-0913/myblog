@@ -1,5 +1,5 @@
 # 사용자/조직 사이트(username.github.io 저장소)
-baseURL: "https://ken-0913.github.io/"
+baseURL: "https://ken-0913.github.io/myblog/"
 
 defaultContentLanguage: "ko"
 languageCode: "ko-kr"
