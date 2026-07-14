@@ -1,8 +1,8 @@
 <rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
     <channel>
         <title>Tags - 태그 - 내 블로그</title>
-        <link>https://ken-0913.github.io/tags/</link>
+        <link>https://ken-0913.github.io/myblog/tags/</link>
         <description>Tags - 태그 - 내 블로그</description>
         <generator>Hugo -- gohugo.io</generator><language>ko-kr</language><managingEditor>hyeonjae0913@gmail.com (ken-0913)</managingEditor>
-            <webMaster>hyeonjae0913@gmail.com (ken-0913)</webMaster><atom:link href="https://ken-0913.github.io/tags/" rel="self" type="application/rss+xml" /></channel>
+            <webMaster>hyeonjae0913@gmail.com (ken-0913)</webMaster><atom:link href="https://ken-0913.github.io/myblog/tags/" rel="self" type="application/rss+xml" /></channel>
 </rss>
