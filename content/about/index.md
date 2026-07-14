@@ -19,7 +19,10 @@ Kubernetes, Network, Golang을 다루는 기술 블로그이다.
   <div data-iframe-width="150" data-iframe-height="270" data-share-badge-id="1b1720bb-1956-46bc-a51d-e5429c063d3d" data-share-badge-host="https://www.credly.com"></div>
   <div data-iframe-width="150" data-iframe-height="270" data-share-badge-id="1f4dfa88-ea5d-4207-bb74-5939f4881284" data-share-badge-host="https://www.credly.com"></div>
   <div data-iframe-width="150" data-iframe-height="270" data-share-badge-id="346af2ba-681c-46ab-a21a-1b52896e20e2" data-share-badge-host="https://www.credly.com"></div>
-  <div data-iframe-width="150" data-iframe-height="270" data-share-badge-id="d63df091-9069-4ee7-b185-a40a5bd467ee" data-share-badge-host="https://www.credly.com"></div>  
+  <div data-iframe-width="150" data-iframe-height="270" data-share-badge-id="d63df091-9069-4ee7-b185-a40a5bd467ee" data-share-badge-host="https://www.credly.com"></div>
+  <div data-iframe-width="150" data-iframe-height="270" data-share-badge-id="c3d9d17c-8a3b-406b-9ec9-70a02a8493e4" data-share-badge-host="https://www.credly.com"></div>
+  <div data-iframe-width="150" data-iframe-height="270" data-share-badge-id="5e05780c-9be2-43f6-b937-47efe13f1072" data-share-badge-host="https://www.credly.com"></div>
+  <div data-iframe-width="150" data-iframe-height="270" data-share-badge-id="3039d7c1-7752-4150-9bfb-c2ad71fb8e6e" data-share-badge-host="https://www.credly.com"></div>
 </div>
 <script type="text/javascript" async src="//cdn.credly.com/assets/utilities/embed.js"></script>
 
