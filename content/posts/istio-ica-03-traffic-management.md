@@ -1,6 +1,6 @@
 ---
 title: "ICA 시험 정리 (3) Traffic Management"
-date: 2026-07-16T10:20:00+09:00
+date: 2026-07-16T08:20:00+09:00
 draft: false
 tags: ["Istio", "ICA", "Traffic Management", "VirtualService", "DestinationRule"]
 categories: ["자격시험"]

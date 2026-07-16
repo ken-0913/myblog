@@ -1,6 +1,6 @@
 ---
 title: "ICA 시험 정리 (4) Security: mTLS, 인증, 인가, 인증서 관리"
-date: 2026-07-16T10:30:00+09:00
+date: 2026-07-16T08:30:00+09:00
 draft: false
 tags: ["Istio", "ICA", "Security", "mTLS", "AuthorizationPolicy"]
 categories: ["자격시험"]

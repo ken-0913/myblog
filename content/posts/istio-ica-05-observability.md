@@ -1,6 +1,6 @@
 ---
 title: "ICA 시험 정리 (5) Observability: Prometheus, Grafana, Jaeger, Kiali"
-date: 2026-07-16T10:40:00+09:00
+date: 2026-07-16T08:40:00+09:00
 draft: false
 tags: ["Istio", "ICA", "Observability", "Prometheus", "Jaeger"]
 categories: ["자격시험"]

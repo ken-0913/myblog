@@ -1,6 +1,6 @@
 ---
 title: "ICA 시험 정리 (1) 서비스 메시 기초: Kubernetes Service, Sidecar, Envoy"
-date: 2026-07-16T10:00:00+09:00
+date: 2026-07-16T08:00:00+09:00
 draft: false
 tags: ["Istio", "ICA", "Kubernetes", "Service Mesh", "Envoy"]
 categories: ["자격시험"]

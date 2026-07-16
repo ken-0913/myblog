@@ -1,6 +1,6 @@
 ---
 title: "ICA 시험 정리 (2) Istio 입문: 아키텍처와 설치"
-date: 2026-07-16T10:10:00+09:00
+date: 2026-07-16T08:10:00+09:00
 draft: false
 tags: ["Istio", "ICA", "Istiod", "Envoy", "Kiali"]
 categories: ["자격시험"]
