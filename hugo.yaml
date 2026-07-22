@@ -80,7 +80,7 @@ params:
     profile:
       enable: true
       title: "내 블로그"
-      subtitle: "Hugo + DoIt 테마로 만든 블로그입니다."
+      subtitle: ""
       social: true
     posts:
       enable: true

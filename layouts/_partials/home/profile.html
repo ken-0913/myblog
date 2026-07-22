@@ -1,0 +1,114 @@
+{{- $profile := .Site.Params.home.profile -}}
+<div class="home-profile">
+    {{- $avatar := $profile.avatarURL -}}
+    {{- with $profile.gravatarEmail -}}
+    {{- $avatar = md5 . | printf "https://www.gravatar.com/avatar/%v?s=240&d=mp" -}}
+    {{- end -}}
+    {{- if $avatar -}}
+    <div class="home-avatar">
+        {{- $menus := $.Site.Menus.main | default slice -}}
+        {{- $optim := slice
+            (dict "Process" "fill center 96x96 webp q75" "descriptor" "96w")
+            (dict "Process" "fill center 144x144 webp q75" "descriptor" "144w")
+            (dict "Process" "fill center 192x192 webp q75" "descriptor" "192w")
+        -}}
+        {{- with index $menus 0 -}}
+            {{- $url := .URL | relLangURL -}}
+            {{- with .Page -}}
+                {{- $url = .RelPermalink -}}
+            {{- end -}}
+            {{- with $profile.avatarLinkURL -}}
+                {{- $url = . -}}
+            {{- end -}}
+            <a href="{{ $url }}" {{ with .Title | default .Name }} title="{{ . }}" {{ end }}{{ if (urls.Parse $url).Host }} rel="noopener noreferrer" target="_blank" {{ end }}>
+                {{- dict "Src" $avatar "Height" "100" "Width" "100" "Loading" "eager" "OptimConfig" $optim "Alt" "Home avatar" | partial "plugin/image.html" -}}
+            </a>
+        {{- else -}}
+            {{- dict "Src" $avatar "Height" "100" "Width" "100" "Loading" "eager" "OptimConfig" $optim "Alt" "Home avatar" | partial "plugin/image.html" -}}
+        {{- end -}}
+    </div>
+    {{- end -}}
+
+    {{- with $profile.title -}}
+    <h1 class="home-title">
+        {{- . | safeHTML -}}
+    </h1>
+    {{- end -}}
+
+    {{/* 홈 프로필 소개: 정적 터미널 창 디자인(실제 기능 없음, 나를 소개) */}}
+    <div class="home-term" aria-label="소개 터미널">
+        <div class="home-term__bar">
+            <span class="home-term__dot home-term__dot--red"></span>
+            <span class="home-term__dot home-term__dot--yellow"></span>
+            <span class="home-term__dot home-term__dot--green"></span>
+            <span class="home-term__title">ken@blog: ~</span>
+        </div>
+        <div class="home-term__body">
+<span class="home-term__prompt">ken@blog:~$</span> <span class="home-term__cmd">whoami</span>
+HYEONJAE LEE  (이현재 / 李 賢在)
+
+<span class="home-term__prompt">ken@blog:~$</span> <span class="home-term__cmd">cat profile.txt</span>
+클라우드 네이티브 인프라에 관심이 많은 엔지니어
+주로 <span class="home-term__accent">Kubernetes</span> · <span class="home-term__accent">Network</span> · <span class="home-term__accent">Golang</span> 을 다룬다
+🎖  <span class="home-term__accent">Kubestronaut</span> (CNCF)
+
+<span class="home-term__prompt">ken@blog:~$</span> <span class="home-term__cmd">./explore.sh</span>
+아래에서 최근 글과 소셜 링크를 확인하세요.
+
+<span class="home-term__prompt">ken@blog:~$</span> <span class="home-term__cursor"></span></div>
+    </div>
+
+    {{- if $profile.social -}}
+    <div class="links">
+        {{- $socialMap := resources.Get "data/social.yml" | transform.Unmarshal -}}
+        {{- $socialArr := slice -}}
+        {{- range $key, $value := .Site.Params.social -}}
+        {{- $social := $key | lower | index $socialMap | default dict -}}
+        {{- if $value -}}
+        {{- if reflect.IsMap $value -}}
+        {{- with $value.weight -}}
+        {{- $social = dict "Weight" . | merge $social -}}
+        {{- end -}}
+        {{- with $value.prefix -}}
+        {{- $social = dict "Prefix" . | merge $social -}}
+        {{- end -}}
+        {{- with $value.template -}}
+        {{- $social = dict "Template" . | merge $social -}}
+        {{- end -}}
+        {{- with $value.id -}}
+        {{- $social = dict "Id" . | merge $social -}}
+        {{- end -}}
+        {{- with $value.url -}}
+        {{- $social = dict "Url" . | merge $social -}}
+        {{- end -}}
+        {{- with $value.title -}}
+        {{- $social = dict "Title" . | merge $social -}}
+        {{- end -}}
+        {{- with $value.newtab -}}
+        {{- $social = dict "Newtab" . | merge $social -}}
+        {{- end -}}
+        {{- with $value.icon -}}
+        {{- $social = dict "Icon" . | merge $social -}}
+        {{- end -}}
+        {{- else if ne $value true -}}
+        {{- $social = dict "Id" $value | merge $social -}}
+        {{- end -}}
+        {{- if $social.Icon.Simpleicons -}}
+        {{- $prefix := ($.Scratch.Get "cdn" | default dict).simpleIconsPrefix -}}
+        {{- $social = dict "Prefix" $prefix | dict "Icon" | merge $social -}}
+        {{- end -}}
+        {{- $socialArr = $socialArr | append $social -}}
+        {{- end -}}
+        {{- end -}}
+        {{- range sort $socialArr "Weight" -}}
+        {{- partial "plugin/social.html" . -}}
+        {{- end -}}
+    </div>
+    {{- end -}}
+
+    {{- with $profile.disclaimer -}}
+    <h3 class="home-disclaimer">
+        {{- . | safeHTML -}}
+    </h3>
+    {{- end -}}
+</div>

@@ -33,4 +33,79 @@
     > :first-child {
         margin-top: 0;
     }
+
+    // 본문 문단·리스트 행간을 넓혀 빼곡한 느낌 완화(기본 1.5 → 2)
+    p,
+    li {
+        line-height: 2;
+    }
+}
+
+// ==============================
+// 홈 프로필: 자기소개용 정적 터미널 창(장식용, 실제 기능 없음)
+// ==============================
+.home-term {
+    max-width: 560px;
+    margin: 1.25rem auto 0.5rem;
+    text-align: left;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+    &__bar {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.55rem 0.8rem;
+        background: #161b22;
+        border-bottom: 1px solid #30363d;
+    }
+
+    &__dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+
+        &--red { background: #ff5f56; }
+        &--yellow { background: #ffbd2e; }
+        &--green { background: #27c93f; }
+    }
+
+    &__title {
+        margin-left: 0.5rem;
+        color: #8b949e;
+        font-size: 0.8rem;
+    }
+
+    &__body {
+        margin: 0;
+        padding: 1rem 1.1rem;
+        color: #c9d1d9;
+        font-size: 0.85rem;
+        line-height: 1.7;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    &__prompt { color: #27c93f; }
+    &__cmd { color: #c9d1d9; }
+    &__accent { color: #f0883e; }
+
+    &__cursor {
+        display: inline-block;
+        width: 8px;
+        height: 1.05em;
+        vertical-align: text-bottom;
+        background: #27c93f;
+        animation: home-term-blink 1.1s steps(1) infinite;
+    }
+}
+
+@keyframes home-term-blink {
+    0%, 50% { opacity: 1; }
+    50.01%, 100% { opacity: 0; }
 }
