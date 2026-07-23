@@ -4,6 +4,7 @@ date: 2026-07-18T08:00:00+09:00
 draft: false
 tags: ["CNPA", "Backstage", "Developer Experience", "AIOps", "CNCF"]
 categories: ["자격시험"]
+featuredImage: images/banners/cnpa-05-idp-developer-experience-28381f96.png
 ---
 
 이번 편은 **Domain 5: IDPs and Developer Experience (8%)** 를 정리한다.

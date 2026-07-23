@@ -4,6 +4,7 @@ date: 2026-07-16T08:00:00+09:00
 draft: false
 tags: ["Istio", "ICA", "Kubernetes", "Service Mesh", "Envoy"]
 categories: ["자격시험"]
+featuredImage: images/banners/istio-ica-01-prerequisites-76560b35.png
 ---
 
 ICA(Istio Certified Associate) 시험을 준비하기 위한 정리 시리즈의 첫 편이다.

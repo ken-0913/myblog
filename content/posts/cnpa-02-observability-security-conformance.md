@@ -4,6 +4,7 @@ date: 2026-07-15T08:00:00+09:00
 draft: false
 tags: ["CNPA", "Observability", "Security", "OpenTelemetry", "CNCF"]
 categories: ["자격시험"]
+featuredImage: images/banners/cnpa-02-observability-security-conformance-a25593c5.png
 ---
 
 이번 편은 **Domain 2: Platform Observability, Security, and Conformance (20%)** 를 정리한다.

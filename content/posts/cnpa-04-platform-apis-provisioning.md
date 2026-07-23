@@ -4,6 +4,7 @@ date: 2026-07-17T08:00:00+09:00
 draft: false
 tags: ["CNPA", "Kubernetes", "CRD", "Operator", "CNCF"]
 categories: ["자격시험"]
+featuredImage: images/banners/cnpa-04-platform-apis-provisioning-6018cc5d.png
 ---
 
 이번 편은 **Domain 4: Platform APIs and Provisioning Infrastructure (12%)** 를 정리한다.

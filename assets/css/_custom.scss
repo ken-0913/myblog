@@ -3,7 +3,27 @@
 // 본문 소제목(H1~H3) 위 여백을 넓혀 이전 내용과 구분, 아래 여백은 좁게 유지
 // ==============================
 
+// 코드블록(Chroma Monokai)의 눈부신 형광색을 전반적으로 채도 낮은 톤으로 완화.
+// 색은 inline style이라 !important로만 덮인다. 각 hue는 유지하되 채도만 낮춤.
+.chroma {
+    // 함수·식별자 이름: 형광 초록 → 세이지 초록
+    span[style*="#a6e22e"] { color: #82a06a !important; }
+    // 키워드(package/func/for 등): 형광 핑크 → 차분한 로즈
+    span[style*="#f92672"] { color: #c07178 !important; }
+    // 타입·파라미터: 형광 시안 → 차분한 틸
+    span[style*="#66d9ef"] { color: #7fa3ab !important; }
+    // 문자열: 눈부신 노랑 → 칙칙한 카키
+    span[style*="#e6db74"] { color: #bdb27a !important; }
+    // 숫자·상수: 형광 보라 → 차분한 라벤더
+    span[style*="#ae81ff"] { color: #9c8bc4 !important; }
+    // 주석(#75715e 회색)은 이미 차분하므로 그대로 둔다
+}
+
 #content {
+    // 글 메타정보(제목·날짜 등)와 본문 첫 문장이 붙지 않도록 위 여백 확보.
+    // 마크다운 본문 앞 빈 줄은 Hugo가 제거하므로, 이 여백은 CSS로만 만들어진다.
+    margin-top: 2.25rem;
+
     h1,
     h2,
     h3,
@@ -39,6 +59,60 @@
     li {
         line-height: 2;
     }
+}
+
+// ==============================
+// 글 본문용 터미널 창 (terminal shortcode) — 정적 디자인
+// ==============================
+.term {
+    margin: 1.5rem 0;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+    &__bar {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.55rem 0.8rem;
+        background: #161b22;
+        border-bottom: 1px solid #30363d;
+    }
+
+    &__dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+
+        &--red { background: #ff5f56; }
+        &--yellow { background: #ffbd2e; }
+        &--green { background: #27c93f; }
+    }
+
+    &__title {
+        margin-left: 0.5rem;
+        color: #8b949e;
+        font-size: 0.8rem;
+    }
+
+    &__body {
+        margin: 0;
+        padding: 1rem 1.1rem;
+        color: #c9d1d9;
+        font-size: 0.85rem;
+        line-height: 1.7;
+        white-space: pre-wrap;
+        word-break: break-word;
+        overflow-x: auto;
+    }
+
+    &__prompt { color: #27c93f; }
+    &__cmd { color: #c9d1d9; }
+    &__comment { color: #6e7681; }
 }
 
 // ==============================
@@ -84,11 +158,18 @@
     &__body {
         margin: 0;
         padding: 1rem 1.1rem;
+        // 애니메이션으로 내용이 채워지는 동안 높이가 튀지 않도록 최소 높이 확보
+        min-height: 16.5em;
         color: #c9d1d9;
         font-size: 0.85rem;
         line-height: 1.7;
         white-space: pre-wrap;
         word-break: break-word;
+    }
+
+    // 명령 출력 블록 아래에 살짝 여백(다음 프롬프트와 구분)
+    &__out {
+        margin-bottom: 0.55rem;
     }
 
     &__prompt { color: #27c93f; }

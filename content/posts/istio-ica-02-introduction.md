@@ -4,6 +4,7 @@ date: 2026-07-16T08:10:00+09:00
 draft: false
 tags: ["Istio", "ICA", "Istiod", "Envoy", "Kiali"]
 categories: ["자격시험"]
+featuredImage: images/banners/istio-ica-02-introduction-27a830a0.png
 ---
 
 ICA 시험 정리 시리즈 두 번째 편이다.

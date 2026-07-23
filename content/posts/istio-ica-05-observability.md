@@ -4,6 +4,7 @@ date: 2026-07-16T08:40:00+09:00
 draft: false
 tags: ["Istio", "ICA", "Observability", "Prometheus", "Jaeger"]
 categories: ["자격시험"]
+featuredImage: images/banners/istio-ica-05-observability-7cbed6a5.png
 ---
 
 ICA 시험 정리 시리즈 마지막 편이다.

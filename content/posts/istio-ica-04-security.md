@@ -4,6 +4,7 @@ date: 2026-07-16T08:30:00+09:00
 draft: false
 tags: ["Istio", "ICA", "Security", "mTLS", "AuthorizationPolicy"]
 categories: ["자격시험"]
+featuredImage: images/banners/istio-ica-04-security-49d67983.png
 ---
 
 ICA 시험 정리 시리즈 네 번째 편이다.

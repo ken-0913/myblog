@@ -4,6 +4,7 @@ date: 2026-07-14T08:00:00+09:00
 draft: false
 tags: ["CNPA", "Platform Engineering", "Kubernetes", "GitOps", "CNCF"]
 categories: ["자격시험"]
+featuredImage: images/banners/cnpa-01-platform-engineering-fundamentals-ca73458d.png
 ---
 
 CNPA(Certified Cloud Native Platform Engineering Associate)는 CNCF가 주관하는 플랫폼 엔지니어링 자격 시험이다.

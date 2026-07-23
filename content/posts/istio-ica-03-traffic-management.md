@@ -4,6 +4,7 @@ date: 2026-07-16T08:20:00+09:00
 draft: false
 tags: ["Istio", "ICA", "Traffic Management", "VirtualService", "DestinationRule"]
 categories: ["자격시험"]
+featuredImage: images/banners/istio-ica-03-traffic-management-38bae821.png
 ---
 
 ICA 시험 정리 시리즈 세 번째 편이다.

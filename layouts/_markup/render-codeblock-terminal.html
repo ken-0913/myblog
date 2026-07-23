@@ -1,0 +1,44 @@
+{{- /*
+  코드블록 렌더 훅 — ```terminal 코드블록을 터미널 창 디자인으로 렌더한다.
+
+  사용법(글 본문):
+    ```terminal
+    $ whoami
+    HYEONJAE LEE
+    # 아래는 주석
+    $ kubectl get pods
+    web   1/1   Running
+    ```
+
+  규칙:
+    - "$ " 로 시작하는 줄 → 프롬프트 + 명령어(초록 강조)
+    - "# " 로 시작하는 줄 → 주석(회색)
+    - 그 외 줄        → 명령 출력(그대로 표시)
+  제목(창 상단)은 title 속성으로 지정 가능(미지정 시 "bash").
+    ```terminal {title="ken@blog: ~"}
+*/ -}}
+{{- $title := or (.Attributes.title) "bash" -}}
+{{- $lines := split (trim .Inner "\n\r") "\n" -}}
+{{- $out := slice -}}
+{{- range $lines -}}
+{{-   $l := strings.TrimRight "\r" . -}}
+{{-   if eq $l "$" -}}
+{{-     $out = $out | append `<span class="term__prompt">$</span>` -}}
+{{-   else if hasPrefix $l "$ " -}}
+{{-     $cmd := htmlEscape (strings.TrimPrefix "$ " $l) -}}
+{{-     $out = $out | append (printf `<span class="term__prompt">$</span> <span class="term__cmd">%s</span>` $cmd) -}}
+{{-   else if hasPrefix $l "# " -}}
+{{-     $out = $out | append (printf `<span class="term__comment">%s</span>` (htmlEscape $l)) -}}
+{{-   else -}}
+{{-     $out = $out | append (htmlEscape $l) -}}
+{{-   end -}}
+{{- end -}}
+<div class="term">
+    <div class="term__bar">
+        <span class="term__dot term__dot--red"></span>
+        <span class="term__dot term__dot--yellow"></span>
+        <span class="term__dot term__dot--green"></span>
+        <span class="term__title">{{ $title }}</span>
+    </div>
+    <div class="term__body">{{ delimit $out "\n" | safeHTML }}</div>
+</div>

@@ -35,7 +35,8 @@
     </h1>
     {{- end -}}
 
-    {{/* 홈 프로필 소개: 정적 터미널 창 디자인(실제 기능 없음, 나를 소개) */}}
+    {{/* 홈 프로필 소개: 명령어 입력 애니메이션 터미널(실제 기능 없음, 나를 소개) */}}
+    {{/* JS가 body를 비우고 순차 재생. JS 미동작/모션최소화 시 아래 정적 내용이 그대로 노출됨 */}}
     <div class="home-term" aria-label="소개 터미널">
         <div class="home-term__bar">
             <span class="home-term__dot home-term__dot--red"></span>
@@ -43,7 +44,7 @@
             <span class="home-term__dot home-term__dot--green"></span>
             <span class="home-term__title">ken@blog: ~</span>
         </div>
-        <div class="home-term__body">
+        <div class="home-term__body" id="home-term-body">
 <span class="home-term__prompt">ken@blog:~$</span> <span class="home-term__cmd">whoami</span>
 HYEONJAE LEE  (이현재 / 李 賢在)
 
@@ -57,6 +58,82 @@ HYEONJAE LEE  (이현재 / 李 賢在)
 
 <span class="home-term__prompt">ken@blog:~$</span> <span class="home-term__cursor"></span></div>
     </div>
+    <script>
+    (function () {
+        var body = document.getElementById("home-term-body");
+        if (!body) { return; }
+        var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        if (reduce) { return; } // 모션 최소화 설정이면 정적 내용 유지
+
+        var PROMPT = "ken@blog:~$";
+        // 각 단계: cmd(타이핑할 명령어), out(출력 HTML). 이 배열만 고치면 내용 변경됨.
+        var SEQ = [
+            { cmd: "whoami", out: "HYEONJAE LEE  (이현재 / 李 賢在)" },
+            { cmd: "cat profile.txt", out: '클라우드 네이티브 인프라에 관심이 많은 엔지니어\n주로 <span class="home-term__accent">Kubernetes</span> · <span class="home-term__accent">Network</span> · <span class="home-term__accent">Golang</span> 을 다룬다\n🎖  <span class="home-term__accent">Kubestronaut</span> (CNCF)' },
+            { cmd: "./explore.sh", out: "아래에서 최근 글과 소셜 링크를 확인하세요." }
+        ];
+
+        body.innerHTML = ""; // 정적 fallback 비우고 애니메이션 시작
+
+        function span(cls, html) {
+            var s = document.createElement("span");
+            if (cls) { s.className = cls; }
+            if (html != null) { s.innerHTML = html; }
+            return s;
+        }
+        function newCursor() { return span("home-term__cursor", ""); }
+
+        function addPromptLine() {
+            var line = document.createElement("div");
+            line.appendChild(span("home-term__prompt", PROMPT));
+            line.appendChild(document.createTextNode(" "));
+            var cmd = span("home-term__cmd", "");
+            var cursor = newCursor();
+            line.appendChild(cmd);
+            line.appendChild(cursor);
+            body.appendChild(line);
+            body.scrollTop = body.scrollHeight;
+            return { cmd: cmd, cursor: cursor };
+        }
+        function addOutput(html) {
+            var div = document.createElement("div");
+            div.className = "home-term__out";
+            div.innerHTML = html;
+            body.appendChild(div);
+            body.scrollTop = body.scrollHeight;
+        }
+
+        var i = 0;
+        function typeCmd(text, cmdEl, cursorEl, done) {
+            var n = 0;
+            (function step() {
+                cmdEl.textContent = text.slice(0, n);
+                body.scrollTop = body.scrollHeight;
+                if (n < text.length) {
+                    n++;
+                    setTimeout(step, 55 + Math.random() * 55);
+                } else {
+                    setTimeout(done, 260);
+                }
+            })();
+        }
+        function runStep() {
+            if (i >= SEQ.length) {
+                var last = addPromptLine(); // 마지막은 빈 프롬프트 + 깜빡이는 커서 유지
+                return;
+            }
+            var item = SEQ[i];
+            var p = addPromptLine();
+            typeCmd(item.cmd, p.cmd, p.cursor, function () {
+                if (p.cursor.parentNode) { p.cursor.parentNode.removeChild(p.cursor); }
+                addOutput(item.out);
+                i++;
+                setTimeout(runStep, 480);
+            });
+        }
+        setTimeout(runStep, 450);
+    })();
+    </script>
 
     {{- if $profile.social -}}
     <div class="links">

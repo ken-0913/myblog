@@ -4,6 +4,7 @@ date: 2026-07-16T08:00:00+09:00
 draft: false
 tags: ["CNPA", "Continuous Delivery", "GitOps", "Argo CD", "CNCF"]
 categories: ["자격시험"]
+featuredImage: images/banners/cnpa-03-continuous-delivery-91a293f7.png
 ---
 
 이번 편은 **Domain 3: Continuous Delivery & Platform Engineering (16%)** 를 정리한다.

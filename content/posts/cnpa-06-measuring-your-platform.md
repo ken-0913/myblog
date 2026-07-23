@@ -4,6 +4,7 @@ date: 2026-07-19T08:00:00+09:00
 draft: false
 tags: ["CNPA", "DORA", "Platform Maturity", "SRE", "CNCF"]
 categories: ["자격시험"]
+featuredImage: images/banners/cnpa-06-measuring-your-platform-6156a41f.png
 ---
 
 이 시리즈의 마지막 편은 **Domain 6: Measuring your Platform (8%)** 를 정리한다.
