@@ -24,6 +24,19 @@
     display: inline-block;
 }
 
+// navbar 브랜드("lee's blog")도 동일한 손글씨체로
+.header-title a {
+    font-family: "Caveat", cursive;
+    font-weight: 700;
+    font-size: 1.6rem;
+}
+
+// 메뉴 클릭(활성) 시 글자가 너무 두꺼워(900) 조금 얇은 볼드로 완화
+.menu a.active,
+.menu-item a.active {
+    font-weight: 600 !important;
+}
+
 // 코드블록(Chroma Monokai)의 눈부신 형광색을 전반적으로 채도 낮은 톤으로 완화.
 // 색은 inline style이라 !important로만 덮인다. 각 hue는 유지하되 채도만 낮춤.
 .chroma {

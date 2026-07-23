@@ -38,10 +38,6 @@ menu:
       name: "Tags"
       url: "/tags/"
       weight: 3
-    - identifier: archive
-      name: "Archive"
-      url: "/archives/"
-      weight: 4
     - identifier: about
       name: "About"
       url: "/about/"
@@ -72,9 +68,9 @@ params:
   home:
     profile:
       enable: true
-      title: "lee's blog"
+      title: ""
       subtitle: ""
-      social: true
+      social: false
     posts:
       enable: true
       paginate: 6
