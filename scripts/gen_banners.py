@@ -29,12 +29,13 @@ BANNER_DIR = ROOT / "assets" / "images" / "banners"
 BANNER_URL_PREFIX = "images/banners"
 
 W, H = 1200, 630
-BG_TOP = (13, 17, 23)      # #0d1117
-BG_BOTTOM = (22, 27, 34)   # #161b22
-GREEN = (39, 201, 63)      # #27c93f (프롬프트)
-TITLE_COLOR = (230, 237, 243)  # #e6edf3
-MUTED = (139, 148, 158)    # #8b949e
-ACCENT_BAR = (39, 201, 63)
+# 연한 회색 배경 + 검은색 글자 (라이트 톤)
+BG_TOP = (244, 245, 247)       # #f4f5f7
+BG_BOTTOM = (231, 234, 238)    # #e7eaee
+GREEN = (34, 139, 63)          # #228b3f 프롬프트(라이트 배경 대비 확보한 초록)
+TITLE_COLOR = (24, 24, 27)     # #18181b 제목(검은색)
+MUTED = (100, 108, 120)        # #646c78 보조 텍스트
+ACCENT_BAR = (34, 139, 63)
 
 FONT_CANDIDATES = [
     os.environ.get("FONT_PATH", ""),
@@ -68,19 +69,22 @@ def slugify(stem: str) -> str:
 
 
 def parse_front_matter(text: str):
-    """(title, has_featured, fm_start, fm_end) 반환. front matter 없으면 title=None."""
+    """(title, featured_value, fm_start, fm_end) 반환.
+    front matter 없으면 title=None. featuredImage 없으면 featured_value=None."""
     m = re.match(r"^---\n(.*?)\n---\n", text, re.S)
     if not m:
-        return None, False, None, None
+        return None, None, None, None
     fm = m.group(1)
     title = None
+    featured = None
     for line in fm.splitlines():
         tm = re.match(r"\s*title:\s*(.+?)\s*$", line)
-        if tm:
+        if tm and title is None:
             title = tm.group(1).strip().strip('"').strip("'")
-            break
-    has_featured = re.search(r"^\s*featuredImage\s*:", fm, re.M) is not None
-    return title, has_featured, m.start(1), m.end(1)
+        fm2 = re.match(r"\s*featuredImage\s*:\s*(.+?)\s*$", line)
+        if fm2 and featured is None:
+            featured = fm2.group(1).strip().strip('"').strip("'")
+    return title, featured, m.start(1), m.end(1)
 
 
 def wrap_text(draw, text, font, max_width):
@@ -175,20 +179,24 @@ def main():
 
     for md_path, stem in iter_posts():
         text = md_path.read_text(encoding="utf-8")
-        title, has_featured, fm_s, fm_e = parse_front_matter(text)
+        title, featured, fm_s, fm_e = parse_front_matter(text)
         if title is None:
             print(f"[skip] front matter 없음: {md_path}")
             continue
-        if has_featured:
-            continue  # 이미 대표 이미지가 있으면 건드리지 않음
+        # 사용자가 직접 지정한(우리가 만든 배너가 아닌) 대표 이미지는 존중하고 건너뜀
+        if featured is not None and not featured.startswith(BANNER_URL_PREFIX):
+            continue
 
         slug = slugify(stem)
         banner_path = BANNER_DIR / f"{slug}.png"
+        # 디자인 변경 반영을 위해 기존 배너도 항상 다시 렌더(overwrite)
         render_banner(title, banner_path, font_path)
 
-        featured_line = f"featuredImage: {BANNER_URL_PREFIX}/{slug}.png\n"
-        new_text = text[:fm_e] + "\n" + featured_line.rstrip("\n") + text[fm_e:]
-        md_path.write_text(new_text, encoding="utf-8")
+        if featured is None:
+            # 대표 이미지가 없던 글에만 front matter 삽입
+            featured_line = f"featuredImage: {BANNER_URL_PREFIX}/{slug}.png"
+            new_text = text[:fm_e] + "\n" + featured_line + text[fm_e:]
+            md_path.write_text(new_text, encoding="utf-8")
 
         generated += 1
         print(f"[gen] {md_path.name} -> {banner_path.relative_to(ROOT)}")
