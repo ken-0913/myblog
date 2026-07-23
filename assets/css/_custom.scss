@@ -3,6 +3,27 @@
 // 본문 소제목(H1~H3) 위 여백을 넓혀 이전 내용과 구분, 아래 여백은 좁게 유지
 // ==============================
 
+// 손글씨(휘갈겨 쓴 느낌) 폰트 — 홈 제목용. 폰트는 static/fonts에 self-host.
+// url()은 컴파일된 CSS(/css) 기준 상대경로(../fonts)로 두어 baseURL(/myblog) 하위에서도 동작.
+@font-face {
+    font-family: "Caveat";
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url("../fonts/caveat-700.woff2") format("woff2");
+}
+
+// 홈 제목("lee's blog")에 손글씨체 적용
+.home-title {
+    font-family: "Caveat", cursive;
+    font-weight: 700;
+    font-size: 3.2rem;
+    letter-spacing: 0.5px;
+    // 살짝 기울여 휘갈겨 쓴 느낌 강조
+    transform: rotate(-2deg);
+    display: inline-block;
+}
+
 // 코드블록(Chroma Monokai)의 눈부신 형광색을 전반적으로 채도 낮은 톤으로 완화.
 // 색은 inline style이라 !important로만 덮인다. 각 hue는 유지하되 채도만 낮춤.
 .chroma {

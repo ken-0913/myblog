@@ -3,7 +3,7 @@ baseURL: "https://ken-0913.github.io/myblog/"
 
 defaultContentLanguage: "ko"
 languageCode: "ko-kr"
-title: "내 블로그"
+title: "lee's blog"
 theme: "DoIt"
 
 # 글 작성 시 기본 front matter 형식을 YAML로 고정
@@ -83,7 +83,7 @@ params:
   home:
     profile:
       enable: true
-      title: "내 블로그"
+      title: "lee's blog"
       subtitle: ""
       social: true
     posts:
