@@ -11,6 +11,46 @@ LFCS 시리즈 네 번째 편으로 **Storage (20%)** 도메인의 **생성·수
 1편이 `lsblk`·`df`·`pvs` 같은 **조회** 위주였다면, 이번 편은 포맷·마운트·LVM 변경 같은 **실제 작업**이 중심이다.
 정리 후 **인터랙티브 연습 터미널**에서 명령을 직접 입력해 본다.
 
+## 0. 실습 환경 준비 (loop device)
+
+ `/dev/vdb` 같은 **여분 디스크**가 있다고 가정한다.
+하지만 일반 리눅스에는 이런 디스크가 없으므로, **이미지 파일을 블록 장치처럼 연결**하는 loop device로 실습 환경을 만든다.
+`fallocate`로 빈 이미지를 만들고 `losetup`으로 `/dev/loopN`에 붙인다. 
+
+```bash
+# 1GB짜리 이미지 파일 생성
+fallocate -l 1G ~/disk.img
+
+# 블록 장치로 연결 → /dev/loop0 같은 이름이 출력됨
+sudo losetup -fP --show ~/disk.img
+
+# 이후는 교재와 똑같이
+sudo mkfs -t ext4 /dev/loop0
+sudo mkdir -p /mnt/backup-black
+sudo mount /dev/loop0 /mnt/backup-black
+sudo touch /mnt/backup-black/completed
+df -h /mnt/backup-black
+lsblk -f
+```
+
+- **`fallocate -l 1G`**: 실제 1GB를 즉시 할당해 이미지 파일을 만든다.
+- **`losetup -f`**: 비어 있는 첫 loop 장치를 자동 선택한다. `-P`는 파티션 인식, `--show`는 할당된 장치명을 출력한다.
+
+이렇게 만든 `/dev/loop0`는 아래 문제들의 `/dev/vdb` 자리에 그대로 대입하면 된다.
+
+실습을 끝낸 뒤에는 **마운트 해제 → loop 연결 해제 → 이미지 삭제** 순으로 정리한다.
+
+```terminal
+# 마운트 해제
+sudo umount /mnt/backup-black
+
+# loop 장치 연결 해제
+sudo losetup -d /dev/loop0
+
+# 이미지 파일 삭제
+rm ~/disk.img
+```
+
 ## 1. 디스크 포맷·마운트
 
 새 디스크는 `mkfs`로 파일시스템을 만든 뒤 `mount`로 붙인다.
