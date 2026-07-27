@@ -164,12 +164,17 @@ def render_banner(title: str, out_path: Path, font_path: str):
 
 
 def iter_posts():
-    for p in sorted(POSTS_DIR.glob("*.md")):
-        yield p, p.stem
-    for d in sorted(POSTS_DIR.iterdir()):
-        idx = d / "index.md"
-        if d.is_dir() and idx.exists():
-            yield idx, d.name
+    # 하위 폴더(섹션)까지 재귀 순회한다.
+    #   - <섹션>/<글>.md  : 일반 글 → stem 이 slug
+    #   - <폴더>/index.md : 페이지 번들 → 폴더명이 slug
+    #   - _index.md       : 섹션 목록 페이지 → 배너 대상 아님(제외)
+    for p in sorted(POSTS_DIR.rglob("*.md")):
+        if p.name == "_index.md":
+            continue
+        if p.name == "index.md":
+            yield p, p.parent.name
+        else:
+            yield p, p.stem
 
 
 def main():
