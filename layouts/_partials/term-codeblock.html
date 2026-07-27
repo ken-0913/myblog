@@ -1,0 +1,21 @@
+{{- /*
+  json/yaml/bash 코드블록을 "터미널 창" 디자인으로 렌더하는 공용 partial.
+  - 구문 강조(Chroma)는 유지한다.
+  - 긴 줄은 word-break로 뭉개지 않고 가로 스크롤(overflow-x)한다.
+  - 창 제목은 title 속성으로 지정 가능(미지정 시 언어명).
+      ```bash {title="deploy.sh"}
+  render hook(render-codeblock-<lang>.html)에서 `{{ partial "term-codeblock.html" . }}` 로 호출한다.
+*/ -}}
+{{- $lang := .Type -}}
+{{- $title := .Attributes.title | default $lang -}}
+{{- $code := trim .Inner "\n\r" -}}
+{{- $hl := transform.Highlight $code $lang "linenos=false" -}}
+<div class="term-code">
+    <div class="term-code__bar">
+        <span class="term-code__dot term-code__dot--red"></span>
+        <span class="term-code__dot term-code__dot--yellow"></span>
+        <span class="term-code__dot term-code__dot--green"></span>
+        <span class="term-code__title">{{ $title }}</span>
+    </div>
+    <div class="term-code__body">{{ $hl }}</div>
+</div>

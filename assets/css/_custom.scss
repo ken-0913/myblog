@@ -150,6 +150,79 @@
 }
 
 // ==============================
+// json/yaml/bash 코드블록 — 터미널 창 디자인 + 구문 강조 유지
+// (render hook: render-codeblock-{bash,yaml,json}.html)
+// ==============================
+.term-code {
+    margin: 1.5rem 0;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+    &__bar {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.55rem 0.8rem;
+        background: #161b22;
+        border-bottom: 1px solid #30363d;
+    }
+
+    &__dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+
+        &--red { background: #ff5f56; }
+        &--yellow { background: #ffbd2e; }
+        &--green { background: #27c93f; }
+    }
+
+    &__title {
+        margin-left: 0.5rem;
+        color: #8b949e;
+        font-size: 0.8rem;
+    }
+
+    &__body {
+        padding: 1rem 1.1rem;
+        overflow-x: auto;
+        color: #c9d1d9;
+        font-size: 0.85rem;
+        line-height: 1.6;
+
+        // 긴 줄은 줄바꿈으로 뭉개지 않고 가로 스크롤
+        pre {
+            white-space: pre;
+            overflow-x: auto;
+        }
+    }
+}
+
+// 테마의 `.single .content code/pre { background: ... !important }` 규칙을 이겨야
+// 터미널 다크 배경이 보이므로, specificity를 그보다 높게 잡는다.
+// (transform.Highlight 출력의 <code>에는 chroma 클래스가 없어 inline-code 스타일이 잘못 먹는 것도 함께 무력화)
+.single .content .term-code .term-code__body {
+    .highlight,
+    pre,
+    code {
+        display: block;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        color: inherit;
+        font-size: inherit;
+        line-height: inherit;
+    }
+}
+
+// ==============================
 // 홈 프로필: 자기소개용 정적 터미널 창(장식용, 실제 기능 없음)
 // ==============================
 .home-term {
