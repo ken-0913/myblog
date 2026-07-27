@@ -4,6 +4,7 @@ date: 2026-07-27T10:00:00+09:00
 draft: false
 tags: ["MCP", "Claude Code", "GitHub Actions", "Datadog", "GCP", "Workload Identity Federation"]
 categories: ["프로그래밍"]
+featuredImage: images/banners/mcp-datadog-gcp-github-actions-wif-bf0c48b3.png
 ---
 GitHub 이슈에 `@claude` 코멘트를 달면 Claude Code Action이 Actions에서 돌아간다.
 이때 MCP 서버를 붙이면 봇이 외부 도구(Datadog 조회, GCP 로그 조회 등)를 직접 호출할 수 있다.  

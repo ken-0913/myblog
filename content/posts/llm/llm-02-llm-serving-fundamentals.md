@@ -4,6 +4,7 @@ date: 2026-07-26T09:00:00+09:00
 draft: false
 tags: ["LLM", "Transformer", "KV Cache", "vLLM", "Inference"]
 categories: ["프로그래밍"]
+featuredImage: images/banners/llm-02-llm-serving-fundamentals-a28d8a4a.png
 ---
 
 앞 글에서 Model Serving이 '배달의 문제'라는 것을 봤다.

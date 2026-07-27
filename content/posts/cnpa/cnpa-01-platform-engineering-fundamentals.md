@@ -4,6 +4,7 @@ date: 2026-07-14T08:00:00+09:00
 draft: false
 tags: ["CNPA", "Platform Engineering", "Kubernetes", "GitOps", "CNCF"]
 categories: ["자격시험"]
+featuredImage: images/banners/cnpa-01-platform-engineering-fundamentals-ca73458d.png
 ---
 ## 선언적 vs 명령적 (Declarative vs Imperative)
 

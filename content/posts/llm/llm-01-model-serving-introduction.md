@@ -4,6 +4,7 @@ date: 2026-07-25T09:00:00+09:00
 draft: false
 tags: ["LLM", "Model Serving", "MLOps", "vLLM", "Inference"]
 categories: ["프로그래밍"]
+featuredImage: images/banners/llm-01-model-serving-introduction-a4a6addb.png
 ---
 
 AI라고 하면 보통 **모델을 학습(training)** 시키는 이야기를 떠올린다.
