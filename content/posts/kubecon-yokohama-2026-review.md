@@ -4,6 +4,7 @@ date: 2026-07-29T21:00:00+09:00
 draft: false
 tags: ["KubeCon", "CNCF", "Kubernetes", "AI", "MCP", "Gateway API", "Cluster API", "vLLM", "WebAssembly"]
 categories: ["컨퍼런스"]
+featuredImage: images/banners/kubecon-yokohama-2026-review-a6abe5c0.png
 ---
 2026년 7월 말, KubeCon + CloudNativeCon Japan이 요코하마에서 열렸다. 이번 행사의 공통된 주제는 AI 워크로드를 기존 클라우드 네이티브 생태계 위에 어떻게 통합하느냐였다. 아래는 현장에서 다룬 세션 여섯 개를 정리한 내용이다.
 
