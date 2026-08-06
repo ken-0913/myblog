@@ -6,6 +6,7 @@ tags: ["LLM", "GPT-3", "Embedding", "Transformer", "선형대수"]
 categories: ["프로그래밍"]
 math:
   enable: true
+featuredImage: images/banners/llm-03-gpt3-embeddings-1d92e886.png
 ---
 LLM은 글자를 직접 다루지 못한다. 오직 **숫자(벡터)** 만 계산할 수 있다.
 그래서 첫 단계는 단어(정확히는 token)를 벡터로 바꾸는 것인데, 이를 **embedding(임베딩)** 이라 한다.
