@@ -1,0 +1,305 @@
+{{- /*
+  cosine-demo shortcode — 두 벡터의 내적/코사인 유사도 인터랙티브 데모.
+  끝점을 드래그하면 cos·내적이 실시간 갱신되고, 각도 프리셋은 부드럽게 애니메이션된다.
+  사용법:  {{< cosine-demo >}}
+  다크모드: DoIt 테마의 body[theme="dark"] 에 맞춰 색이 자동 전환된다.
+*/ -}}
+<div class="cos-widget" data-cos>
+  <style>
+    .cos-widget {
+      --cw-bg: #f4f6fb; --cw-panel: #ffffff; --cw-panel2: #eef1f7; --cw-ink: #1a2233;
+      --cw-muted: #5b6784; --cw-line: #dce1ec; --cw-grid: #d7ddea; --cw-axis: #9aa6bd;
+      --cw-vec-a: #e8663c; --cw-vec-b: #159fb2; --cw-pos: #12a06a; --cw-neg: #dd4657;
+      --cw-mono: "Source Code Pro", Menlo, Consolas, Monaco, monospace;
+      margin: 1.6rem 0; color: var(--cw-ink);
+      font-family: inherit;
+    }
+    @media (prefers-color-scheme: dark) {
+      .cos-widget {
+        --cw-bg: #0f1621; --cw-panel: #161f2d; --cw-panel2: #101826; --cw-ink: #e7edf7;
+        --cw-muted: #8c99b2; --cw-line: #26303f; --cw-grid: #202a3a; --cw-axis: #3d4b60;
+        --cw-vec-a: #ff7d51; --cw-vec-b: #2fcede; --cw-pos: #34c98a; --cw-neg: #ff6a77;
+      }
+    }
+    body[theme="light"] .cos-widget {
+      --cw-bg: #f4f6fb; --cw-panel: #ffffff; --cw-panel2: #eef1f7; --cw-ink: #1a2233;
+      --cw-muted: #5b6784; --cw-line: #dce1ec; --cw-grid: #d7ddea; --cw-axis: #9aa6bd;
+      --cw-vec-a: #e8663c; --cw-vec-b: #159fb2; --cw-pos: #12a06a; --cw-neg: #dd4657;
+    }
+    body[theme="dark"] .cos-widget {
+      --cw-bg: #0f1621; --cw-panel: #161f2d; --cw-panel2: #101826; --cw-ink: #e7edf7;
+      --cw-muted: #8c99b2; --cw-line: #26303f; --cw-grid: #202a3a; --cw-axis: #3d4b60;
+      --cw-vec-a: #ff7d51; --cw-vec-b: #2fcede; --cw-pos: #34c98a; --cw-neg: #ff6a77;
+    }
+    .cos-widget * { box-sizing: border-box; }
+    .cos-widget .cw-stage {
+      display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 14px;
+      align-items: start;
+    }
+    @media (max-width: 720px) { .cos-widget .cw-stage { grid-template-columns: minmax(0, 1fr); } }
+    .cos-widget .cw-card {
+      background: var(--cw-panel); border: 1px solid var(--cw-line); border-radius: 14px;
+      min-width: 0;
+    }
+    .cos-widget .cw-plot { padding: 10px; position: relative; }
+    .cos-widget canvas { width: 100%; height: auto; display: block; border-radius: 9px; touch-action: none; cursor: grab; }
+    .cos-widget canvas.cw-drag { cursor: grabbing; }
+    .cos-widget .cw-hint {
+      position: absolute; left: 18px; bottom: 18px; font-size: 11px; color: var(--cw-muted);
+      background: color-mix(in srgb, var(--cw-panel) 80%, transparent);
+      padding: 3px 8px; border-radius: 999px; pointer-events: none; border: 1px solid var(--cw-line);
+    }
+    .cos-widget .cw-read { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+    .cos-widget .cw-cos-label { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--cw-muted); font-weight: 600; margin: 0; }
+    .cos-widget .cw-cos-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-top: 6px; }
+    .cos-widget .cw-cos-val { font-family: var(--cw-mono); font-size: 36px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+    .cos-widget .cw-ang { font-family: var(--cw-mono); font-size: 14px; color: var(--cw-muted); }
+    .cos-widget .cw-gauge {
+      position: relative; height: 11px; border-radius: 999px; margin-top: 12px; border: 1px solid var(--cw-line);
+      background: linear-gradient(90deg,
+        color-mix(in srgb, var(--cw-neg) 55%, transparent),
+        color-mix(in srgb, var(--cw-muted) 22%, transparent) 50%,
+        color-mix(in srgb, var(--cw-pos) 55%, transparent));
+    }
+    .cos-widget .cw-knob {
+      position: absolute; top: 50%; width: 15px; height: 15px; border-radius: 50%;
+      background: var(--cw-panel); border: 3px solid var(--cw-ink); transform: translate(-50%, -50%);
+    }
+    .cos-widget .cw-scale { display: flex; justify-content: space-between; font-family: var(--cw-mono); font-size: 10.5px; color: var(--cw-muted); margin-top: 5px; }
+    .cos-widget .cw-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .cos-widget .cw-stat { background: var(--cw-panel2); border: 1px solid var(--cw-line); border-radius: 10px; padding: 8px 11px; }
+    .cos-widget .cw-stat .cw-k { font-size: 10.5px; color: var(--cw-muted); letter-spacing: .05em; text-transform: uppercase; font-weight: 600; }
+    .cos-widget .cw-stat .cw-v { font-family: var(--cw-mono); font-size: 17px; font-variant-numeric: tabular-nums; margin-top: 1px; }
+    .cos-widget .cw-ka { color: var(--cw-vec-a); }
+    .cos-widget .cw-kb { color: var(--cw-vec-b); }
+    .cos-widget .cw-formula {
+      background: var(--cw-panel2); border: 1px solid var(--cw-line); border-radius: 10px;
+      padding: 10px 12px; font-family: var(--cw-mono); font-size: 12.5px; line-height: 1.7; overflow-x: auto;
+    }
+    .cos-widget .cw-formula .cw-row { white-space: nowrap; }
+    .cos-widget .cw-formula .cw-op { color: var(--cw-muted); }
+    .cos-widget .cw-presets { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 14px; align-items: center; }
+    .cos-widget .cw-plabel { font-size: 11px; color: var(--cw-muted); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; margin-right: 2px; }
+    .cos-widget button.cw-preset {
+      font-family: inherit; font-size: 13px; font-weight: 550; color: var(--cw-ink);
+      background: var(--cw-panel); border: 1px solid var(--cw-line); border-radius: 999px;
+      padding: 7px 13px; cursor: pointer; transition: border-color .15s ease, transform .08s ease;
+    }
+    .cos-widget button.cw-preset:hover { border-color: color-mix(in srgb, var(--cw-vec-b) 55%, var(--cw-line)); }
+    .cos-widget button.cw-preset:active { transform: translateY(1px); }
+    .cos-widget button.cw-preset:focus-visible { outline: 2px solid var(--cw-vec-b); outline-offset: 2px; }
+    .cos-widget button.cw-preset .cw-deg { font-family: var(--cw-mono); color: var(--cw-muted); font-size: 11.5px; }
+    .cos-widget .cw-note { margin-top: 16px; font-size: 13px; color: var(--cw-muted); line-height: 1.65; }
+    .cos-widget .cw-note b { color: var(--cw-ink); }
+  </style>
+
+  <div class="cw-stage">
+    <div class="cw-card cw-plot">
+      <canvas class="cw-canvas" width="620" height="620" aria-label="두 벡터를 그린 좌표 평면"></canvas>
+      <div class="cw-hint">끝점(●)을 드래그</div>
+    </div>
+    <div class="cw-card cw-read">
+      <div>
+        <p class="cw-cos-label">cos(θ) — 코사인 유사도</p>
+        <div class="cw-cos-top">
+          <span class="cw-cos-val">1.00</span>
+          <span class="cw-ang">θ = 0.0°</span>
+        </div>
+        <div class="cw-gauge"><span class="cw-knob" style="left:100%"></span></div>
+        <div class="cw-scale"><span>−1</span><span>0</span><span>+1</span></div>
+      </div>
+      <div class="cw-grid2">
+        <div class="cw-stat"><div class="cw-k">a · b (내적)</div><div class="cw-v cw-dot">—</div></div>
+        <div class="cw-stat"><div class="cw-k">θ (사잇각)</div><div class="cw-v cw-deg">—</div></div>
+        <div class="cw-stat"><div class="cw-k cw-ka">|a| 크기</div><div class="cw-v cw-mA">—</div></div>
+        <div class="cw-stat"><div class="cw-k cw-kb">|b| 크기</div><div class="cw-v cw-mB">—</div></div>
+      </div>
+      <div class="cw-formula"></div>
+    </div>
+  </div>
+
+  <div class="cw-presets">
+    <span class="cw-plabel">각도 이동</span>
+    <button class="cw-preset" data-deg="0">일치 <span class="cw-deg">0°</span></button>
+    <button class="cw-preset" data-deg="45">비슷 <span class="cw-deg">45°</span></button>
+    <button class="cw-preset" data-deg="90">수직 <span class="cw-deg">90°</span></button>
+    <button class="cw-preset" data-deg="135">벌어짐 <span class="cw-deg">135°</span></button>
+    <button class="cw-preset" data-deg="180">정반대 <span class="cw-deg">180°</span></button>
+  </div>
+
+  <p class="cw-note">
+    <b>내적</b>은 <span style="font-family:var(--cw-mono)">a·b = |a||b|cos(θ)</span> 이다.
+    파선은 <b>b를 a 방향에 정사영</b>한 것으로, 그 그림자 길이(×|a|)가 곧 내적값이다.
+    각도가 90°를 넘어 그림자가 원점 뒤로 넘어가면 내적은 <b style="color:var(--cw-neg)">음수</b>가 된다.
+    임베딩에서 "의미가 비슷한 단어"란 결국 <b>cos 값이 1에 가까운(같은 방향)</b> 벡터를 뜻한다.
+  </p>
+</div>
+
+<script>
+(function () {
+  const roots = document.querySelectorAll('.cos-widget[data-cos]:not([data-init])');
+  roots.forEach(function (root) {
+    root.setAttribute('data-init', '1');
+    const cv = root.querySelector('.cw-canvas');
+    const ctx = cv.getContext('2d');
+    const RANGE = 1.6;
+    let a = { x: 1.15, y: 0.35 };
+    let b = { x: 0.55, y: 1.05 };
+    const css = (n) => getComputedStyle(root).getPropertyValue(n).trim();
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let W = 0, H = 0, cx = 0, cy = 0, scale = 1, dpr = 1;
+
+    const el = {
+      cos: root.querySelector('.cw-cos-val'), ang: root.querySelector('.cw-ang'),
+      knob: root.querySelector('.cw-knob'), dot: root.querySelector('.cw-dot'),
+      deg: root.querySelector('.cw-deg'), mA: root.querySelector('.cw-mA'),
+      mB: root.querySelector('.cw-mB'), formula: root.querySelector('.cw-formula'),
+    };
+
+    function resize() {
+      const rw = cv.clientWidth || 460;
+      W = rw; H = rw;
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+      cv.style.height = W + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      cx = W / 2; cy = H / 2; scale = (Math.min(W, H) / 2) / RANGE;
+      draw();
+    }
+    const toPx = (v) => ({ x: cx + v.x * scale, y: cy - v.y * scale });
+    const toMath = (px, py) => ({ x: (px - cx) / scale, y: (cy - py) / scale });
+
+    function arrow(v, color, w) {
+      const p = toPx(v);
+      ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = w; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(p.x, p.y); ctx.stroke();
+      const ang = Math.atan2(cy - p.y, p.x - cx), hl = 12, ha = 0.42;
+      ctx.beginPath(); ctx.moveTo(p.x, p.y);
+      ctx.lineTo(p.x - hl * Math.cos(ang - ha), p.y + hl * Math.sin(ang - ha));
+      ctx.lineTo(p.x - hl * Math.cos(ang + ha), p.y + hl * Math.sin(ang + ha));
+      ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+      ctx.fillStyle = css('--cw-panel'); ctx.fill();
+      ctx.lineWidth = 3; ctx.strokeStyle = color; ctx.stroke();
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      ctx.strokeStyle = css('--cw-grid'); ctx.lineWidth = 1;
+      for (let i = -1; i <= 1; i++) {
+        if (!i) continue;
+        let p = toPx({ x: i, y: 0 }); ctx.beginPath(); ctx.moveTo(p.x, 0); ctx.lineTo(p.x, H); ctx.stroke();
+        p = toPx({ x: 0, y: i }); ctx.beginPath(); ctx.moveTo(0, p.y); ctx.lineTo(W, p.y); ctx.stroke();
+      }
+      ctx.strokeStyle = css('--cw-line'); ctx.setLineDash([3, 4]);
+      ctx.beginPath(); ctx.arc(cx, cy, scale, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+      ctx.strokeStyle = css('--cw-axis'); ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(W, cy); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, H); ctx.stroke();
+
+      const mA = Math.hypot(a.x, a.y), mB = Math.hypot(b.x, b.y);
+      const dot = a.x * b.x + a.y * b.y;
+
+      if (mA > 1e-6) {
+        const ua = { x: a.x / mA, y: a.y / mA }, projLen = dot / mA;
+        const foot = { x: ua.x * projLen, y: ua.y * projLen };
+        const pB = toPx(b), pF = toPx(foot), p0 = toPx({ x: 0, y: 0 });
+        ctx.strokeStyle = css('--cw-muted'); ctx.setLineDash([2, 4]); ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(pB.x, pB.y); ctx.lineTo(pF.x, pF.y); ctx.stroke(); ctx.setLineDash([]);
+        ctx.strokeStyle = dot >= 0 ? css('--cw-pos') : css('--cw-neg');
+        ctx.lineWidth = 5; ctx.globalAlpha = 0.5;
+        ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(pF.x, pF.y); ctx.stroke(); ctx.globalAlpha = 1;
+        ctx.fillStyle = dot >= 0 ? css('--cw-pos') : css('--cw-neg');
+        ctx.beginPath(); ctx.arc(pF.x, pF.y, 3.5, 0, Math.PI * 2); ctx.fill();
+      }
+
+      const angA = Math.atan2(a.y, a.x), angB = Math.atan2(b.y, b.x);
+      let diff = angB - angA;
+      while (diff > Math.PI) diff -= 2 * Math.PI;
+      while (diff < -Math.PI) diff += 2 * Math.PI;
+      ctx.strokeStyle = css('--cw-ink'); ctx.globalAlpha = 0.32; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(cx, cy, 32, -angA, -(angA + diff), diff > 0); ctx.stroke(); ctx.globalAlpha = 1;
+
+      arrow(a, css('--cw-vec-a'), 3.4);
+      arrow(b, css('--cw-vec-b'), 3.4);
+      ctx.font = '600 15px ' + getComputedStyle(root).fontFamily;
+      const la = toPx(a), lb = toPx(b);
+      ctx.fillStyle = css('--cw-vec-a'); ctx.fillText('a', la.x + 9, la.y - 7);
+      ctx.fillStyle = css('--cw-vec-b'); ctx.fillText('b', lb.x + 9, lb.y - 7);
+
+      readout(mA, mB, dot, Math.abs(diff));
+    }
+
+    const fmt = (n) => (n >= 0 ? ' ' : '−') + Math.abs(n).toFixed(2);
+    function readout(mA, mB, dot, angRad) {
+      const cos = (mA > 1e-6 && mB > 1e-6) ? dot / (mA * mB) : 0;
+      const deg = angRad * 180 / Math.PI;
+      el.cos.textContent = (cos >= 0 ? '' : '−') + Math.abs(cos).toFixed(2);
+      el.cos.style.color = cos >= 0.001 ? css('--cw-pos') : (cos <= -0.001 ? css('--cw-neg') : css('--cw-ink'));
+      el.ang.textContent = 'θ = ' + deg.toFixed(1) + '°';
+      el.dot.textContent = fmt(dot);
+      el.dot.style.color = dot >= 0.001 ? css('--cw-pos') : (dot <= -0.001 ? css('--cw-neg') : css('--cw-ink'));
+      el.deg.textContent = deg.toFixed(1) + '°';
+      el.mA.textContent = mA.toFixed(2); el.mB.textContent = mB.toFixed(2);
+      el.knob.style.left = ((cos + 1) / 2 * 100) + '%';
+      el.formula.innerHTML =
+        '<div class="cw-row">a·b <span class="cw-op">=</span> ax·bx <span class="cw-op">+</span> ay·by</div>' +
+        '<div class="cw-row"><span class="cw-op">=</span> (' + a.x.toFixed(2) + ')(' + b.x.toFixed(2) + ') <span class="cw-op">+</span> (' +
+          a.y.toFixed(2) + ')(' + b.y.toFixed(2) + ') <span class="cw-op">=</span> <b>' + fmt(dot).trim() + '</b></div>' +
+        '<div class="cw-row">cos θ <span class="cw-op">=</span> a·b <span class="cw-op">/</span> (|a||b|) <span class="cw-op">=</span> <b>' + cos.toFixed(2) + '</b></div>';
+    }
+
+    let drag = null;
+    const ptr = (e) => { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+    function hit(pos) {
+      const pa = toPx(a), pb = toPx(b);
+      const da = Math.hypot(pos.x - pa.x, pos.y - pa.y), db = Math.hypot(pos.x - pb.x, pos.y - pb.y);
+      if (Math.min(da, db) > 26) return null;
+      return da < db ? 'a' : 'b';
+    }
+    cv.addEventListener('pointerdown', (e) => {
+      drag = hit(ptr(e));
+      if (drag) { cv.setPointerCapture(e.pointerId); cv.classList.add('cw-drag'); }
+    });
+    cv.addEventListener('pointermove', (e) => {
+      if (!drag) { cv.style.cursor = hit(ptr(e)) ? 'grab' : 'default'; return; }
+      const m = toMath(ptr(e).x, ptr(e).y);
+      const clamp = (v) => Math.max(-RANGE + 0.1, Math.min(RANGE - 0.1, v));
+      const t = { x: clamp(m.x), y: clamp(m.y) };
+      if (Math.hypot(t.x, t.y) < 0.2) return;
+      if (drag === 'a') a = t; else b = t;
+      draw();
+    });
+    const end = () => { if (drag) { cv.classList.remove('cw-drag'); drag = null; } };
+    cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
+
+    let anim = null;
+    function goToDeg(target) {
+      if (anim) cancelAnimationFrame(anim);
+      const mB = Math.hypot(b.x, b.y) || 1.1, angA = Math.atan2(a.y, a.x);
+      let cur = Math.atan2(b.y, b.x) - angA;
+      while (cur > Math.PI) cur -= 2 * Math.PI;
+      while (cur < -Math.PI) cur += 2 * Math.PI;
+      const dir = cur >= 0 ? 1 : -1, endRel = (target * Math.PI / 180) * dir;
+      const t0 = performance.now(), dur = reduce ? 0 : 620;
+      function step(now) {
+        const p = dur ? Math.min(1, (now - t0) / dur) : 1, e = 1 - Math.pow(1 - p, 3);
+        const ang = angA + cur + (endRel - cur) * e;
+        b = { x: Math.cos(ang) * mB, y: Math.sin(ang) * mB };
+        draw();
+        anim = p < 1 ? requestAnimationFrame(step) : null;
+      }
+      anim = requestAnimationFrame(step);
+    }
+    root.querySelectorAll('button.cw-preset').forEach((btn) => {
+      btn.addEventListener('click', () => goToDeg(parseFloat(btn.dataset.deg)));
+    });
+
+    window.addEventListener('resize', resize);
+    new MutationObserver(draw).observe(document.body, { attributes: true, attributeFilter: ['theme'] });
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    (mq.addEventListener ? mq.addEventListener.bind(mq, 'change') : mq.addListener.bind(mq))(draw);
+    resize();
+  });
+})();
+</script>
