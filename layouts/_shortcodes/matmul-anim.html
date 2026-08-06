@@ -1,0 +1,236 @@
+{{- /*
+  matmul-anim shortcode — 행렬 곱 C = A·B 를 셀 단위로 애니메이션한다.
+  행 i × 열 j 를 하이라이트하고, 곱-누적 과정을 수식으로 보여준 뒤 결과 셀을 채운다.
+
+  파라미터:
+    a      : 행렬 A. 행은 ';', 열은 ',' 로 구분. 예) "1,0;0,1;1,1"
+    b      : 행렬 B. 같은 형식.
+    al/bl/cl : 각 행렬 라벨(기본 A/B/C)
+    title  : 상단 제목(선택)
+  사용법:
+    {{< matmul-anim a="1,0;0,1;1,1" b="0,1,1;1,0,1" al="Q" bl="Kᵀ" cl="S" >}}
+*/ -}}
+{{- $a := .Get "a" | default "1,0;0,1;1,1" -}}
+{{- $b := .Get "b" | default "0,1,1;1,0,1" -}}
+{{- $al := .Get "al" | default "A" -}}
+{{- $bl := .Get "bl" | default "B" -}}
+{{- $cl := .Get "cl" | default "C" -}}
+{{- $title := .Get "title" | default "" -}}
+<div class="mm-widget" data-mm data-a="{{ $a }}" data-b="{{ $b }}" data-al="{{ $al }}" data-bl="{{ $bl }}" data-cl="{{ $cl }}">
+  <style>
+    .mm-widget {
+      --mm-panel: #ffffff; --mm-panel2: #eef1f7; --mm-ink: #1a2233; --mm-muted: #5b6784;
+      --mm-line: #dce1ec; --mm-accent: #159fb2; --mm-a: #e8663c; --mm-b: #6a54c9;
+      --mm-cell: #f4f6fb; --mm-done: #12a06a; --mm-mono: "Source Code Pro", Menlo, Consolas, Monaco, monospace;
+      margin: 1.6rem 0; color: var(--mm-ink);
+      font-family: inherit;
+      background: var(--mm-panel); border: 1px solid var(--mm-line); border-radius: 14px; padding: 16px 16px 14px;
+    }
+    @media (prefers-color-scheme: dark) {
+      .mm-widget {
+        --mm-panel: #161f2d; --mm-panel2: #101826; --mm-ink: #e7edf7; --mm-muted: #8c99b2;
+        --mm-line: #26303f; --mm-accent: #2fcede; --mm-a: #ff7d51; --mm-b: #a996f5;
+        --mm-cell: #1b2536; --mm-done: #34c98a;
+      }
+    }
+    body[theme="light"] .mm-widget {
+      --mm-panel: #ffffff; --mm-panel2: #eef1f7; --mm-ink: #1a2233; --mm-muted: #5b6784;
+      --mm-line: #dce1ec; --mm-accent: #159fb2; --mm-a: #e8663c; --mm-b: #6a54c9;
+      --mm-cell: #f4f6fb; --mm-done: #12a06a;
+    }
+    body[theme="dark"] .mm-widget {
+      --mm-panel: #161f2d; --mm-panel2: #101826; --mm-ink: #e7edf7; --mm-muted: #8c99b2;
+      --mm-line: #26303f; --mm-accent: #2fcede; --mm-a: #ff7d51; --mm-b: #a996f5;
+      --mm-cell: #1b2536; --mm-done: #34c98a;
+    }
+    .mm-widget * { box-sizing: border-box; }
+    .mm-title { font-size: 13px; color: var(--mm-muted); font-weight: 600; margin-bottom: 12px; letter-spacing: .02em; }
+    .mm-stage { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; overflow-x: auto; padding: 4px 0 10px; }
+    .mm-mat { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .mm-lab { font-family: var(--mm-mono); font-size: 13px; font-weight: 700; }
+    .mm-lab.mm-la { color: var(--mm-a); }
+    .mm-lab.mm-lb { color: var(--mm-b); }
+    .mm-lab.mm-lc { color: var(--mm-accent); }
+    .mm-grid {
+      display: grid; gap: 4px; padding: 7px 10px;
+      border-left: 2px solid var(--mm-ink); border-right: 2px solid var(--mm-ink);
+      border-radius: 5px;
+    }
+    .mm-cell {
+      width: 50px; height: 34px; display: flex; align-items: center; justify-content: center;
+      font-family: var(--mm-mono); font-size: 13.5px; font-variant-numeric: tabular-nums;
+      background: var(--mm-cell); border: 1px solid var(--mm-line); border-radius: 6px;
+      transition: background .2s ease, color .2s ease, transform .15s ease, box-shadow .2s ease;
+    }
+    .mm-cell.mm-empty { color: var(--mm-muted); opacity: .5; }
+    .mm-cell.mm-rowhi { background: color-mix(in srgb, var(--mm-a) 16%, var(--mm-cell)); }
+    .mm-cell.mm-colhi { background: color-mix(in srgb, var(--mm-b) 16%, var(--mm-cell)); }
+    .mm-cell.mm-paira { background: color-mix(in srgb, var(--mm-a) 42%, var(--mm-cell)); color: #fff; transform: scale(1.08); }
+    .mm-cell.mm-pairb { background: color-mix(in srgb, var(--mm-b) 42%, var(--mm-cell)); color: #fff; transform: scale(1.08); }
+    .mm-cell.mm-cur { box-shadow: 0 0 0 2px var(--mm-accent); color: var(--mm-accent); font-weight: 700; }
+    .mm-cell.mm-filled { background: color-mix(in srgb, var(--mm-done) 20%, var(--mm-cell)); color: var(--mm-done); font-weight: 700; }
+    .mm-op { font-size: 20px; color: var(--mm-muted); font-family: var(--mm-mono); }
+    .mm-expr {
+      min-height: 42px; margin-top: 6px; padding: 10px 12px; border-radius: 9px;
+      background: var(--mm-panel2); border: 1px solid var(--mm-line);
+      font-family: var(--mm-mono); font-size: 13.5px; line-height: 1.5; overflow-x: auto; white-space: nowrap;
+      display: flex; align-items: center;
+    }
+    .mm-expr .mm-ea { color: var(--mm-a); }
+    .mm-expr .mm-eb { color: var(--mm-b); }
+    .mm-expr .mm-ec { color: var(--mm-accent); font-weight: 700; }
+    .mm-expr .mm-op2 { color: var(--mm-muted); margin: 0 3px; }
+    .mm-expr .mm-hint { color: var(--mm-muted); }
+    .mm-controls { display: flex; gap: 7px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
+    .mm-btn {
+      font-family: inherit; font-size: 13px; font-weight: 550; color: var(--mm-ink);
+      background: var(--mm-panel); border: 1px solid var(--mm-line); border-radius: 999px;
+      padding: 7px 14px; cursor: pointer; transition: border-color .15s ease, transform .08s ease;
+    }
+    .mm-btn:hover { border-color: color-mix(in srgb, var(--mm-accent) 55%, var(--mm-line)); }
+    .mm-btn:active { transform: translateY(1px); }
+    .mm-btn:focus-visible { outline: 2px solid var(--mm-accent); outline-offset: 2px; }
+    .mm-btn.mm-play { background: var(--mm-accent); color: #fff; border-color: transparent; }
+    .mm-btn[disabled] { opacity: .4; cursor: default; }
+    .mm-prog { font-family: var(--mm-mono); font-size: 12px; color: var(--mm-muted); margin-left: auto; }
+  </style>
+
+  <div class="mm-title" data-mm-title>{{ if $title }}{{ $title }}{{ end }}</div>
+  <div class="mm-stage">
+    <div class="mm-mat"><span class="mm-lab mm-la"></span><div class="mm-grid mm-ga"></div></div>
+    <span class="mm-op">×</span>
+    <div class="mm-mat"><span class="mm-lab mm-lb"></span><div class="mm-grid mm-gb"></div></div>
+    <span class="mm-op">=</span>
+    <div class="mm-mat"><span class="mm-lab mm-lc"></span><div class="mm-grid mm-gc"></div></div>
+  </div>
+  <div class="mm-expr"><span class="mm-hint">▶ 재생을 누르면 셀 하나씩 계산 과정을 보여준다.</span></div>
+  <div class="mm-controls">
+    <button class="mm-btn mm-restart" type="button">↺ 처음</button>
+    <button class="mm-btn mm-prev" type="button">◀ 이전</button>
+    <button class="mm-btn mm-play" type="button">▶ 재생</button>
+    <button class="mm-btn mm-next" type="button">다음 ▶</button>
+    <span class="mm-prog"></span>
+  </div>
+</div>
+
+<script>
+(function () {
+  document.querySelectorAll('.mm-widget[data-mm]:not([data-init])').forEach(function (root) {
+    root.setAttribute('data-init', '1');
+    const parse = (s) => s.split(';').map(r => r.split(',').map(x => parseFloat(x.trim())));
+    const A = parse(root.dataset.a), B = parse(root.dataset.b);
+    const m = A.length, k = A[0].length, n = B[0].length;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    root.querySelector('.mm-la').textContent = root.dataset.al;
+    root.querySelector('.mm-lb').textContent = root.dataset.bl;
+    root.querySelector('.mm-lc').textContent = root.dataset.cl;
+    if (!root.querySelector('[data-mm-title]').textContent.trim())
+      root.querySelector('[data-mm-title]').textContent =
+        root.dataset.cl + ' = ' + root.dataset.al + ' × ' + root.dataset.bl + '  (' + m + '×' + k + ' · ' + k + '×' + n + ' → ' + m + '×' + n + ')';
+
+    const fmt = (x) => Number.isInteger(x) ? String(x) : String(Math.round(x * 100) / 100);
+
+    // 결과 행렬 미리 계산
+    const C = [];
+    for (let i = 0; i < m; i++) { C.push([]); for (let j = 0; j < n; j++) {
+      let s = 0; for (let t = 0; t < k; t++) s += A[i][t] * B[t][j]; C[i][j] = s;
+    }}
+
+    // 그리드 DOM 생성
+    function build(grid, rows, cols, getVal, empty) {
+      grid.style.gridTemplateColumns = 'repeat(' + cols + ', auto)';
+      const cells = [];
+      for (let i = 0; i < rows; i++) { cells.push([]); for (let j = 0; j < cols; j++) {
+        const c = document.createElement('div');
+        c.className = 'mm-cell' + (empty ? ' mm-empty' : '');
+        c.textContent = empty ? '·' : fmt(getVal(i, j));
+        grid.appendChild(c); cells[i].push(c);
+      }}
+      return cells;
+    }
+    const gA = build(root.querySelector('.mm-ga'), m, k, (i, j) => A[i][j], false);
+    const gB = build(root.querySelector('.mm-gb'), k, n, (i, j) => B[i][j], false);
+    const gC = build(root.querySelector('.mm-gc'), m, n, null, true);
+
+    const expr = root.querySelector('.mm-expr');
+    const prog = root.querySelector('.mm-prog');
+    const cells = m * n;
+    // frame = -1(시작 전) .. cells*k-1. 각 frame = (셀 하나, 항 t 하나)
+    let frame = -1, timer = null;
+
+    function clearHi() {
+      root.querySelectorAll('.mm-cell').forEach(c =>
+        c.classList.remove('mm-rowhi', 'mm-colhi', 'mm-paira', 'mm-pairb', 'mm-cur'));
+    }
+
+    function render() {
+      clearHi();
+      const total = cells * k;
+      prog.textContent = frame < 0 ? '' : Math.min(cells, Math.floor(frame / k) + 1) + ' / ' + cells + ' 셀';
+      // 이미 끝난 셀 채우기
+      for (let idx = 0; idx < cells; idx++) {
+        const i = Math.floor(idx / n), j = idx % n;
+        const doneByFrame = frame >= (idx + 1) * k - 1;
+        if (doneByFrame && frame >= 0) {
+          gC[i][j].textContent = fmt(C[i][j]); gC[i][j].classList.remove('mm-empty'); gC[i][j].classList.add('mm-filled');
+        } else if (idx > Math.floor(frame / k) || frame < 0) {
+          gC[i][j].textContent = '·'; gC[i][j].classList.add('mm-empty'); gC[i][j].classList.remove('mm-filled');
+        }
+      }
+      if (frame < 0) {
+        expr.innerHTML = '<span class="mm-hint">▶ 재생을 누르면 셀 하나씩 계산 과정을 보여준다.</span>';
+        return;
+      }
+      const cellIdx = Math.floor(frame / k), t = frame % k;
+      const i = Math.floor(cellIdx / n), j = cellIdx % n;
+      // 현재 셀은 부분합 표시
+      let partial = 0; for (let x = 0; x <= t; x++) partial += A[i][x] * B[x][j];
+      const full = (t === k - 1);
+      gC[i][j].classList.remove('mm-empty');
+      gC[i][j].classList.add(full ? 'mm-filled' : 'mm-cur');
+      gC[i][j].textContent = fmt(partial);
+      // 하이라이트: A의 i행, B의 j열, 현재 곱하는 쌍
+      for (let x = 0; x < k; x++) { gA[i][x].classList.add('mm-rowhi'); gB[x][j].classList.add('mm-colhi'); }
+      gA[i][t].classList.add('mm-paira'); gB[t][j].classList.add('mm-pairb');
+      // 수식 스트립
+      let html = '<span class="mm-ec">' + root.dataset.cl + '[' + (i + 1) + '][' + (j + 1) + ']</span><span class="mm-op2">=</span>';
+      for (let x = 0; x <= t; x++) {
+        if (x > 0) html += '<span class="mm-op2">+</span>';
+        const em = (x === t) ? ' style="text-decoration:underline"' : '';
+        html += '<span' + em + '>(<span class="mm-ea">' + fmt(A[i][x]) + '</span>×<span class="mm-eb">' + fmt(B[x][j]) + '</span>)</span>';
+      }
+      if (full) html += '<span class="mm-op2">=</span><span class="mm-ec">' + fmt(partial) + '</span>';
+      expr.innerHTML = html;
+    }
+
+    const playBtn = root.querySelector('.mm-play');
+    function setPlay(on) {
+      playBtn.textContent = on ? '⏸ 일시정지' : '▶ 재생';
+      playBtn.classList.toggle('mm-playing', on);
+    }
+    function stop() { if (timer) { clearInterval(timer); timer = null; } setPlay(false); }
+    function step(dir) {
+      const total = cells * k;
+      frame = Math.max(-1, Math.min(total - 1, frame + dir));
+      render();
+      if (frame >= total - 1) stop();
+    }
+    function play() {
+      if (timer) { stop(); return; }
+      if (frame >= cells * k - 1) { frame = -1; }
+      setPlay(true);
+      const interval = reduce ? 900 : 650;
+      timer = setInterval(() => step(1), interval);
+      if (frame < 0) step(1);
+    }
+
+    playBtn.addEventListener('click', play);
+    root.querySelector('.mm-next').addEventListener('click', () => { stop(); step(1); });
+    root.querySelector('.mm-prev').addEventListener('click', () => { stop(); step(-1); });
+    root.querySelector('.mm-restart').addEventListener('click', () => { stop(); frame = -1; render(); });
+    new MutationObserver(render).observe(document.body, { attributes: true, attributeFilter: ['theme'] });
+    render();
+  });
+})();
+</script>

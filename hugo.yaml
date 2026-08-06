@@ -22,6 +22,17 @@ markup:
   goldmark:
     renderer:
       unsafe: true
+    # 수학 수식(KaTeX) 지원: 블록 $$...$$ / \[...\], 인라인 \(...\)
+    # 단일 $ 인라인은 코드 속 $ 와 충돌할 수 있어 의도적으로 제외한다.
+    extensions:
+      passthrough:
+        enable: true
+        delimiters:
+          block:
+            - ["$$", "$$"]
+            - ["\\[", "\\]"]
+          inline:
+            - ["\\(", "\\)"]
 
 # 상단 네비게이션 메뉴
 menu:
