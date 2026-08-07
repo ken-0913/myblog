@@ -6,6 +6,7 @@ tags: ["LLM", "Sampling", "Temperature", "Top-k", "Decoding", "Transformer", "�
 categories: ["프로그래밍"]
 math:
   enable: true
+featuredImage: images/banners/llm-08-gpt3-output-layer-sampling-3152727f.png
 ---
 3편에서 텍스트는 벡터가 되어 모델로 들어갔고, 7편까지 계속 벡터인 채로 계산됐다.
 이 글은 그 벡터가 **다시 글자로 돌아오는 마지막 구간**을 다룬다.
