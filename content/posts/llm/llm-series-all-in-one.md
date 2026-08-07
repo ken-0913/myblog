@@ -8,41 +8,18 @@ math:
   enable: true
 featuredImage: images/banners/llm-series-all-in-one-85eb1b79.png
 ---
-GPT가 문장 하나를 만들 때 안에서 벌어지는 일을, **처음부터 끝까지 숫자로** 따라간 기록이다.
-3편부터 8편까지 나눠 쓴 글을 하나로 합쳤다. 순서대로 읽으면 텍스트가 벡터가 되어 들어갔다가 다시 텍스트로 나오는 **한 바퀴**가 끊기지 않는다.
-
 ## 이 글의 구성
 
-전체를 6부로 나눴다. 각 부는 원래 개별 글이었고, 링크에서 따로 볼 수 있다.
+전체를 6부로 나눴다.
 
-| 부 | 다루는 것 | 원문 |
-| --- | --- | --- |
-| 1부 | token을 벡터로 바꾸는 임베딩과 위치 정보 | [(3) GPT-3의 임베딩](../llm-03-gpt3-embeddings/) |
-| 2부 | Q·K·V로 문맥을 섞는 self-attention | [(4) Self-Attention](../llm-04-gpt3-self-attention/) |
-| 3부 | 여러 head를 이어붙이고 되돌리는 concat과 \(W_O\) | [(5) Multi-Head 마무리](../llm-05-gpt3-attention-output-concat/) |
-| 4부 | token 하나를 따로 가공하는 MLP, LayerNorm, residual | [(6) MLP (Feed-Forward)](../llm-06-gpt3-mlp-feedforward/) |
-| 5부 | 생성을 반복하는 구조와 KV Cache | [(7) prefill, decode, KV Cache](../llm-07-gpt3-kv-cache-prefill-decode/) |
-| 6부 | 벡터를 다시 글자로 되돌리는 출력층과 sampling | [(8) 출력층과 sampling](../llm-08-gpt3-output-layer-sampling/) |
-
-## 하나의 예시가 끝까지 이어진다
-
-이 글의 특징은 **숫자가 실제로 연결된다**는 점이다.
-`"나는 밥을 먹었다"` 라는 문장 하나를 1부에서 벡터로 바꾼 뒤, 그 결과를 다음 부가 그대로 입력으로 받는다. 중간에 새 숫자를 지어내지 않는다.
-
-```mermaid
-flowchart LR
-    T["나는 밥을 먹었다"] --> E["1부<br/>H₀ (3×3)"]
-    E --> A["2부<br/>Z¹, Z² (3×2)"]
-    A --> C["3부<br/>concat·Wₒ (3×3)"]
-    C --> M["4부<br/>MLP + residual"]
-    M --> K["5부<br/>KV Cache로 반복"]
-    K --> O["6부<br/>logits → 글자"]
-```
-
-차원은 전부 **3차원**으로 낮췄다. GPT-3의 실제 차원은 12288이라 손으로 따라갈 수 없기 때문이다.
-대신 각 부 끝에 GPT-3의 실제 숫자를 붙여, 예시와 실물의 간격을 메웠다. **구조는 같고 크기만 다르다.**
-
-행렬 곱이 나오는 곳에는 한 칸씩 채워지는 애니메이션을 넣었다. 재생 버튼을 누르면 어떤 값이 어디서 왔는지 볼 수 있다.
+| 부 | 다루는 것 |
+| --- | --- |
+| 1부 | token을 벡터로 바꾸는 임베딩과 위치 정보 |
+| 2부 | Q·K·V로 문맥을 섞는 self-attention |
+| 3부 | 여러 head를 이어붙이고 되돌리는 concat과 \(W_O\) |
+| 4부 | token 하나를 따로 가공하는 MLP, LayerNorm, residual |
+| 5부 | 생성을 반복하는 구조와 KV Cache |
+| 6부 | 벡터를 다시 글자로 되돌리는 출력층과 sampling |
 
 ## 1부. 임베딩 — 글자를 벡터로
 
