@@ -160,8 +160,26 @@ softmax는 순서를 바꾸지 않는 함수라, 사실 **logits에 바로 argma
 캐시를 쓰면 스텝 비용이 거의 일정하게 유지된다.
 
 교과서에 나오는 가장 단순한 생성 루프가 정확히 "캐시 없음" 버전이다.
-매 스텝 `logits = model(idx)` 로 **전체 시퀀스를 처음부터 다시** forward하고, 결과 token을 뒤에 붙여 또 전부 다시 계산한다.
-동작은 맞지만, 이미 계산한 K·V를 매번 버리고 있다.
+
+```python {title="generate_text_simple.py"}
+def generate_text_simple(model, idx, max_new_tokens, context_size):
+    for _ in range(max_new_tokens):
+        idx_cond = idx[:, -context_size:]      # ① 문맥 길이 초과 시 뒤쪽만
+        with torch.no_grad():
+            logits = model(idx_cond)           # ② 매번 전체를 다시 forward
+        logits = logits[:, -1, :]              # ③ 마지막 시점만: (b,n,V) → (b,V)
+        probas = torch.softmax(logits, dim=-1)
+        idx_next = torch.argmax(probas, dim=-1, keepdim=True)
+        idx = torch.cat((idx, idx_next), dim=1)   # ④ 뒤에 붙여 다음 반복 입력으로
+    return idx
+```
+
+문제는 ②다. `model(idx_cond)` 에 **시퀀스 전체**가 들어간다.
+④에서 token을 하나 붙이고 나면 다음 반복에서 그 전체를 **처음부터 다시** 계산한다. 앞 token들의 K·V는 값이 달라지지 않는데도 매번 새로 만든다.
+
+동작은 맞다. 다만 이미 알고 있는 답을 매 스텝 다시 구하고 있다. KV Cache는 이 루프에서 ②만 "새 token 한 줄"로 바꾼 것이다.
+
+③도 짚어 둘 만하다. `logits[:, -1, :]` 로 **마지막 시점만** 남긴다. 앞쪽 시점의 예측은 이미 아는 token 자리라 버린다.
 
 ## 대가는 메모리
 

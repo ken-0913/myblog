@@ -55,7 +55,28 @@ $$
 
 왼쪽 두 열이 \(Z^1\), 오른쪽 두 열이 \(Z^2\) 다.
 계산은 없다. **그냥 붙일 뿐**이라, 각 head의 관점이 손실 없이 그대로 보존된다.
-이제 크기는 \(3 \times 4\), 즉 \(n \times (h \cdot d_k)\) 가 된다.
+이제 크기는 \(3 \times 4\), 즉 \(n \times (h \cdot d_v)\) 가 된다.
+
+코드로는 한 줄이다.
+
+```python {title="concat"}
+context = torch.cat([head(x) for head in self.heads], dim=-1)
+```
+
+`dim=-1` 이 **마지막 축(차원 방향)으로 붙인다**는 뜻이다. token 축이 아니라 차원 축이라, 행 수는 그대로고 열만 늘어난다.
+
+다만 이건 head를 따로 만들어 순차 실행하는 방식이라 느리다.
+앞 글에서 본 실제 구현은 이미 하나의 큰 텐서로 계산해 뒀기 때문에, concat이 **텐서 모양만 되돌리는 연산**이 된다.
+
+```python {title="실제 구현의 concat"}
+# (b, num_heads, n, head_dim) → (b, n, num_heads, head_dim)
+context = (attn_weights @ values).transpose(1, 2)
+# → (b, n, d_out) : head들이 옆으로 이어붙은 모양
+context = context.contiguous().view(b, num_tokens, self.d_out)
+```
+
+`.view(b, num_tokens, self.d_out)` 이 곧 concat이다.
+`num_heads × head_dim` 두 축을 `d_out` 하나로 합치는데, 메모리에 이미 그 순서로 놓여 있으므로 **데이터를 옮기지 않고 모양만 바꾼다.** 위 수식에서 "계산은 없다"고 한 것이 코드에서도 그대로다.
 
 ## 2단계 — Wₒ 로 섞기 (output projection)
 
@@ -90,6 +111,19 @@ $$
 
 이 \(3 \times 3\) 행렬이 multi-head attention 한 층의 **최종 출력**이다.
 입력 \(X\) 와 같은 \(n \times d_{\text{model}}\) 모양으로 돌아온 것에 주목한다.
+
+코드에서는 `out_proj` 라는 이름의 `nn.Linear` 하나다.
+
+```python {title="output projection"}
+self.out_proj = nn.Linear(d_out, d_out)   # (h·d_v) → d_model
+
+...
+
+return self.out_proj(context)             # concat 결과를 섞어 내보낸다
+```
+
+표준 설정에서는 \(h \cdot d_v = d_{\text{model}}\) 이므로 입력과 출력 차원이 둘 다 `d_out` 이다.
+그래서 \(W_O\) 가 정방행렬이 되고, `nn.Linear(d_out, d_out)` 한 줄로 끝난다.
 
 ## 차원 맞추기
 

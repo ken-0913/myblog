@@ -99,6 +99,41 @@ $$
 그런데 **다음 token을 고를 때 쓰는 것은 마지막 행 하나뿐**이다.
 앞쪽 행들은 이미 알고 있는 token 자리의 예측이라 생성에는 쓸모가 없다. 계산은 했지만 버린다.
 
+### 모델 전체를 조립하면
+
+지금까지 1부부터 여기까지 만든 조각을 한 클래스로 모으면 GPT가 된다.
+
+```python {title="gpt_model.py"}
+class GPTModel(nn.Module):
+    def __init__(self, cfg):
+        super().__init__()
+        self.tok_emb  = nn.Embedding(cfg["vocab_size"], cfg["emb_dim"])      # 1부
+        self.pos_emb  = nn.Embedding(cfg["context_length"], cfg["emb_dim"])  # 1부
+        self.drop_emb = nn.Dropout(cfg["drop_rate"])
+        self.trf_blocks = nn.Sequential(                                     # 2~4부
+            *[TransformerBlock(cfg) for _ in range(cfg["n_layers"])])
+        self.final_norm = LayerNorm(cfg["emb_dim"])                          # 6부
+        self.out_head = nn.Linear(cfg["emb_dim"], cfg["vocab_size"], bias=False)
+
+    def forward(self, in_idx):
+        batch_size, seq_len = in_idx.shape
+        tok_embeds = self.tok_emb(in_idx)
+        pos_embeds = self.pos_emb(torch.arange(seq_len, device=in_idx.device))
+        x = tok_embeds + pos_embeds        # ← 1부의 H₀ = X + P 가 이 한 줄이다
+        x = self.drop_emb(x)
+        x = self.trf_blocks(x)             # ← 블록 96개 통과
+        x = self.final_norm(x)
+        return self.out_head(x)            # ← logits
+```
+
+`x = tok_embeds + pos_embeds` 한 줄이 1부에서 손으로 계산한 \(H_0 = X + P\) 다.
+`nn.Sequential(*[TransformerBlock(cfg) for _ in range(n_layers)])` 가 2~4부를 96번 쌓는 부분이고, 마지막 두 줄이 이 절에서 다루는 출력 경로다.
+
+출력층에 **`bias=False`** 가 붙은 점을 눈여겨볼 만하다. token마다 고정 편향을 두지 않는다.
+
+이 구조를 다 만들고 학습 없이 돌리면 `Hello, I am` 다음에 `Featureiman Byeswickattribute argue` 같은 문자열이 나온다.
+**구조가 곧 능력은 아니다.** 지금까지 본 것은 전부 계산의 뼈대이고, 의미는 학습된 가중치에서 온다.
+
 ## 3단계 — 가장 큰 것 고르기: greedy decoding
 
 가장 단순한 선택은 **제일 높은 점수를 그대로 고르는 것**이다.
@@ -112,6 +147,15 @@ $$
 
 softmax는 **순서를 바꾸지 않는(monotonic) 함수**다.
 logits에서 가장 큰 원소는 확률로 바꿔도 여전히 가장 크다. 그래서 `argmax(logits)` 와 `argmax(softmax(logits))` 의 결과는 항상 같다.
+
+```python {title="greedy decoding"}
+logits = logits[:, -1, :]                    # 마지막 시점만 (b, V)
+
+probas = torch.softmax(logits, dim=-1)       # 이 줄은
+idx_next = torch.argmax(probas, dim=-1)      # 생략해도 결과가 같다
+
+idx_next = torch.argmax(logits, dim=-1)      # ← 이것만으로 충분
+```
 
 확률값 자체가 필요할 때만 softmax를 계산하면 된다.
 아래에서 다룰 sampling 기법들이 바로 그 경우다.
@@ -177,6 +221,15 @@ $$
 - \(T \to 0\): 최댓값 하나가 확률 1을 독점한다. **greedy와 완전히 같아진다.**
 - \(T \to \infty\): 모든 token이 균등해진다. **완전한 무작위**가 된다.
 
+```python {title="temperature"}
+scaled = logits / temperature
+probas = torch.softmax(scaled, dim=-1)
+idx_next = torch.multinomial(probas, num_samples=1)   # argmax가 아니라 뽑기
+```
+
+`torch.argmax` 가 `torch.multinomial` 로 바뀐 것이 sampling의 본질이다.
+전자는 최댓값 위치를 고르고, 후자는 **확률에 비례해 무작위로 뽑는다.** 확률 0.608인 token은 열 번 중 여섯 번쯤 나온다.
+
 즉 temperature는 greedy와 무작위 사이를 잇는 **손잡이 하나**다.
 사실 확인이 중요한 작업은 낮게, 창작은 높게 두는 것이 일반적이다.
 
@@ -207,6 +260,20 @@ $$
 잘려 나간 확률이 살아남은 후보들에게 **비율 그대로 나눠진다**.
 `그리고` 와 `물을` 의 비율은 자르기 전과 후가 같다.
 
+```python {title="top_k"}
+top_logits, top_pos = torch.topk(logits, k)          # 상위 k개의 값과 위치
+
+logits = torch.where(
+    logits < top_logits[..., -1],                    # k번째보다 작으면
+    torch.tensor(float("-inf")),                     # -∞ 로
+    logits)
+
+probas = torch.softmax(logits / temperature, dim=-1) # 남은 것만으로 재정규화
+```
+
+`top_logits[..., -1]` 이 **k번째로 큰 값**, 즉 커트라인이다. 그보다 작은 것을 전부 `-inf` 로 만든다.
+softmax가 \(e^{-\infty} = 0\) 으로 처리하므로 별도 재정규화 코드가 필요 없다. 4부의 masked attention과 정확히 같은 수법이다.
+
 ## top-p — 확률 합으로 자르기 (nucleus sampling)
 
 top-k에는 약점이 있다. **\(k\) 가 고정된 숫자**라는 점이다.
@@ -231,6 +298,21 @@ top-p는 개수 대신 **확률의 합**을 기준으로 자른다.
 
 한 token이 확률 0.95를 독점하는 상황이라면 top-p는 후보를 **1개만** 남긴다.
 같은 상황에서 top-k는 여전히 \(k\) 개를 남겨, 말이 안 되는 후보를 억지로 끼워 넣는다.
+
+```python {title="top_p"}
+sorted_logits, sorted_idx = torch.sort(logits, descending=True)
+cumulative = torch.cumsum(torch.softmax(sorted_logits, dim=-1), dim=-1)
+
+# 누적이 p를 넘어선 뒤의 것들을 제거 (경계 token은 남긴다)
+remove = cumulative > p
+remove[..., 1:] = remove[..., :-1].clone()
+remove[..., 0] = False
+
+logits[sorted_idx[remove]] = float("-inf")
+```
+
+`torch.cumsum` 이 위 표의 "누적" 열이다.
+`remove` 를 한 칸 밀어 주는 두 줄이 중요하다. 이게 없으면 **누적이 \(p\) 를 넘게 만든 그 token까지 잘려 나가서**, 실제로는 \(p\) 에 못 미치는 확률만 남는다.
 
 ## 셋을 함께 쓰면
 

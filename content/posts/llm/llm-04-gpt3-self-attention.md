@@ -200,7 +200,15 @@ $$
 같은 "가중치"라는 말을 쓰지만, 하나는 학습의 산물이고 다른 하나는 추론 중에 생겼다 사라지는 값이다.
 
 학습 중에는 이 \(A\) 에 **dropout**을 적용한다. 일부 비율을 무작위로 0으로 만들고 남은 값을 \(1/(1-p)\) 배 키워 합을 맞춘다.
-특정 token만 과하게 참고하는 것을 막기 위해서다. 추론(서빙) 시에는 적용하지 않는다.
+특정 token만 과하게 참고하는 것을 막기 위해서다.
+
+```python {title="dropout"}
+dropout = nn.Dropout(0.1)          # GPT 학습은 보통 0.1 ~ 0.2
+attn_weights = dropout(attn_weights)
+```
+
+비율이 0.1이면 10%가 0이 되고, **남은 값들은 \(1/0.9 \approx 1.11\) 배로 커진다.** 학습과 추론에서 평균 영향력을 같게 유지하기 위해서다.
+추론(서빙) 시에는 `model.eval()` 로 비활성화되므로 적용되지 않는다.
 
 ## 5단계 — 가중합: 출력 벡터 만들기
 
@@ -254,6 +262,35 @@ flowchart LR
     Z --> OUT["문맥이 섞인 벡터"]
 ```
 
+지금까지 손으로 따라간 다섯 단계를 코드로 옮기면 이게 전부다.
+
+```python {title="self_attention.py"}
+import torch
+import torch.nn as nn
+
+class SelfAttention(nn.Module):
+    def __init__(self, d_in, d_out, qkv_bias=False):
+        super().__init__()
+        self.W_query = nn.Linear(d_in, d_out, bias=qkv_bias)
+        self.W_key   = nn.Linear(d_in, d_out, bias=qkv_bias)
+        self.W_value = nn.Linear(d_in, d_out, bias=qkv_bias)
+
+    def forward(self, x):
+        queries = self.W_query(x)                    # 1단계
+        keys    = self.W_key(x)
+        values  = self.W_value(x)
+
+        attn_scores  = queries @ keys.T              # 2단계  S = QKᵀ
+        attn_weights = torch.softmax(                # 3·4단계 ÷√dₖ 후 softmax
+            attn_scores / keys.shape[-1]**0.5, dim=-1)
+        return attn_weights @ values                 # 5단계  Z = AV
+```
+
+\(W_Q, W_K, W_V\) 가 `nn.Linear`로 되어 있는 점에 주목한다.
+`bias=False` 인 `nn.Linear`는 사실상 행렬곱과 같지만, **가중치 초기화 방식이 최적화되어 있어** 학습이 더 안정적이다. 그래서 실제 구현은 `nn.Parameter`로 행렬을 직접 만들지 않고 이쪽을 쓴다.
+
+`keys.shape[-1]**0.5` 가 \(\sqrt{d_k}\) 다. 차원을 상수로 박아 두지 않고 텐서에서 꺼내 쓴다.
+
 ## GPT는 미래를 못 본다 — masked self-attention
 
 지금 예시는 모든 token이 서로를 자유롭게 봤다.
@@ -274,6 +311,32 @@ $$
 
 \(-\infty\) 대신 마스킹 후 다시 정규화하는 방식도 있지만, \(-\infty\) 를 쓰면 softmax가 알아서 0을 만들어 주므로 한 번에 끝난다.
 GPT 구현이 이 방식을 쓴다.
+
+```python {title="causal_mask.py"}
+# 대각선 위쪽(미래)만 1인 상삼각 행렬
+mask = torch.triu(torch.ones(context_length, context_length), diagonal=1)
+
+attn_scores.masked_fill_(mask.bool(), -torch.inf)   # 미래 자리를 -∞ 로
+attn_weights = torch.softmax(attn_scores / keys.shape[-1]**0.5, dim=-1)
+```
+
+`torch.triu(..., diagonal=1)` 이 만드는 상삼각 행렬이 곧 "미래" 자리다.
+`masked_fill_` 처럼 **밑줄로 끝나는 PyTorch 연산은 in-place**라, 텐서를 새로 복사하지 않는다.
+
+두 방식의 결과 행렬은 **완전히 같다.** 마스킹 후 재정규화하는 것은, 결국 처음부터 마스킹되지 않은 위치들만으로 softmax를 계산한 것과 수학적으로 동일하기 때문이다. 미래 token의 기여는 완전히 상쇄된다.
+
+이 mask는 학습 파라미터가 아니지만 모델과 함께 GPU로 옮겨져야 한다. 그래서 실제 구현은 `register_buffer` 로 등록한다.
+
+```python {title="register_buffer"}
+self.register_buffer(
+    'mask', torch.triu(torch.ones(context_length, context_length), diagonal=1))
+
+# forward 안에서는 실제 입력 길이만큼 잘라 쓴다
+attn_scores.masked_fill_(self.mask.bool()[:num_tokens, :num_tokens], -torch.inf)
+```
+
+buffer로 등록하면 `model.to("cuda")` 할 때 **자동으로 함께 이동**해 device mismatch 오류를 막는다.
+입력 token 수가 `context_length` 보다 짧을 수 있으므로, 쓸 때는 `[:num_tokens, :num_tokens]` 로 잘라 쓴다.
 
 ## 여러 관점으로 보기 — multi-head attention
 
@@ -352,6 +415,61 @@ flowchart LR
 이제 두 조각 \(Z^1, Z^2\) 가 생겼다.
 이것을 하나로 **이어붙이고(concat) \(W_O\) 로 섞어** 다시 \(3 \times 3\) 으로 되돌리는 과정이 다음 글의 주제다.
 참고로 GPT-3는 같은 방식으로 head **96개**(각 \(d_v = 128\))를 쓴다.
+
+### 실제 구현은 head를 나누지 않는다
+
+위 설명은 "작은 attention을 head 수만큼 만들어 쌓는다"는 그림이다. 이해하기엔 좋지만 **느리다.**
+head마다 행렬곱을 따로 돌리면, 가장 비싼 연산을 96번 반복하게 된다.
+
+실제 구현은 방향이 반대다. **큰 layer 하나로 한 번에 계산한 뒤, 그 결과를 head로 쪼갠다.**
+
+```python {title="multi_head_attention.py"}
+class MultiHeadAttention(nn.Module):
+    def __init__(self, d_in, d_out, context_length, dropout, num_heads, qkv_bias=False):
+        super().__init__()
+        assert d_out % num_heads == 0, "d_out must be divisible by num_heads"
+        self.d_out, self.num_heads = d_out, num_heads
+        self.head_dim = d_out // num_heads          # 96개로 나눈 각 head의 차원
+
+        self.W_query = nn.Linear(d_in, d_out, bias=qkv_bias)   # head마다가 아니라 하나!
+        self.W_key   = nn.Linear(d_in, d_out, bias=qkv_bias)
+        self.W_value = nn.Linear(d_in, d_out, bias=qkv_bias)
+        self.out_proj = nn.Linear(d_out, d_out)                # 곧 다룰 W_O
+        self.dropout = nn.Dropout(dropout)
+        self.register_buffer('mask',
+            torch.triu(torch.ones(context_length, context_length), diagonal=1))
+
+    def forward(self, x):
+        b, num_tokens, d_in = x.shape
+        queries = self.W_query(x)                   # (b, n, d_out) — 한 번만 계산
+        keys    = self.W_key(x)
+        values  = self.W_value(x)
+
+        # (b, n, d_out) → (b, n, num_heads, head_dim) → (b, num_heads, n, head_dim)
+        queries = queries.view(b, num_tokens, self.num_heads, self.head_dim).transpose(1, 2)
+        keys    = keys.view(b, num_tokens, self.num_heads, self.head_dim).transpose(1, 2)
+        values  = values.view(b, num_tokens, self.num_heads, self.head_dim).transpose(1, 2)
+
+        attn_scores = queries @ keys.transpose(2, 3)            # head별로 한꺼번에
+        attn_scores.masked_fill_(
+            self.mask.bool()[:num_tokens, :num_tokens], -torch.inf)
+        attn_weights = self.dropout(
+            torch.softmax(attn_scores / keys.shape[-1]**0.5, dim=-1))
+
+        context = (attn_weights @ values).transpose(1, 2)       # (b, n, num_heads, head_dim)
+        context = context.contiguous().view(b, num_tokens, self.d_out)   # 이어붙이기
+        return self.out_proj(context)
+```
+
+핵심은 `self.W_query = nn.Linear(d_in, d_out)` 가 **head 수와 무관하게 하나**라는 점이다.
+`d_out` 을 통째로 계산한 뒤 `.view(...)` 로 `num_heads × head_dim` 으로 쪼갠다. 행렬곱이 96번이 아니라 한 번이다.
+
+`queries @ keys.transpose(2, 3)` 은 4차원 텐서의 **batched matmul**이다. 마지막 두 축끼리 행렬곱을 하고 head마다 반복한 것과 결과가 정확히 같은데, 반복문 없이 한 번에 처리된다.
+
+맨 앞의 `assert d_out % num_heads == 0` 이 앞서 말한 그 제약이다. 이 글의 예시(\(3 \div 2\))는 여기서 걸린다.
+
+`.contiguous()` 는 `transpose` 후 메모리 배치가 불연속이라 `.view` 앞에 필요하다.
+마지막 `self.out_proj` 가 다음 글에서 다룰 \(W_O\) 다. 즉 이 클래스 하나에 concat과 \(W_O\) 까지 다 들어 있다.
 
 ## 정리
 

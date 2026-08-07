@@ -45,6 +45,45 @@ $$
 위 다이어그램이 Pre-LayerNorm이다. residual로 더해지는 값은 **정규화되기 전의 원본 \(x\)** 라는 점이 핵심이다.
 덕분에 입력에서 출력까지 아무 변형 없이 흐르는 경로가 하나 생긴다.
 
+블록 전체를 코드로 보면 순서가 분명해진다.
+
+```python {title="transformer_block.py"}
+class TransformerBlock(nn.Module):
+    def __init__(self, cfg):
+        super().__init__()
+        self.att = MultiHeadAttention(
+            d_in=cfg["emb_dim"], d_out=cfg["emb_dim"],
+            context_length=cfg["context_length"],
+            num_heads=cfg["n_heads"], dropout=cfg["drop_rate"],
+            qkv_bias=cfg["qkv_bias"])
+        self.ff = FeedForward(cfg)
+        self.norm1 = LayerNorm(cfg["emb_dim"])
+        self.norm2 = LayerNorm(cfg["emb_dim"])
+        self.drop_shortcut = nn.Dropout(cfg["drop_rate"])
+
+    def forward(self, x):
+        shortcut = x                 # ① attention 쪽
+        x = self.norm1(x)            #   norm 먼저 (Pre-LayerNorm)
+        x = self.att(x)
+        x = self.drop_shortcut(x)
+        x = x + shortcut             #   원본을 다시 더함
+
+        shortcut = x                 # ② MLP 쪽 — 똑같은 패턴
+        x = self.norm2(x)
+        x = self.ff(x)
+        x = self.drop_shortcut(x)
+        x = x + shortcut
+        return x
+```
+
+**`shortcut = x` 로 원본을 챙겨 두고 → `norm` → 연산 → `dropout` → 다시 더하기.** 이 네 줄짜리 패턴이 두 번 반복된다.
+
+Post-LayerNorm이었다면 `x = self.norm1(x + self.att(x))` 처럼 **더한 뒤에** norm이 왔을 것이다.
+`shortcut` 에 담기는 것이 `norm1` 을 통과하기 **전의** 값이라는 점이 Pre-LayerNorm의 정의다.
+
+입출력 모양은 변하지 않는다. `(2, 4, 768)` 이 들어가면 `(2, 4, 768)` 이 나온다.
+그래서 이 블록을 **96번 그냥 쌓을 수 있다.**
+
 ## MLP가 attention과 다른 점
 
 가장 큰 차이는 **정보가 섞이는 방향**이다.
@@ -93,6 +132,29 @@ $$
 크기는 눌렸지만 **대소 관계는 그대로**다. 세 번째 성분이 가장 크고 두 번째가 가장 작다.
 LayerNorm은 정보를 지우는 게 아니라 **눈금만 다시 매기는** 연산이다.
 
+```python {title="layer_norm.py"}
+class LayerNorm(nn.Module):
+    def __init__(self, emb_dim):
+        super().__init__()
+        self.eps = 1e-5
+        self.scale = nn.Parameter(torch.ones(emb_dim))    # γ — 학습됨
+        self.shift = nn.Parameter(torch.zeros(emb_dim))   # β — 학습됨
+
+    def forward(self, x):
+        mean = x.mean(dim=-1, keepdim=True)
+        var  = x.var(dim=-1, keepdim=True, unbiased=False)
+        norm_x = (x - mean) / torch.sqrt(var + self.eps)
+        return self.scale * norm_x + self.shift
+```
+
+인자 세 개가 각각 이유를 갖는다.
+
+- **`dim=-1`** — 마지막 축, 즉 embedding 차원을 따라 정규화한다. batch 축이 아니다. GPT의 입력은 `[batch, n_tokens, emb_dim]` 3차원인데, `-1` 로 써 두면 2차원이든 3차원이든 코드를 고칠 필요가 없다.
+- **`keepdim=True`** — 차원 수를 유지해 뒤의 뺄셈이 브로드캐스팅되게 한다. 없으면 모양이 어긋난다.
+- **`unbiased=False`** — 분산을 \(n-1\) 이 아니라 \(n\) 으로 나눈다(Bessel 보정 없음). embedding 차원이 12288쯤 되면 실질 차이가 없고, **원 GPT-2가 그렇게 학습돼 사전학습 가중치와 호환되어야** 하기 때문이다. 구현 디테일이 역사적 이유에서 나온 사례다.
+
+정규화 후 평균을 찍어 보면 정확히 0이 아니라 `-5.96e-08` 같은 값이 나온다. 부동소수점 정밀도 한계이지 버그가 아니다.
+
 ## 입력 — MLP에 들어가는 벡터
 
 이제 MLP 계산으로 넘어간다.
@@ -116,6 +178,25 @@ $$
 - \(W_2\): 차원을 다시 **원래대로**(\(d_{\text{ff}} \to d_{\text{model}}\)) 줄인다.
 
 여기서는 \(d_{\text{model}} = 3\) 을 \(d_{\text{ff}} = 6\) 으로 늘렸다 줄인다(예시라 2배, GPT-3는 4배).
+
+코드로는 `nn.Sequential` 세 줄이 전부다.
+
+```python {title="feed_forward.py"}
+class FeedForward(nn.Module):
+    def __init__(self, cfg):
+        super().__init__()
+        self.layers = nn.Sequential(
+            nn.Linear(cfg["emb_dim"], 4 * cfg["emb_dim"]),   # 확장
+            GELU(),                                          # 비선형
+            nn.Linear(4 * cfg["emb_dim"], cfg["emb_dim"]),   # 축소
+        )
+
+    def forward(self, x):
+        return self.layers(x)
+```
+
+`4 *` 가 코드에 그대로 박혀 있다. 확장 배수는 하이퍼파라미터가 아니라 관례로 굳어진 값이다.
+입력이 `(2, 3, 768)` 이면 출력도 `(2, 3, 768)` 로 **모양이 변하지 않는다.** batch와 token 수는 가변이지만 embedding 차원만은 가중치를 만들 때 고정된다.
 
 ## 1단계 — 확장: x W₁ + b₁
 
@@ -148,6 +229,20 @@ ReLU(\(\max(0, z)\))의 매끄러운 버전이라고 보면 된다.
 $$
 \text{GELU}(z) \approx 0.5\,z\left(1 + \tanh\!\left[\sqrt{2/\pi}\,\big(z + 0.044715\,z^3\big)\right]\right)
 $$
+
+```python {title="gelu.py"}
+class GELU(nn.Module):
+    def forward(self, x):
+        return 0.5 * x * (1 + torch.tanh(
+            torch.sqrt(torch.tensor(2.0 / torch.pi)) *
+            (x + 0.044715 * torch.pow(x, 3))
+        ))
+```
+
+수식이 그대로 코드가 된다. 이건 **근사식**이라는 점을 짚어 둘 필요가 있다.
+GELU의 정확한 정의는 \(\text{GELU}(z) = z \cdot \Phi(z)\) 로, \(\Phi\) 는 표준정규분포의 누적분포함수다. 그대로 계산하면 비싸서, curve fitting으로 찾은 위 근사식을 쓴다. 원 GPT-2도 이 근사로 학습됐다.
+
+`0.044715` 라는 어정쩡한 상수가 붙어 있는 이유가 그것이다.
 
 \(h\) 의 각 원소에 GELU를 적용한다.
 큰 양수(1.61, 1.21)는 거의 그대로 남고, 음수(-0.40, -0.33)는 0에 가깝게 눌린다.
@@ -212,12 +307,29 @@ $$
 residual은 여기에 **덧셈으로 이어진 지름길**을 만든다.
 \(y = x + f(x)\) 를 미분하면 \(1 + f'(x)\) 라서, \(f'(x)\) 가 아무리 작아져도 **1이 남는다**. 기울기가 0으로 붕괴하지 않고 앞쪽 층까지 전달된다.
 
-실제로 5층짜리 신경망에서 층별 기울기 평균을 재보면 차이가 분명하다.
+코드로는 조건 하나가 붙은 덧셈이다.
+
+```python {title="shortcut connection"}
+for layer in self.layers:
+    layer_output = layer(x)
+    if self.use_shortcut and x.shape == layer_output.shape:   # 모양이 같을 때만
+        x = x + layer_output
+    else:
+        x = layer_output
+```
+
+모양이 같을 때만 더한다는 조건에 주의한다. 차원이 바뀌는 층에서는 그냥 더할 수 없다.
+Transformer 블록이 입출력 모양을 유지하도록 설계된 이유이기도 하다.
+
+실제로 5층짜리 신경망에 `[[1., 0., -1.]]` 을 넣고 층별 기울기 평균을 재보면 차이가 분명하다.
 
 | 층 | residual 없음 | residual 있음 |
 | --- | --- | --- |
-| 첫 번째 층 | 0.00020 | 0.22170 |
-| 다섯 번째 층 | 0.00505 | 1.32585 |
+| layers.0 (첫 층) | 0.00020 | 0.22170 |
+| layers.1 | 0.00012 | 0.20694 |
+| layers.2 | 0.00072 | 0.32897 |
+| layers.3 | 0.00140 | 0.26657 |
+| layers.4 (마지막) | 0.00505 | 1.32585 |
 
 residual이 없으면 첫 층의 기울기가 다섯 번째 층의 **1/25** 수준으로 줄어든다.
 층이 96개인 GPT-3에서 residual 없이 학습이 되지 않는 이유가 이것이다.
