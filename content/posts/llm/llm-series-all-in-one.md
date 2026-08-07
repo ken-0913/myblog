@@ -6,6 +6,7 @@ tags: ["LLM", "GPT-3", "Transformer", "Self-Attention", "KV Cache", "Sampling", 
 categories: ["프로그래밍"]
 math:
   enable: true
+featuredImage: images/banners/llm-series-all-in-one-85eb1b79.png
 ---
 GPT가 문장 하나를 만들 때 안에서 벌어지는 일을, **처음부터 끝까지 숫자로** 따라간 기록이다.
 3편부터 8편까지 나눠 쓴 글을 하나로 합쳤다. 순서대로 읽으면 텍스트가 벡터가 되어 들어갔다가 다시 텍스트로 나오는 **한 바퀴**가 끊기지 않는다.
