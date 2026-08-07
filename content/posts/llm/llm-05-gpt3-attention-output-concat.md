@@ -6,6 +6,7 @@ tags: ["LLM", "Transformer", "Multi-Head Attention", "Attention", "선형대수"
 categories: ["프로그래밍"]
 math:
   enable: true
+featuredImage: images/banners/llm-05-gpt3-attention-output-concat-aec83f1a.png
 ---
 앞 글에서 head 2개가 각각 따로 attention을 계산해 **조각난 출력 \(Z^1, Z^2\)** 를 냈다.
 문제는 이 조각들이 \(3 \times 2\) 두 개로 흩어져 있다는 것이다.

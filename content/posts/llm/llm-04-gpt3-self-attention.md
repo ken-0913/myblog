@@ -6,6 +6,7 @@ tags: ["LLM", "Transformer", "Self-Attention", "Attention", "선형대수"]
 categories: ["프로그래밍"]
 math:
   enable: true
+featuredImage: images/banners/llm-04-gpt3-self-attention-21c1b1bb.png
 ---
 앞 글에서 문장은 \(H_0\) 라는 벡터 묶음(행렬)이 되어 Transformer 블록으로 들어갔다.
 그 블록의 심장이 **self-attention**이다.

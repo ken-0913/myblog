@@ -6,6 +6,7 @@ tags: ["LLM", "KV Cache", "Prefill", "Decode", "Transformer", "서빙"]
 categories: ["프로그래밍"]
 math:
   enable: true
+featuredImage: images/banners/llm-07-gpt3-kv-cache-prefill-decode-d797c277.png
 ---
 지금까지 임베딩부터 MLP까지 계산한 것은 **forward 한 번**, 즉 token 하나를 만드는 과정이었다.
 실제 문장 생성은 이 과정을 **token 개수만큼 반복**한다.

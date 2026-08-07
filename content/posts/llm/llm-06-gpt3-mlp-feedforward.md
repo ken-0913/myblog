@@ -6,6 +6,7 @@ tags: ["LLM", "Transformer", "MLP", "Feed-Forward", "GELU"]
 categories: ["프로그래밍"]
 math:
   enable: true
+featuredImage: images/banners/llm-06-gpt3-mlp-feedforward-6f2ab1bc.png
 ---
 attention은 token들끼리 **서로 정보를 섞는** 단계였다.
 그렇게 문맥이 섞인 각 token을, 이번엔 **혼자서 한 번 더 가공하는** 단계가 MLP다.
