@@ -142,8 +142,12 @@ def rewrap_math(text, vocab):
         if line.strip() == "$$":
             block = not block
             out.append(line); continue
-        # heading에서는 KaTeX가 렌더되지 않으므로 감싸면 안 된다(유니코드로 쓴다).
+        # 건드리면 안 되는 줄:
+        #   - heading: KaTeX가 렌더되지 않는다(유니코드로 쓴다)
+        #   - shortcode: 파라미터는 수식이 아니라 데이터다
+        #   - 충돌 마커
         if (fence or block or re.match(r"^#{1,6} ", line)
+                or "{{<" in line or "{{%" in line
                 or line.startswith(("<<<<<<<", "=======", ">>>>>>>", "|||||||"))):
             out.append(line); continue
 
