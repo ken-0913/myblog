@@ -1,0 +1,7 @@
+# Hugo 콘텐츠는 포맷하지 않는다.
+# 마크다운 재직렬화 시 인라인 수식 \(...\) 구분자가 제거되고
+# {{< shortcode >}} 가 HTML 이스케이프되어 렌더가 깨진다.
+content/
+layouts/
+themes/
+public/

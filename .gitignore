@@ -8,3 +8,7 @@ __pycache__/
 
 # macOS Finder metadata
 .DS_Store
+
+# Notion export (개인 참고용 — 발행하지 않음)
+*.zip
+ExportBlock-*/

@@ -39,7 +39,7 @@ date: 2026-07-16T15:00:00+09:00
              "\n\n명령어를 입력하고 Enter를 누르세요. (↑/↓: 히스토리)";
     },
     about: "안녕하세요, <span class=\"ft-accent\">ken</span> 입니다.\n클라우드 네이티브 인프라에 관심이 많은 엔지니어이며,\n주로 Kubernetes, Network, Golang을 다룹니다.\n학습하고 경험한 내용을 이 블로그에 정리합니다.",
-    whoami: "ken  (HYEONJAE LEE / 李 賢在 / 이현재)",
+    whoami: "ken  (HYEONJAE LEE)",
     skills: "- <span class=\"ft-accent\">Kubernetes</span> : 클러스터 운영, Service Mesh(Istio)\n- <span class=\"ft-accent\">Network</span>     : 클라우드 네트워크, 트래픽 관리\n- <span class=\"ft-accent\">Golang</span>      : 백엔드 / 도구 개발",
     certs: "🎖  <span class=\"ft-accent\">Kubestronaut</span> (CNCF)\n    CNCF / Kubernetes 관련 자격증 보유\n    자세한 뱃지는 About 페이지에서 확인하세요 → <a href=\"../about/\">/about</a>",
     posts: "최근 글:\n  - <a href=\"../posts/istio-ica-01-prerequisites/\">ICA 시험 정리 (1) 서비스 메시 기초</a>\n  - <a href=\"../posts/istio-ica-03-traffic-management/\">ICA 시험 정리 (3) Traffic Management</a>\n  - <a href=\"../posts/datadog-mcp-server-setup-guide/\">Datadog MCP Server 설정 가이드</a>\n\n전체 목록 → <a href=\"../posts/\">/posts</a>",

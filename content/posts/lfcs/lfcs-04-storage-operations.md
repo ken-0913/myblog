@@ -17,14 +17,13 @@ LFCS 시리즈 네 번째 편으로 **Storage (20%)** 도메인의 **생성·수
 하지만 일반 리눅스에는 이런 디스크가 없으므로, **이미지 파일을 블록 장치처럼 연결**하는 loop device로 실습 환경을 만든다.
 `fallocate`로 빈 이미지를 만들고 `losetup`으로 `/dev/loopN`에 붙인다. 
 
-```bash
+```terminal
 # 1GB짜리 이미지 파일 생성
 fallocate -l 1G ~/disk.img
 
 # 블록 장치로 연결 → /dev/loop0 같은 이름이 출력됨
 sudo losetup -fP --show ~/disk.img
 
-# 이후는 교재와 똑같이
 sudo mkfs -t ext4 /dev/loop0
 sudo mkdir -p /mnt/backup-black
 sudo mount /dev/loop0 /mnt/backup-black
@@ -67,6 +66,36 @@ rm ~/disk.img
 
 - **사용 프로세스 확인**: `lsof | grep /mnt/app-4e9d7e1e`
 - **언마운트**: `umount /mnt/app-4e9d7e1e`
+
+### 직접 재현해보기
+
+앞에서 만든 loop device(`/mnt/backup-black`)로 이 상황을 직접 만들 수 있다.
+먼저 마운트 지점을 **붙잡고 있는 프로세스**를 하나 띄운다.
+
+```bash
+# completed 파일을 계속 열어두는 프로세스를 백그라운드로 실행 → 경로가 busy 상태가 됨
+tail -f /mnt/backup-black/completed &
+```
+
+이 상태에서 언마운트를 시도하면 `target is busy`로 실패한다.
+
+```bash
+sudo umount /mnt/backup-black
+# umount: /mnt/backup-black: target is busy.
+```
+
+경로를 잡은 프로세스를 찾아 종료한 뒤 다시 언마운트한다.
+
+```bash
+# 마운트 지점을 사용 중인 프로세스 확인 (PID 출력)
+sudo fuser -vm /mnt/backup-black
+
+# 해당 프로세스를 종료하고 언마운트
+sudo fuser -km /mnt/backup-black
+sudo umount /mnt/backup-black
+```
+
+`lsof +f -- /mnt/backup-black`로도 범인을 찾을 수 있고, `fuser -km`은 마운트를 쓰는 프로세스를 **한 번에 종료**한다.
 
 ## 3. LVM 변경
 

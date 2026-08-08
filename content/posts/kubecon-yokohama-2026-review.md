@@ -8,7 +8,7 @@ featuredImage: images/banners/kubecon-yokohama-2026-review-a6abe5c0.png
 ---
 2026년 7월 말, KubeCon + CloudNativeCon Japan이 요코하마에서 열렸다. 이번 행사의 공통된 주제는 AI 워크로드를 기존 클라우드 네이티브 생태계 위에 어떻게 통합하느냐였다. 아래는 현장에서 다룬 세션 여섯 개를 정리한 내용이다.
 
-## 키노트: CNCF 현황과 AI 시대의 클라우드 네이티브
+## 1. 키노트: CNCF 현황과 AI 시대의 클라우드 네이티브
 
 ### CNCF 생태계 현황
 
@@ -28,7 +28,7 @@ Kubernetes 컨포먼스 프로그램이 클라우드·서비스 전반의 일관
 
 ---
 
-## 온프레미스 LLM 서빙 최적화와 PD 분산화
+## 2. 온프레미스 LLM 서빙 최적화와 PD 분산화
 
 Elva Corporation의 온프레미스 LLM 플랫폼 운영 사례가 발표됐다. vLLM으로 추론을 서빙하고 Envoy AI Gateway로 트래픽을 제어하는 구조이며, 월 약 3.5억 토큰, 테넌트 30곳, 모델 10종을 운영한다.
 
@@ -78,7 +78,7 @@ Prefill 용량이 부족하면 Prefill 위주 워크로드에서 타임아웃이
 
 ---
 
-## MCP 인가 프레임워크와 CIMD
+## 3. MCP 인가 프레임워크와 CIMD
 
 Hitachi의 Tatsuya Kurosaka가 MCP(Model Context Protocol) 인가와 CIMD(Client ID Metadata Documents)를 주제로 발표했다. MCP는 AI 에이전트가 외부 도구·데이터 소스에 접근할 때 쓰는 표준 프로토콜이며, MCP 서버와 MCP 클라이언트가 공통 프로토콜로 통신한다.
 
@@ -121,7 +121,7 @@ sequenceDiagram
 
 ---
 
-## Ingress에서 Gateway API로의 마이그레이션
+## 4. Ingress에서 Gateway API로의 마이그레이션
 
 ### 마이그레이션이 필요한 이유
 
@@ -141,7 +141,7 @@ Gateway API는 **역할 지향(role-oriented)** 구조를 갖는다. GatewayClas
 
 ---
 
-## Kubernetes 기반 WebAssembly와 DPU 스토리지 오프로드
+## 5. Kubernetes 기반 WebAssembly와 DPU 스토리지 오프로드
 
 ### 문제 정의
 
@@ -178,7 +178,7 @@ Gateway API는 요청 라우팅을, CSI는 볼륨 라이프사이클을 담당�
 
 ---
 
-## Cluster API 기반 멀티 클러스터 GitOps와 장애 복구
+## 6. Cluster API 기반 멀티 클러스터 GitOps와 장애 복구
 
 Think Compute 소속 Nabeel과 동료가 "Don't Start with 500 Clusters"라는 제목으로 발표했다. 두 회사에서의 경험을 바탕으로 Cluster API 도입 사례와 장애 복구 과정을 다뤘다.
 

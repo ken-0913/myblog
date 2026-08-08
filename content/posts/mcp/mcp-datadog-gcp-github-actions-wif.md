@@ -1,5 +1,5 @@
 ---
-title: "Claude Code Action에서 MCP 서버에 접속하는 방법 — HTTP(Datadog)와 stdio(GCP) 두 패턴"
+title: "Claude Code Action에서 MCP 서버에 접속하는 방법 — HTTP(Datadog)와 stdio(GCP)"
 date: 2026-07-27T10:00:00+09:00
 draft: false
 tags: ["MCP", "Claude Code", "GitHub Actions", "Datadog", "GCP", "Workload Identity Federation"]
