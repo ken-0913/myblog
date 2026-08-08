@@ -24,7 +24,7 @@ SRC_DIR = os.path.join(ROOT, "content", "posts", "llm")
 OUT = os.path.join(SRC_DIR, "llm-series-all-in-one.md")
 
 PARTS = [
-    ("llm-03-gpt3-embeddings.md",              "1부. 임베딩 — 글자를 벡터로"),
+    ("llm-03-gpt3-embeddings.md",              "1부. 임베딩과 위치 정보 (Token을 벡터로 바꾸기)"),
     ("llm-04-gpt3-self-attention.md",          "2부. Self-Attention — 단어들이 서로를 참고한다"),
     ("llm-05-gpt3-attention-output-concat.md", "3부. Multi-Head 마무리 — concat과 Wₒ"),
     ("llm-06-gpt3-mlp-feedforward.md",         "4부. MLP — 각 token을 따로 가공한다"),
@@ -44,11 +44,9 @@ featuredImage: images/banners/llm-series-all-in-one-85eb1b79.png
 ---
 ## 이 글의 구성
 
-전체를 6부로 나눴다.
-
-| 부 | 다루는 것 |
+| | 다루는 것 |
 | --- | --- |
-| 1부 | token을 벡터로 바꾸는 임베딩과 위치 정보 |
+| 1부 | 임베딩과 위치 정보 (Token을 벡터로 바꾸기) |
 | 2부 | Q·K·V로 문맥을 섞는 self-attention |
 | 3부 | 여러 head를 이어붙이고 되돌리는 concat과 \\(W_O\\) |
 | 4부 | token 하나를 따로 가공하는 MLP, LayerNorm, residual |
@@ -105,8 +103,8 @@ REWRITES = [
     ("이 글은 그 벡터가 **다시 글자로 돌아오는 마지막 구간**을 다룬다.",
      "이제 그 벡터가 **다시 글자로 돌아오는 마지막 구간**을 본다."),
     ("이 글 내내 쓸 작은 예시를 정한다.", "글 내내 쓸 작은 예시를 정한다."),
-    ("이 글은 GPT-3를 예로, 임베딩이 **행렬 연산**으로 어떻게 이뤄지는지 정리한다.",
-     "먼저 GPT-3를 예로, 임베딩이 **행렬 연산**으로 어떻게 이뤄지는지 본다."),
+    ("이 글은 GPT-3를 예로 임베딩이 **행렬 연산**으로 어떻게 이뤄지는지 정리한다.",
+     "먼저 GPT-3를 예로 임베딩이 **행렬 연산**으로 어떻게 이뤄지는지 본다."),
     ("- 이 글의 \\(W = I\\) 설정은", "- 2부의 \\(W = I\\) 설정은"),
     # 6부가 본격적으로 다루므로 5부 정리에서는 뺀다
     ("- 벡터가 token이 되는 마지막 경로는 **final LayerNorm → 출력층 → logits → argmax** 다.\n", ""),

@@ -9,10 +9,9 @@ math:
 featuredImage: images/banners/llm-03-gpt3-embeddings-1d92e886.png
 ---
 LLM은 글자를 직접 다루지 못한다. 오직 **숫자(벡터)** 만 계산할 수 있다.
-그래서 첫 단계는 단어(정확히는 token)를 벡터로 바꾸는 것인데, 이를 **embedding(임베딩)** 이라 한다.
-이 글은 GPT-3를 예로, 임베딩이 **행렬 연산**으로 어떻게 이뤄지는지 정리한다.
+그래서 첫 단계는 단어(정확히는 token)를 벡터로 바꾸는 것인데, 이를 **embedding(임베딩)** 이라 한다. 이 글은 GPT-3를 예로 임베딩이 **행렬 연산**으로 어떻게 이뤄지는지 정리한다.
 
-## token은 정수, 임베딩은 벡터
+## Token은 정수, 임베딩은 벡터
 
 먼저 tokenizer가 문장을 **token** 단위로 쪼개고, 각 token에 **정수 ID**를 부여한다.
 예를 들어 `"cat"` → `2543` 처럼, 모든 token은 사전(vocabulary)에서 번호 하나를 갖는다.
@@ -38,10 +37,9 @@ $$
 \mathbf{e}_{\text{cat}} = \big[\, e_1,\; e_2,\; \dots,\; e_{12288} \,\big] \in \mathbb{R}^{12288}
 $$
 
-## 왜 벡터인가 — 의미가 거리로 표현된다
+## 왜 벡터인가?
 
-정수 ID로 못 하던 일을 벡터는 할 수 있다. **의미의 가까움을 거리로 담는 것**이다.
-두 벡터가 얼마나 같은 방향을 보는지는 **cosine similarity(코사인 유사도)** 로 잰다.
+정수 ID로 못 하던 일을 벡터는 할 수 있다. **의미의 가까움을 거리로 표현할 수 있**다. 두 벡터가 얼마나 같은 방향을 보는지는 **cosine similarity(코사인 유사도)** 로 잰다.
 
 $$
 \cos(\mathbf{a}, \mathbf{b}) = \frac{\mathbf{a} \cdot \mathbf{b}}{\lVert \mathbf{a} \rVert \, \lVert \mathbf{b} \rVert}
@@ -68,7 +66,7 @@ print(F.cosine_similarity(cat, car, dim=0))   # tensor(0.3377) — 멀다
 
 {{< cosine-demo >}}
 
-### 이 벡터는 어디서 오나 — Word2Vec과의 차이
+### 이 벡터는 어떻게 만들어질까? Word2Vec과의 차이
 
 "비슷한 문맥에 등장하는 단어는 비슷한 의미를 갖는다."
 **Word2Vec**은 이 전제로 단어와 문맥을 서로 예측하게 학습시켜 벡터를 얻는다. 즉 **미리 따로 학습해두고 가져다 쓴다**.
