@@ -1,5 +1,5 @@
 ---
-title: "LLM 서빙 스터디 통합본 — 임베딩부터 token 생성까지"
+title: "LLM 스터디 1주차 - Transformer격파하기"
 date: 2026-08-07T20:00:00+09:00
 draft: false
 tags: ["LLM", "GPT-3", "Transformer", "Self-Attention", "KV Cache", "Sampling", "선형대수"]
@@ -11,14 +11,14 @@ featuredImage: images/banners/llm-series-all-in-one-85eb1b79.png
 ## 이 글의 구성
 
 
-|     | 다루는 것                                      |
-| --- | ------------------------------------------ |
-| 1부  | 임베딩과 위치 정보 (Token을 벡터로 바꾸기)                |
-| 2부  | \(Q\)·K·V로 문맥을 섞는 self-attention               |
-| 3부  | 여러 head를 이어붙이고 되돌리는 concat과 \(W_O\)            |
-| 4부  | token 하나를 따로 가공하는 MLP, LayerNorm, residual |
-| 5부  | 생성을 반복하는 구조와 KV Cache                      |
-| 6부  | 벡터를 다시 글자로 되돌리는 출력층과 sampling              |
+|     | 다루는 것 |
+| --- | --- |
+| 1부 | [임베딩과 위치 정보 (Token을 벡터로 바꾸기)](#1부-임베딩과-위치-정보-token을-벡터로-바꾸기) |
+| 2부 | [Q·K·V로 문맥을 섞는 self-attention](#2부-qkv로-문맥을-섞는-self-attention) |
+| 3부 | [Multi-Head 마무리 — concat과 Wₒ](#3부-multi-head-마무리--concat과-wₒ) |
+| 4부 | [각 Token을 따로 가공하는 MLP](#4부-각-token을-따로-가공하는-mlp) |
+| 5부 | [prefill, decode, KV Cache](#5부-prefill-decode-kv-cache) |
+| 6부 | [출력층과 sampling — 다시 글자로](#6부-출력층과-sampling--다시-글자로) |
 
 
 # 1부. 임베딩과 위치 정보 (Token을 벡터로 바꾸기)
@@ -368,7 +368,7 @@ print(H0)
 | \(W_P\)              | 위치 임베딩 행렬             | \(2048 \times 12288\) (약 2500만) |
 
 
-# 2부.  Q·K·V로 문맥을 섞는 self-attention
+# 2부. Q·K·V로 문맥을 섞는 self-attention
 
 ### attention이 푸는 문제
 
