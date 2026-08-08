@@ -72,13 +72,13 @@ git의 정상본을 기준으로 3-way 병합하므로, 그 파일에 직접 한
 
 ### 생성되는 글 (직접 고치지 말 것)
 
-- `content/posts/llm/llm-series-all-in-one.md` 는 **자동 생성물**이다. LLM 시리즈 3~8편을 합친 통합본이다.
-- 직접 수정하지 말고 **개별 글(`llm-03`~`llm-08`)을 고친 뒤** 아래를 실행한다.
+- `content/posts/llm/llm-series-all-in-one.md` 는 `scripts/build_all_in_one.py` 로 **처음 만들어졌지만, 이후 손으로 많이 다듬어졌다.** 지금은 직접 편집하는 문서로 본다.
+- **이 파일에 `build_all_in_one.py` 를 다시 돌리지 말 것.** 손편집이 전부 사라진다. 생성 결과와 다르면 스크립트가 알아서 중단한다(`--force` 로만 강제).
+- 편집기가 서식을 깨뜨렸을 뿐이라면 **재생성이 아니라 복구**를 쓴다.
   ```bash
-  python3 scripts/build_all_in_one.py
+  python3 scripts/repair_markdown.py --take-theirs content/posts/llm/llm-series-all-in-one.md
   ```
-- 통합본에만 필요한 내용(제목·구성 표 등)은 `scripts/build_all_in_one.py` 의 `HEADER` / `FOOTER` 상수를 고친다.
-- **편집기가 이 파일의 수식(`\(...\)`)이나 shortcode를 깨뜨린 경우에도** 위 명령을 다시 돌리면 복구된다.
+- 개별 글(`llm-03`~`llm-08`)의 수정은 통합본에 자동 반영되지 않는다. 필요하면 통합본에도 같은 수정을 직접 한다.
 
 ### 소제목(heading)과 본문 간격
 

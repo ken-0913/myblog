@@ -98,12 +98,15 @@ def diagnose(src):
 def leaked_lines(src):
     """수식 구분자가 없는 줄의 (번호, 내용)."""
     out = []
-    fence = False
+    fence = block = False
     for i, line in enumerate(src.split("\n"), 1):
         if re.match(r"^\s*```", line):
             fence = not fence
             continue
-        if fence or line.startswith("$$"):
+        if line.strip() == "$$":
+            block = not block
+            continue
+        if fence or block:
             continue
         probe = re.sub(r"\\\(.*?\\\)", "", line)
         probe = re.sub(r"`[^`]*`", "", probe)
@@ -117,6 +120,75 @@ def leaked_lines(src):
 def strip_math_delims(src):
     """`\\(x\\)` → `x`. 인위적 공통 조상을 만들기 위한 정규화."""
     return re.sub(r"\\\((.*?)\\\)", r"\1", src, flags=re.S)
+
+
+def math_vocab(good):
+    """정상본에 쓰인 인라인 수식 알맹이를 모은다. 긴 것부터."""
+    seen = {m.group(1) for m in re.finditer(r"\\\((.*?)\\\)", good, flags=re.S)}
+    return sorted((s for s in seen if "\n" not in s), key=len, reverse=True)
+
+
+def rewrap_math(text, vocab):
+    """구분자가 벗겨진 수식에 `\\(...\\)` 를 다시 씌운다.
+
+    정상본에 실제로 등장했던 문자열만 대상으로 하므로 오탐이 적다.
+    코드펜스와 `$$` 블록, 이미 감싸인 곳은 건드리지 않는다.
+    """
+    out, fence, block, n = [], False, False, 0
+    for line in text.split("\n"):
+        if re.match(r"^\s*```", line):
+            fence = not fence
+            out.append(line); continue
+        if line.strip() == "$$":
+            block = not block
+            out.append(line); continue
+        # heading에서는 KaTeX가 렌더되지 않으므로 감싸면 안 된다(유니코드로 쓴다).
+        if (fence or block or re.match(r"^#{1,6} ", line)
+                or line.startswith(("<<<<<<<", "=======", ">>>>>>>", "|||||||"))):
+            out.append(line); continue
+
+        # 이미 감싸인 수식과 인라인 코드는 통째로 건너뛰고,
+        # 그 사이 자유 텍스트에서만 치환한다.
+        # 한 번 감싼 것이 다시 대상이 되지 않도록 안정될 때까지 반복한다.
+        for _ in range(10):
+            segs = re.split(r"(\\\(.*?\\\)|`[^`]*`)", line)
+            hit = 0
+            for si in range(0, len(segs), 2):      # 짝수 인덱스만 자유 텍스트
+                seg = segs[si]
+                if not seg:
+                    continue
+                for item in vocab:
+                    if item not in seg:
+                        continue
+                    pat = r"(?<![\\\w`])" + re.escape(item) + r"(?![\w`])"
+                    seg, k = re.subn(pat, lambda m: "\\(" + m.group(0) + "\\)", seg)
+                    if k:
+                        hit += k
+                        break              # 이 구간은 다음 회차에 다시 훑는다
+                segs[si] = seg
+            line = "".join(segs)
+            if not hit:
+                break
+            n += hit
+        out.append(line)
+    return "\n".join(out), n
+
+
+def resolve_take_theirs(merged):
+    """충돌 블록에서 '작업본' 쪽만 남긴다. 줄 단위 상태 기계."""
+    out, state = [], "keep"
+    for line in merged.split("\n"):
+        if line.startswith("<<<<<<< "):
+            state = "ours"
+        elif line.startswith("||||||| "):
+            state = "base"
+        elif line == "=======" and state in ("ours", "base"):
+            state = "theirs"
+        elif line.startswith(">>>>>>> ") and state == "theirs":
+            state = "keep"
+        elif state in ("keep", "theirs"):
+            out.append(line)
+    return "\n".join(out)
 
 
 def git_show(ref, relpath):
@@ -145,7 +217,7 @@ def merge3(ours, base, theirs):
             os.unlink(p)
 
 
-def repair(path, base_ref, apply_changes):
+def repair(path, base_ref, apply_changes, take_theirs=False):
     rel = os.path.relpath(os.path.abspath(path), ROOT)
     with open(path, encoding="utf-8") as f:
         working = f.read()
@@ -177,6 +249,14 @@ def repair(path, base_ref, apply_changes):
                 return 1
             print(f"  · 3-way 병합: 기준 {base_ref}"
                   + (f", 충돌 {conflicts}곳" if conflicts else ", 충돌 없음"))
+
+    if conflicts and take_theirs:
+        # 충돌 지점은 작업본(사용자 편집)을 채택하고, 벗겨진 수식만 다시 씌운다.
+        result = resolve_take_theirs(result)
+        good = git_show(base_ref, rel)
+        result, n_wrap = rewrap_math(result, math_vocab(good))
+        print(f"  · 충돌 {conflicts}곳: 작업본 채택, 수식 {n_wrap}건 다시 씌움")
+        conflicts = 0
 
     if conflicts:
         print(f"  ! 충돌 {conflicts}곳 — 파일을 쓰지 않았다.")
@@ -215,6 +295,8 @@ def main():
     ap.add_argument("paths", nargs="+", help="복구할 .md 파일")
     ap.add_argument("--base", default="HEAD",
                     help="정상본을 가져올 git ref (기본: HEAD)")
+    ap.add_argument("--take-theirs", action="store_true",
+                    help="충돌 시 작업본(내 편집)을 채택하고 수식만 다시 씌운다")
     ap.add_argument("--check", action="store_true",
                     help="진단만 하고 파일을 쓰지 않는다")
     a = ap.parse_args()
@@ -224,7 +306,8 @@ def main():
 
     rc = 0
     for p in a.paths:
-        rc |= repair(p, a.base, apply_changes=not a.check)
+        rc |= repair(p, a.base, apply_changes=not a.check,
+                     take_theirs=a.take_theirs)
     print()
     return rc
 

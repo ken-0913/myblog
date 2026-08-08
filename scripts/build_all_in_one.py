@@ -11,13 +11,17 @@
   - 각 편 끝의 `## 정리` 를 떼어 글 맨 뒤 `전체 정리` 로 모은다.
   - "앞 글에서" 같은 편 간 상호참조를 "1부에서" 식으로 바꾼다.
 
-통합본을 직접 고치지 말 것. 여기서 다시 만들면 덮어써진다.
-개별 글을 고치고 이 스크립트를 돌리거나, 통합본에만 필요한 내용이면
-아래 HEADER / FOOTER 상수를 고친다.
+주의 — 통합본은 생성 이후 손으로 많이 다듬어졌다.
+생성 결과와 다르면 이 스크립트는 덮어쓰지 않고 중단한다(`--force` 로 무시).
+편집기가 서식을 깨뜨렸을 뿐이라면 이걸 돌리지 말고 아래를 쓴다.
+
+    python3 scripts/repair_markdown.py --take-theirs <통합본>
 """
 
+import difflib
 import os
 import re
+import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC_DIR = os.path.join(ROOT, "content", "posts", "llm")
@@ -144,6 +148,7 @@ def rewrite_refs(text):
 
 
 def main():
+    force = "--force" in sys.argv
     chunks, summaries = [], []
     for fname, part_title in PARTS:
         with open(os.path.join(SRC_DIR, fname), encoding="utf-8") as f:
@@ -157,12 +162,31 @@ def main():
         parts.append(f"### {title}\n{rewrite_refs(summary)}\n\n")
     parts.append(FOOTER)
 
-    with open(OUT, "w", encoding="utf-8") as f:
-        f.write("".join(parts))
-
+    built = "".join(parts)
     rel = os.path.relpath(OUT, ROOT)
-    print(f"{rel} — {len(''.join(parts).splitlines())}줄, {len(PARTS)}부")
+
+    # 통합본은 이후 손으로 많이 다듬어졌다. 그대로 덮으면 그 편집이 날아간다.
+    if os.path.exists(OUT) and not force:
+        current = open(OUT, encoding="utf-8").read()
+        if current != built:
+            a, b = current.splitlines(), built.splitlines()
+            drift = sum(1 for l in difflib.unified_diff(a, b, lineterm="", n=0)
+                        if l[:1] in "+-" and l[:3] not in ("+++", "---"))
+            print(f"중단: {rel} 이 생성 결과와 {drift}줄 다르다.")
+            print("이 파일은 생성 후 손으로 다듬어졌다. 덮어쓰면 그 편집이 사라진다.")
+            print()
+            print("  편집기가 깨뜨린 서식만 되돌리려면 (편집 보존):")
+            print("      python3 scripts/repair_markdown.py --take-theirs", rel)
+            print()
+            print("  손편집을 버리고 정말 다시 만들려면:")
+            print("      python3 scripts/build_all_in_one.py --force")
+            return 1
+
+    with open(OUT, "w", encoding="utf-8") as f:
+        f.write(built)
+    print(f"{rel} — {len(built.splitlines())}줄, {len(PARTS)}부")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
