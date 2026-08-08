@@ -3,7 +3,7 @@ title: "LLM 스터디 1주차 - Transformer격파하기"
 date: 2026-08-07T20:00:00+09:00
 draft: false
 tags: ["LLM", "GPT-3", "Transformer", "Self-Attention", "KV Cache", "Sampling", "선형대수"]
-categories: ["프로그래밍"]
+categories: ["LLM"]
 math:
   enable: true
 featuredImage: images/banners/llm-series-all-in-one-85eb1b79.png
