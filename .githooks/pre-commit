@@ -1,0 +1,15 @@
+#!/bin/sh
+# 마크다운 포매터가 수식·shortcode를 깨뜨린 채 커밋되는 것을 막는다.
+#
+# 배경: 외부 마크다운 편집기가 파일을 AST로 재직렬화하면서
+#   - 인라인 수식 구분자 \( \) 를 제거하고
+#   - {{< shortcode >}} 를 {{&lt; ... &gt;}} 로 이스케이프한다.
+# 이 상태로 배포되면 본문에 raw LaTeX와 shortcode 원문이 그대로 노출된다.
+#
+# 우회가 필요하면: git commit --no-verify
+
+staged=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.md$' || true)
+[ -z "$staged" ] && exit 0
+
+# shellcheck disable=SC2086
+python3 "$(git rev-parse --show-toplevel)/.githooks/check_markdown.py" $staged

@@ -50,6 +50,26 @@
 - **셸 명령 위주**로 `$ 프롬프트` 형태를 강조하고 싶을 때만 별도의 `terminal` 펜스(``` ```terminal ```)를 쓴다. 그 외 일반 코드는 위 세 언어를 쓴다.
 - ASCII 다이어그램·구조도는 코드블록 대신 `mermaid`(플로우차트) 또는 `plantuml`(시퀀스 등)로 그린다.
 
+### 편집기가 수식을 깨뜨렸을 때
+
+깨진 채로 커밋되는 것은 pre-commit 훅이 막는다. 새로 clone한 환경에서는 한 번 활성화해야 한다.
+
+```bash
+git config core.hooksPath .githooks
+```
+
+
+리치 텍스트 계열 편집기가 저장하면서 인라인 수식 `\(...\)`, `{{< shortcode >}}`, `<br/>` 를 훼손하는 경우가 있다. **내용 편집은 남기고 손상만 되돌린다.**
+
+```bash
+python3 scripts/repair_markdown.py <파일>          # 복구
+python3 scripts/repair_markdown.py --check <파일>  # 진단만
+```
+
+git의 정상본을 기준으로 3-way 병합하므로, 그 파일에 직접 한 편집은 보존된다. **수식이 든 줄을 직접 고친 경우에만** 충돌이 나는데, 이때는 파일을 쓰지 않고 충돌 지점을 보여준다.
+
+`content/` 전체를 되돌리는 `git checkout` 은 내용 편집까지 날리므로 쓰지 말 것.
+
 ### 생성되는 글 (직접 고치지 말 것)
 
 - `content/posts/llm/llm-series-all-in-one.md` 는 **자동 생성물**이다. LLM 시리즈 3~8편을 합친 통합본이다.
