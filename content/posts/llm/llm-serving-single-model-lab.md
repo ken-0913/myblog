@@ -103,7 +103,7 @@ python -c "import torch, vllm; print(torch.__version__, torch.cuda.is_available(
 
 CPU 머신에서는 `device="cpu"`라 우연히 동작하지만, GPU 머신에서는 모델(CPU)과 입력(CUDA)이 어긋나 첫 요청에서 터진다.
 
-```
+```terminal {title="error"}
 RuntimeError: Expected all tensors to be on the same device,
 but found at least two devices, cuda:0 and cpu!
 ```
@@ -126,7 +126,7 @@ vLLM은 기본값 `gpu_memory_utilization=0.9`로 **VRAM의 90%를 KV 캐시용�
 
 6GB × 0.9 = 5.4GB를 요구하는데, 같은 GPU에 transformers 워커가 이미 올라가 있어 실제 가용은 5.2GB뿐이다. 그래서 초기화 단계에서 죽는다.
 
-```
+```terminal {title="error"}
 ValueError: Free memory on device (5.2/6.0 GiB) on startup is less than
 desired GPU memory utilization (0.9, 5.4 GiB).
 ```
@@ -166,7 +166,7 @@ python main.py 2>&1 | tee server_run.log
 
 실제 기동 로그에서 확인해야 할 지점만 추리면 다음과 같다.
 
-```
+```terminal {title="server_run.log"}
 INFO 08-10 00:38:29 [__init__.py:243] Automatically detected platform cuda.
 2026-08-10 00:38:30,604 - llm.model_executor - DEBUG - ModelExecutor initialized with queues
 2026-08-10 00:38:30,610 - llm.model_executor - DEBUG - Worker process started
@@ -190,7 +190,7 @@ INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
 ps auxf | grep -v grep | grep "python main.py"
 ```
 
-```
+```terminal {title="ps auxf"}
 hyeonjae   53166 21.8  3.1 5453012 1014368 pts/3 Sl+  00:38   0:06   \_ python main.py
 hyeonjae   53185 12.3  3.2 11556508 1049148 pts/3 Sl+ 00:38   0:02   |   \_ python main.py
 hyeonjae   53301  8.8  4.8 15113648 1590944 pts/3 Sl+ 00:38   0:01   |   \_ python main.py
@@ -204,7 +204,7 @@ hyeonjae   53301  8.8  4.8 15113648 1590944 pts/3 Sl+ 00:38   0:01   |   \_ pyth
 watch -n 1 nvidia-smi --query-gpu=memory.used,memory.free --format=csv
 ```
 
-```
+```terminal {title="nvidia-smi"}
 memory.used [MiB], memory.free [MiB]
 2809 MiB, 2981 MiB
 ```
@@ -217,7 +217,7 @@ memory.used [MiB], memory.free [MiB]
 ss -tnlp | grep 8000
 ```
 
-```
+```terminal {title="ss -tnlp"}
 LISTEN 0  2048  0.0.0.0:8000  0.0.0.0:*  users:(("python",pid=53166,fd=47))
 ```
 
@@ -233,7 +233,7 @@ curl -s -X POST http://localhost:8000/basic_generate \
 
 실제 로그이다.
 
-```
+```terminal {title="server_run.log"}
 20:41:17,050 - llm.model_executor - DEBUG - Sending batch to worker: [<Sequence object at 0x7852dc8977d0>]
 20:41:17,050 - llm.model_executor - DEBUG - Waiting for results from worker
 20:41:17,054 - llm.model_worker  - DEBUG - Batch input shape: torch.Size([1, 6])
@@ -246,13 +246,13 @@ INFO:     127.0.0.1:46748 - "POST /basic_generate HTTP/1.1" 200 OK
 
 요청 흐름은 다음과 같다. `result_queue.get()`이 **블로킹**이라는 점이 중요하다.
 
-```
-POST /basic_generate
- → LLMEngine.basic_generate() → Sequence(uuid4(), prompt, ...) 생성
- → ModelExecutor.execute_batch([seq])
-      → task_queue.put(...)      # 자식 프로세스로
-      → result_queue.get()       # 블로킹 대기
- → (자식) ModelWorker.run() → generate() → result_queue.put(('complete', ...))
+```mermaid
+flowchart TB
+    R["POST /basic_generate"] --> G["LLMEngine.basic_generate()<br/>Sequence(uuid4(), prompt, ...) 생성"]
+    G --> X["ModelExecutor.execute_batch([seq])"]
+    X -->|"task_queue.put(...)"| MW["(자식 프로세스)<br/>ModelWorker.run() → generate()"]
+    MW -->|"result_queue.put(('complete', ...))"| Q
+    X --> Q["result_queue.get()<br/>블로킹 대기"]
 ```
 
 **관찰 포인트**: 프롬프트 하나당 forward 한 번이므로 GPU가 대부분 놀고 있다. 여러 사용자가 몰리면 순차 처리된다. 배칭이 필요한 이유가 여기서 나온다.
@@ -277,7 +277,7 @@ curl -s -X POST http://localhost:8000/generate \
 
 실제 로그를 시간 순으로 보면 예상대로 두 배치로 쪼개진다.
 
-```
+```terminal {title="server_run.log"}
 20:43:23,235 - Sending batch to worker: [<Sequence>, <Sequence>, <Sequence>, <Sequence>]
 20:43:23,428 - Batch input shape: torch.Size([4, 5])
 20:43:23,737 - Generated texts: ['Hello, I am a student at the University of California, Berkeley. ...',
@@ -303,7 +303,7 @@ curl -s -X POST http://localhost:8000/generate \
 
 `workload_manager.py`의 `self.batch_size`를 `2`로 바꾸고 서버를 재기동한 뒤 같은 요청을 보냈다.
 
-```
+```terminal {title="server_run.log  (batch_size=2)"}
 20:48:43,589 - Batch input shape: torch.Size([2, 5])
 20:48:43,880 - Batch input shape: torch.Size([2, 5])
 20:48:44,172 - Batch input shape: torch.Size([1, 6])
@@ -338,7 +338,7 @@ curl -N -X POST http://localhost:8000/generate_stream \
 
 SSE 형식으로 토큰이 하나씩 흘러나온다.
 
-```
+```terminal {title="curl — SSE 응답"}
 data: {"token": " new", "sequence_id": "25d52090-5263-4fed-a7c4-6e4ec6e7f1a6"}
 
 data: {"token": " to", "sequence_id": "25d52090-5263-4fed-a7c4-6e4ec6e7f1a6"}
@@ -377,7 +377,7 @@ wait
 
 실제 로그이다.
 
-```
+```terminal {title="server_run.log"}
 20:52:59,059 - Batch input shape: torch.Size([2, 4])
 20:52:59,066 - Batch input shape: torch.Size([2, 5])
 20:52:59,073 - Batch input shape: torch.Size([2, 6])
@@ -393,7 +393,7 @@ wait
 
 토큰 생성 로그를 보면 매 스텝 **두 줄씩** 찍힌다.
 
-```
+```terminal {title="server_run.log"}
 20:52:59,197 - Generated token for prompt 'The weather is cooling down. Hi! ...'
 20:52:59,197 - Generated token for prompt 'I want to play with you guys. ... a whole lot easier': ' than'
 20:52:59,205 - Generated token for prompt 'The weather is cooling down. Hi! ...'
@@ -404,7 +404,7 @@ wait
 
 그렇다면 뽑힌 토큰은 어떻게 각자의 클라이언트로 돌아갈까. `sequence_id`로 라우팅된다.
 
-```
+```terminal {title="server_run.log"}
 Received data in queue for sequence 359e715a-...: {"token": " than",   "sequence_id": "359e715a-..."}
 Received data in queue for sequence 8ee10313-...: {"token": " than",   "sequence_id": "8ee10313-..."}
 Received data in queue for sequence 359e715a-...: {"token": " the",    "sequence_id": "359e715a-..."}
@@ -443,7 +443,7 @@ curl -s -X POST http://localhost:8000/generate_vllm \
   -d '{"prompts": ["Hello, I am", "The weather is", "Once upon a time"]}' | jq
 ```
 
-```
+```terminal {title="server_run.log"}
 Adding requests: 100%|██████████| 3/3 [00:00<00:00, 4101.34it/s]
 Processed prompts: 100%|██████████| 3/3 [00:00<00:00, 27.90it/s, est. speed input: 130.37 toks/s, output: 558.68 toks/s]
 INFO:     127.0.0.1:48036 - "POST /generate_vllm HTTP/1.1" 200 OK
@@ -460,7 +460,7 @@ curl -s -X POST http://localhost:8000/generate_vllm \
   -H "Content-Type: application/json" -d '{"invalid_field": ["Hello"]}'
 ```
 
-```
+```terminal {title="server_run.log"}
 Adding requests: 0it [00:00, ?it/s]
 INFO:     127.0.0.1:52662 - "POST /generate_vllm HTTP/1.1" 200 OK
 INFO:     127.0.0.1:59452 - "POST /generate_vllm HTTP/1.1" 422 Unprocessable Entity
@@ -478,7 +478,7 @@ time ( curl -s -X POST http://localhost:8000/generate_vllm -H "Content-Type: app
        wait )
 ```
 
-```
+```terminal {title="server_run.log"}
 Adding requests: 100%|██████████| 1/1 [00:00<00:00, 3010.99it/s]
 Processed prompts: 100%|██████████| 1/1 [00:00<00:00,  3.58it/s, est. speed input: 17.89 toks/s, output: 71.56 toks/s]
 INFO:     127.0.0.1:49850 - "POST /generate_vllm HTTP/1.1" 200 OK
