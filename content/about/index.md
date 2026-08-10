@@ -3,15 +3,7 @@ title: "About"
 date: 2026-07-14
 ---
 
-# Profile 
-
-Name : HYEONJAE LEE  李　賢在　이현재
-*Please call me "ken"
-
-### Elsewhere
-
-- **[「HAMi」でKubernetes上のGPUメモリ分離の仕組みを理解し、共有を試してみよう](https://thinkit.co.jp/article/39347)** — Think IT
-
+## SNS
 <p style="margin-top:1rem; display:flex; gap:1rem; align-items:center;">
   <a href="https://www.linkedin.com/in/hyeonjae-lee-ab3341175/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" title="LinkedIn" style="display:inline-flex; align-items:center; color:inherit;">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" width="28" height="28" fill="currentColor" aria-hidden="true"><path d="M416 32H31.9C14.3 32 0 46.5 0 64.3v383.4C0 465.5 14.3 480 31.9 480H416c17.6 0 32-14.5 32-32.3V64.3c0-17.8-14.4-32.3-32-32.3zM135.4 416H69V202.2h66.5V416zm-33.2-243c-21.3 0-38.5-17.3-38.5-38.5S80.9 96 102.2 96c21.2 0 38.5 17.3 38.5 38.5 0 21.3-17.2 38.5-38.5 38.5zm282.1 243h-66.4V312c0-24.8-.5-56.7-34.5-56.7-34.6 0-39.9 27-39.9 54.9V416h-66.4V202.2h63.7v29.2h.9c8.9-16.8 30.6-34.5 62.9-34.5 67.2 0 79.7 44.3 79.7 101.9V416z"/></svg>
@@ -24,11 +16,16 @@ Name : HYEONJAE LEE  李　賢在　이현재
   </a>
 </p>
 
-# Badges
+## Elsewhere
 
-## CNCF
+- **[「HAMi」でKubernetes上のGPUメモリ分離の仕組みを理解し、共有を試してみよう](https://thinkit.co.jp/article/39347)** — Think IT
+
+
+
+## CNCF Badges
 
 <div style="display:flex; flex-wrap:wrap; gap:1.5rem; justify-content:center; align-items:flex-start;">
+  <div data-iframe-width="150" data-iframe-height="270" data-share-badge-id="3ceebdbf-df6f-41b1-badb-a66aef96adc0" data-share-badge-host="https://www.credly.com"></div>
   <div data-iframe-width="150" data-iframe-height="270" data-share-badge-id="072f06e6-4c23-4b3d-ba67-e591586152cb" data-share-badge-host="https://www.credly.com"></div>
   <div data-iframe-width="150" data-iframe-height="270" data-share-badge-id="a482a64c-594d-4397-b5d4-5bb750c1a895" data-share-badge-host="https://www.credly.com"></div>
   <div data-iframe-width="150" data-iframe-height="270" data-share-badge-id="cd84c561-ba23-476c-b8ad-2f09e66db284" data-share-badge-host="https://www.credly.com"></div>
@@ -45,7 +42,7 @@ Name : HYEONJAE LEE  李　賢在　이현재
 </div>
 <script type="text/javascript" async src="//cdn.credly.com/assets/utilities/embed.js"></script>
 
-## Google
+## Google Badges
 
 <div style="display:flex; flex-wrap:wrap; gap:1.5rem; justify-content:center; align-items:flex-start;">
   <div data-iframe-width="150" data-iframe-height="270" data-share-badge-id="9849cc54-7061-413f-ba6e-b90ead651aaa" data-share-badge-host="https://www.credly.com"></div>
