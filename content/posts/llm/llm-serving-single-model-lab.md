@@ -257,6 +257,68 @@ flowchart TB
 
 **관찰 포인트**: 프롬프트 하나당 forward 한 번이므로 GPU가 대부분 놀고 있다. 여러 사용자가 몰리면 순차 처리된다. 배칭이 필요한 이유가 여기서 나온다.
 
+### 잠깐 — `Batch input shape` 읽는 법
+
+이 숫자 두 개가 앞으로 계속 나온다. 여기서 한 번 정리하고 간다.
+
+`torch.Size([1, 6])`은 **`[batch, seq_len]`**, 즉 아직 임베딩을 거치지 않은 **정수 token ID 행렬**이다. 이 행렬이 임베딩 행렬 `W_E` 조회를 통과하면 차원이 하나 더 붙는다.
+
+```mermaid
+flowchart LR
+    S["프롬프트 문자열<br/>'Hello, I am '"]
+    S -->|tokenizer| T["token ID 행렬<br/><b>[1, 6]</b><br/>batch × seq_len"]
+    T -->|"임베딩 조회 (W_E)"| E["<b>[1, 6, 768]</b><br/>batch × seq_len × d_model"]
+    E --> B["Transformer 블록<br/>attention → MLP"]
+```
+
+[1주차 글](../llm-series-all-in-one/)에서 다룬 `[batch, seq_len, d_model]`이 바로 오른쪽 상자다. 로그에 찍히는 것은 그보다 한 단계 앞이라 축이 둘뿐이다.
+
+| 축 | 뜻 | 실습 1의 값 |
+| --- | --- | --- |
+| `batch` | 한 번의 forward에 **몇 건**을 넣었나 | 1 |
+| `seq_len` | 그 안의 프롬프트가 **몇 token**인가 | 6 |
+| (`d_model`) | 임베딩 후에 붙는 벡터 길이 (opt-125m) | 768 |
+
+### token 수는 어떻게 세나
+
+`"Hello, I am"`은 단어가 셋인데 왜 6일까. opt-125m tokenizer로 직접 확인하면 이렇다.
+
+| 프롬프트 | token 수 | 분해 |
+| --- | --- | --- |
+| `"Hello, I am"` | 5 | `</s>` `Hello` `,` ` I` ` am` |
+| `"Hello, I am "` | **6** | `</s>` `Hello` `,` ` I` ` am` ` ` |
+| `"The weather is"` | 4 | `</s>` `The` ` weather` ` is` |
+| `"I want to"` | 4 | `</s>` `I` ` want` ` to` |
+| `"The best way to"` | 5 | `</s>` `The` ` best` ` way` ` to` |
+| `"The most efficient way to"` | 6 | `</s>` `The` ` most` ` efficient` ` way` ` to` |
+
+두 가지가 보인다. 첫째, 맨 앞에 **`</s>` (BOS) token이 자동으로 붙는다.** 둘째, **공백도 token이다.** 실습 1의 `seq_len`이 5가 아니라 6인 것은 요청 프롬프트 끝에 공백이 하나 있었기 때문이다.
+
+### batch 축이 생기면 padding이 필요하다
+
+프롬프트 여러 개를 하나의 행렬로 만들려면 길이가 같아야 한다. 그래서 **배치 안에서 가장 긴 것에 맞춰 짧은 쪽을 채운다.** 실습 2의 첫 배치 `[4, 5]`가 이 모양이다.
+
+```mermaid
+flowchart LR
+    subgraph IN["요청 4건 — 길이가 제각각"]
+        direction TB
+        R1["'Hello, I am' — 5"]
+        R2["'The weather is' — 4"]
+        R3["'I want to' — 4"]
+        R4["'The best way to' — 5"]
+    end
+    IN -->|"가장 긴 5에 맞춰 padding"| OUT["<b>torch.Size([4, 5])</b><br/>4행 × 5열 정수 행렬<br/>한 번의 forward pass"]
+```
+
+| | 1열 | 2열 | 3열 | 4열 | 5열 |
+| --- | --- | --- | --- | --- | --- |
+| `Hello, I am` | `</s>` | `Hello` | `,` | ` I` | ` am` |
+| `The weather is` | `</s>` | `The` | ` weather` | ` is` | **PAD** |
+| `I want to` | `</s>` | `I` | ` want` | ` to` | **PAD** |
+| `The best way to` | `</s>` | `The` | ` best` | ` way` | ` to` |
+
+1주차의 `seq_len` 축이 **한 문장을 옆으로 늘리는 축**이었다면, `batch` 축은 **서로 다른 사용자의 문장을 아래로 쌓는 축**이다. 문장 하나를 다룰 때는 길이가 자연히 맞았지만, 남의 요청과 같이 묶이는 순간 길이를 맞춰야 한다. 배칭의 비용이 여기서 처음 드러난다.
+
 ## 7. 실습 2 — 배칭 `/generate`
 
 프롬프트 **5개**를 한 번에 보낸다. `WorkloadManager`의 `batch_size`가 4이므로 배치가 두 번으로 나뉘어야 한다.
@@ -508,6 +570,28 @@ INFO:     127.0.0.1:49848 - "POST /generate_vllm HTTP/1.1" 200 OK
 앞서 스트리밍 로그에서 배치 shape이 `[2, 4]`에서 `[2, 25]`까지 커지는 것을 봤다. 이것이 O(n²)의 증거다.
 
 `model_worker.py`가 `use_cache=False`로 호출하고, `workload_manager.py`가 `sequence.prompt += token`으로 프롬프트를 늘린다. 즉 **매 스텝마다 프롬프트 전체를 처음부터 다시 계산한다**. 토큰을 하나 뽑을 때마다 입력이 길어지므로 총 비용이 제곱으로 늘어난다.
+
+[1주차 5부](../llm-series-all-in-one/#5부-prefill-decode-kv-cache)의 prefill · decode 구분으로 보면 무엇이 빠졌는지가 선명하다. 정상이라면 첫 스텝만 prefill이고 이후는 **새 token 한 줄만** 계산하는 decode다. 이 실습에는 KV Cache가 없으므로 **매 스텝이 전부 prefill**이다.
+
+```mermaid
+flowchart TB
+    subgraph NO["이 실습 — use_cache=False"]
+        direction TB
+        A1["step 1<br/><b>[2, 4]</b>"] --> A2["step 2<br/><b>[2, 5]</b>"] --> A3["step 3<br/><b>[2, 6]</b>"] --> A4["…<br/>step 22<br/><b>[2, 25]</b>"]
+    end
+    subgraph YES["KV Cache 있을 때 — 1주차 5부"]
+        direction TB
+        B1["prefill<br/><b>[2, 4]</b>"] --> B2["step 2<br/><b>[2, 1]</b>"] --> B3["step 3<br/><b>[2, 1]</b>"] --> B4["…<br/>step 22<br/><b>[2, 1]</b>"]
+    end
+    NO -.->|"K·V를 저장해두면"| YES
+```
+
+왼쪽은 `seq_len`이 4에서 25까지 자란다. 21번째 토큰 하나를 뽑으려고 **25토큰 전체의 Q·K·V를 처음부터 다시 구한다.** 오른쪽은 과거 token의 K·V가 캐시에 있으므로 매 스텝 계산량이 `[2, 1]`로 일정하다.
+
+| | 계산하는 token 수 | 22스텝 누적 |
+| --- | --- | --- |
+| 캐시 없음 (이 실습) | 4, 5, 6, … 25 | 약 320 token — **O(n²)** |
+| 캐시 있음 | 4, 1, 1, … 1 | 약 25 token — **O(n)** |
 
 흥미로운 것은 `model_worker.py`에 `self.stream_states = {}`가 **선언만 되고 전혀 쓰이지 않는다**는 점이다. `request_id -> past_key_values`를 담아 증분 디코딩으로 확장할 자리를 남겨두고 데모에서는 구현하지 않았다. "제대로 만들면 왜 KV 캐시가 필요한가"를 체감시키는 의도적인 반면교사다.
 
