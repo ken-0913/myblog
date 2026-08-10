@@ -16,28 +16,32 @@ featuredImage: images/banners/llm-serving-multi-model-lab-f87455c6.png
 
 두 랩은 완전히 독립적이다. 그리고 **torch 버전이 충돌**하므로 venv를 반드시 분리해야 한다.
 
-| | Part 1 (앞 글) | Part 2 (이 글) |
-| --- | --- | --- |
-| 디렉터리 | `single_model_llm_serving` | `multi_model_serving` |
-| 주제 | 배칭 · 스트리밍 · 프로세스 격리 | **모델 캐싱(LRU) · 라우팅 · 크로스 프레임워크** |
-| 서비스 포트 | 8000 | 8001 |
-| torch | 2.7.0 | **2.2.1** ← 충돌 |
-| 핵심 의존성 | `vllm` | `tritonclient[http]`, `torchvision` |
-| VRAM 사용 (6GB 기준) | 약 3.8GB | **약 1.5GB** |
-| Docker | 불필요 | **필수** (Triton) |
-| GPU 패치 | 필수 (안 하면 깨짐) | 선택 (원본은 CPU로 잘 돌아감) |
+
+|                  | Part 1 (앞 글)               | Part 2 (이 글)                        |
+| ---------------- | -------------------------- | ----------------------------------- |
+| 디렉터리             | `single_model_llm_serving` | `multi_model_serving`               |
+| 주제               | 배칭 · 스트리밍 · 프로세스 격리        | **모델 캐싱(LRU) · 라우팅 · 크로스 프레임워크**    |
+| 서비스 포트           | 8000                       | 8001                                |
+| torch            | 2.7.0                      | **2.2.1** ← 충돌                      |
+| 핵심 의존성           | `vllm`                     | `tritonclient[http]`, `torchvision` |
+| VRAM 사용 (6GB 기준) | 약 3.8GB                    | **약 1.5GB**                         |
+| Docker           | 불필요                        | **필수** (Triton)                     |
+| GPU 패치           | 필수 (안 하면 깨짐)               | 선택 (원본은 CPU로 잘 돌아감)                 |
+
 
 VRAM 항목이 흥미롭다. **모델 개수는 이쪽이 더 많은데 메모리는 절반도 안 쓴다.** Part 1의 vLLM이 `gpu_memory_utilization=0.5`로 3GB를 통째로 선점했기 때문이다. **모델 크기가 아니라 프레임워크의 메모리 예약 정책이 VRAM을 결정한다**는 것이 두 랩을 비교하면 바로 보인다.
 
 포트는 다음과 같이 나뉜다. 두 랩을 동시에 띄워도 포트는 충돌하지 않는다(VRAM은 충돌한다).
 
-| 포트 | 용도 |
-| --- | --- |
-| 8000 | Part 1 서비스 |
-| 8001 | Part 2 서비스 |
+
+| 포트   | 용도                                     |
+| ---- | -------------------------------------- |
+| 8000 | Part 1 서비스                             |
+| 8001 | Part 2 서비스                             |
 | 8009 | Triton **HTTP** (컨테이너 8000 → 호스트 8009) |
-| 8010 | Triton gRPC |
-| 8011 | Triton Metrics |
+| 8010 | Triton gRPC                            |
+| 8011 | Triton Metrics                         |
+
 
 Triton 컨테이너의 기본 HTTP 포트가 8000이라 Part 1과 겹친다. 그래서 호스트 8009로 매핑했고, `app/worker.py`의 `triton_url`도 `0.0.0.0:8009`로 하드코딩되어 있다. **이 매핑을 바꾸면 코드도 같이 고쳐야 한다.**
 
@@ -48,9 +52,41 @@ pkill -f "python main.py"; sleep 2
 nvidia-smi --query-gpu=memory.used,memory.free --format=csv   # 반환 확인
 ```
 
-## 2. 구조 — 요청 하나가 지나가는 길
+## 2. 구조 한눈에 보기
 
-핵심은 `ModelManager`가 들고 있는 **`OrderedDict` 하나**다. 이게 LRU 캐시의 실체이고, 상한은 `max_models=2`다.
+Part 1이 **한 프로세스를 셋으로 쪼갠** 구조였다면, 여기는 **앱 프로세스 하나와 별도 컨테이너 하나**가 GPU를 나눠 쓰는 구조다.
+
+```mermaid
+flowchart TB
+    C["클라이언트 (curl)"] --> S
+    subgraph APP["앱 프로세스 — uvicorn, 포트 8001"]
+        S["server.py<br/>FastAPI · /predict · /models"] --> M["manager.py<br/>ModelManager<br/>OrderedDict LRU (max 2)"]
+        M --> ST["store.py<br/>ModelStore<br/>config/models.json"]
+        M --> EN["engine.py<br/>ModelEngine<br/>Worker Factory"]
+        EN --> W1["TransformerWorker<br/>distilbert · bert-tiny"]
+        EN --> W2["TorchVisionWorker<br/>mobilenet_v2"]
+        EN --> W3["TritonWorker<br/>추론 안 함 — 위임만"]
+    end
+    subgraph TR["Triton 컨테이너 — Docker"]
+        T["tritonserver<br/>densenet_onnx (ONNX)"]
+    end
+    W3 -->|"HTTP :8009<br/>load · infer · unload"| T
+    W1 -.-> G
+    W2 -.-> G
+    T -.-> G[("RTX 3050 6GB<br/>공유 GPU")]
+```
+
+세 가지를 보면 된다.
+
+**`ModelManager`가 유일한 관문이다.** 모든 요청이 LRU 캐시를 거쳐야 워커에 닿는다. Part 1에서 `WorkloadManager`가 "언제 실행할지"를 정했다면, 여기서는 `ModelManager`가 **"무엇을 살려둘지"**를 정한다.
+
+**워커 셋 중 하나만 성격이 다르다.** `TransformerWorker`와 `TorchVisionWorker`는 프로세스 안에서 직접 추론하지만, `TritonWorker`는 가중치를 갖지 않고 HTTP로 넘길 뿐이다. 그래서 같은 캐시에 들어가 있어도 점유하는 자원의 성격이 다르다.
+
+**GPU는 하나인데 주인이 둘이다.** 앱 프로세스와 Triton 컨테이너가 같은 6GB를 나눠 쓴다. `nvidia-smi`에 프로세스가 둘로 잡히는 이유이고, 뒤에서 실제로 확인한다.
+
+### 요청 하나가 지나가는 길
+
+캐시의 실체는 `ModelManager`가 들고 있는 **`OrderedDict` 하나**다. 상한은 `max_models=2`다.
 
 ```mermaid
 flowchart TB
@@ -68,22 +104,26 @@ flowchart TB
 
 `ModelEngine`은 **Worker Factory**다. `framework` 문자열을 보고 구현체를 고른다.
 
-| 파일 | 역할 |
-| --- | --- |
-| `app/server.py` | FastAPI — `/predict`, `/models` (포트 8001) |
+
+| 파일               | 역할                                                         |
+| ---------------- | ---------------------------------------------------------- |
+| `app/server.py`  | FastAPI — `/predict`, `/models` (포트 8001)                  |
 | `app/manager.py` | **`ModelManager`** — `OrderedDict` LRU 캐시 (`max_models=2`) |
-| `app/engine.py` | `ModelEngine` — framework별 Worker Factory |
-| `app/worker.py` | `ModelWorker(ABC)` + 구현체 3개 |
-| `app/store.py` | `ModelStore` — `config/models.json` 로드 |
+| `app/engine.py`  | `ModelEngine` — framework별 Worker Factory                  |
+| `app/worker.py`  | `ModelWorker(ABC)` + 구현체 3개                                |
+| `app/store.py`   | `ModelStore` — `config/models.json` 로드                     |
+
 
 등록된 모델은 4개이고, 프레임워크가 세 종류다.
 
-| 모델 | framework | 용도 |
-| --- | --- | --- |
-| distilbert-...-sst-2-english | `transformers` | 감성 분석 |
-| bert-tiny-...-sms-spam-detection | `transformers` | 스팸 탐지 |
-| pytorch/vision:mobilenet_v2 | `torchvision` | 이미지 분류 |
-| densenet_onnx | `triton` | 이미지 분류 (**원격 위임**) |
+
+| 모델                               | framework      | 용도                 |
+| -------------------------------- | -------------- | ------------------ |
+| distilbert-...-sst-2-english     | `transformers` | 감성 분석              |
+| bert-tiny-...-sms-spam-detection | `transformers` | 스팸 탐지              |
+| pytorch/vision:mobilenet_v2      | `torchvision`  | 이미지 분류             |
+| densenet_onnx                    | `triton`       | 이미지 분류 (**원격 위임**) |
+
 
 **모델 4개, 캐시 자리 2개.** 이 불일치가 이 실습 전체의 주제다.
 
@@ -407,12 +447,14 @@ curl -s -X POST localhost:8001/predict -H "Content-Type: application/json" \
 
 실측을 정리하면 이렇다.
 
-| 시점 | VRAM | 해석 |
-| --- | --- | --- |
-| ① 기동 직후 | 0 | lazy loading — 아직 아무것도 안 올림 |
-| ② sentiment | 697 MiB | CUDA 컨텍스트 + distilbert(66M) |
-| ③ + spam | **697 MiB** | 변화 없음 |
-| ④ sentiment 축출 | **563 MiB** | **134 MiB 반환** ← 패치 ②의 효과 |
+
+| 시점             | VRAM        | 해석                          |
+| -------------- | ----------- | --------------------------- |
+| ① 기동 직후        | 0           | lazy loading — 아직 아무것도 안 올림 |
+| ② sentiment    | 697 MiB     | CUDA 컨텍스트 + distilbert(66M) |
+| ③ + spam       | **697 MiB** | 변화 없음                       |
+| ④ sentiment 축출 | **563 MiB** | **134 MiB 반환** ← 패치 ②의 효과   |
+
 
 두 지점이 눈에 띈다.
 
@@ -539,12 +581,14 @@ top-1: index=285  label=EGYPTIAN CAT  logit=11.55
 
 이제 같은 일을 앱의 `/predict`를 통해 한다. `TritonWorker`는 직접 추론하지 않고 위임하는 **wrapper**다.
 
-| 메서드 | 동작 |
-| --- | --- |
-| `__init__` | `httpclient.InferenceServerClient(url="0.0.0.0:8009")` 생성 |
+
+| 메서드           | 동작                                                                |
+| ------------- | ----------------------------------------------------------------- |
+| `__init__`    | `httpclient.InferenceServerClient(url="0.0.0.0:8009")` 생성         |
 | `_load_model` | `POST /v2/repository/models/{name}/load` → `is_model_ready()`로 검증 |
-| `predict` | dict/list → float32 numpy → `InferInput` → `client.infer()` |
-| `__del__` | **워커 소멸 시 unload 호출** → Triton 쪽 메모리 회수 |
+| `predict`     | dict/list → float32 numpy → `InferInput` → `client.infer()`       |
+| `__del__`     | **워커 소멸 시 unload 호출** → Triton 쪽 메모리 회수                           |
+
 
 `__del__`이 핵심이다. 여기가 로컬 캐시와 원격 백엔드를 잇는 고리다.
 
@@ -617,11 +661,13 @@ flowchart TB
 
 `/predict`는 `input_data: Any`로 받고 전/후처리를 전혀 하지 않는다. 그 결과가 이 표다.
 
-| framework | `input_data` 형식 | 응답 |
-| --- | --- | --- |
-| `transformers` | 문자열 | `{"predictions": [[p0, p1]]}` |
-| `torchvision` | **서버 기준 이미지 경로** 문자열 | `{"predictions": [[1000개]]}` |
-| `triton` | `{"data_0": {"shape":[3,224,224], "data":[...]}}` | `{"fc6_1": [1000개]}` |
+
+| framework      | `input_data` 형식                                   | 응답                            |
+| -------------- | ------------------------------------------------- | ----------------------------- |
+| `transformers` | 문자열                                               | `{"predictions": [[p0, p1]]}` |
+| `torchvision`  | **서버 기준 이미지 경로** 문자열                              | `{"predictions": [[1000개]]}`  |
+| `triton`       | `{"data_0": {"shape":[3,224,224], "data":[...]}}` | `{"fc6_1": [1000개]}`          |
+
 
 **엔드포인트는 하나인데 계약은 셋이다.** 클라이언트가 모델별 입력 포맷을 알아야 하고, 응답 키 이름마저 다르다(`predictions` vs `fc6_1`).
 
@@ -629,18 +675,20 @@ flowchart TB
 
 ## 11. 트러블슈팅
 
-| 증상 | 원인 | 조치 |
-| --- | --- | --- |
-| `FileNotFoundError: config/models.json` | cwd가 틀림 | `multi_model_serving/`에서 `python -m app.server` |
-| `ModuleNotFoundError: No module named 'app'` | 같은 원인 | 테스트도 `python -m pytest` |
-| `docker: could not select device driver "nvidia"` | NVIDIA Container Toolkit 미설치 | `--gpus all` 빼고 CPU 모드로 진행 |
-| `load` 호출이 **400** | `--model-control-mode=explicit` 누락 | 컨테이너 재기동 시 옵션 확인 |
-| `ConnectionRefused` (triton 모델) | Triton 미기동 또는 포트 불일치 | `curl localhost:8009/v2/health/ready` 확인 |
-| **eviction 후에도 VRAM 안 줄어듦** | 지역변수 참조 + caching allocator | **패치 ②** 적용 |
-| `torch.cuda.OutOfMemoryError` | **Part 1이 아직 떠 있음** (3.8GB 점유) | `pkill -f "python main.py"` 후 반환 확인 |
-| `torch==2.7.0`이 깔려 있음 | Part 1 venv 재사용 | venv 새로 만들기 |
-| 앱이 GPU를 안 씀 | 패치 ① 미적용 — 원본은 CPU 전용 | 정상 동작. GPU로 올리려면 패치 ① |
-| GPU 추론이 CPU보다 느림 | 모델이 작아 커널 런치·전송 오버헤드가 지배 | **정상.** 이 랩의 주제는 처리량이 아니다 |
+
+| 증상                                                | 원인                                 | 조치                                              |
+| ------------------------------------------------- | ---------------------------------- | ----------------------------------------------- |
+| `FileNotFoundError: config/models.json`           | cwd가 틀림                            | `multi_model_serving/`에서 `python -m app.server` |
+| `ModuleNotFoundError: No module named 'app'`      | 같은 원인                              | 테스트도 `python -m pytest`                         |
+| `docker: could not select device driver "nvidia"` | NVIDIA Container Toolkit 미설치       | `--gpus all` 빼고 CPU 모드로 진행                      |
+| `load` 호출이 **400**                                | `--model-control-mode=explicit` 누락 | 컨테이너 재기동 시 옵션 확인                                |
+| `ConnectionRefused` (triton 모델)                   | Triton 미기동 또는 포트 불일치               | `curl localhost:8009/v2/health/ready` 확인        |
+| **eviction 후에도 VRAM 안 줄어듦**                       | 지역변수 참조 + caching allocator        | **패치 ②** 적용                                     |
+| `torch.cuda.OutOfMemoryError`                     | **Part 1이 아직 떠 있음** (3.8GB 점유)     | `pkill -f "python main.py"` 후 반환 확인             |
+| `torch==2.7.0`이 깔려 있음                             | Part 1 venv 재사용                    | venv 새로 만들기                                     |
+| 앱이 GPU를 안 씀                                       | 패치 ① 미적용 — 원본은 CPU 전용              | 정상 동작. GPU로 올리려면 패치 ①                           |
+| GPU 추론이 CPU보다 느림                                  | 모델이 작아 커널 런치·전송 오버헤드가 지배           | **정상.** 이 랩의 주제는 처리량이 아니다                       |
+
 
 실습이 끝나면 컨테이너까지 정리한다.
 
