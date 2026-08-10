@@ -19,7 +19,7 @@ LLM 서빙은 보통 vLLM이나 TGI 같은 프레임워크를 가져다 쓴다. 
 | 항목 | 요구사항 |
 | --- | --- |
 | OS | Linux x86_64 (vLLM 0.9.0.1 휠이 manylinux x86_64만 제공) |
-| Python | 3.9 ~ 3.12 (3.13은 vLLM 설치 불가) |
+| Python | 3.9 ~ 3.12                    |
 | GPU | NVIDIA, Compute Capability 7.0 이상 |
 | VRAM | 6GB부터 가능 |
 | 드라이버 | CUDA 12.6+ 지원 |
