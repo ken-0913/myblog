@@ -1,7 +1,7 @@
 ---
 title: "Kubernetes에서 Ray Serve LLM으로 vLLM 서빙하기 — RayService 실습 매뉴얼"
 date: 2026-08-11T20:00:00+09:00
-draft: true
+draft: false
 tags: ["Ray", "Ray Serve", "KubeRay", "RayService", "vLLM", "Kubernetes", "LLM", "GPU", "k3s", "kind", "Prometheus", "Grafana"]
 categories: ["LLM"]
 featuredImage: images/banners/llm-ray-serving-result-15513a3c.png
