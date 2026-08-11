@@ -14,24 +14,26 @@ featuredImage: images/banners/llm-ray-serving-result-15513a3c.png
 
 ## 1. 무엇을 쓰는지부터 정리
 
-레이어가 여러 겹이라 이름이 헷갈리기 쉽다. 실습에 필요한 만큼만 짚는다.
 
-| 이름 | 무엇인가 |
-| --- | --- |
-| **Ray** | Python/AI 애플리케이션을 단일 머신에서 클러스터로 확장하는 분산 컴퓨팅 프레임워크 |
-| **Ray Serve** | 학습된 모델을 HTTP 엔드포인트로 서빙하는 Ray의 상위 레이어 |
+| 이름                | 무엇인가                                              |
+| ----------------- | ------------------------------------------------- |
+| **Ray**           | Python/AI 애플리케이션을 단일 머신에서 클러스터로 확장하는 분산 컴퓨팅 프레임워크 |
+| Ray Serve         | 학습된 모델을 HTTP 엔드포인트로 서빙하는 Ray의 상위 레이어              |
 | **Ray Serve LLM** | vLLM 같은 추론 엔진을 Ray Serve 위에서 수평 확장시키는, LLM 특화 레이어 |
-| **Ray Cluster** | Head Node 1개 + Worker Node N개로 구성된 분산 시스템 |
-| **KubeRay** | Kubernetes에서 Ray 클러스터를 운영하는 공식 Operator |
-| **RayService** | KubeRay의 CRD. RayCluster + Ray Serve 앱을 **함께** 관리 |
+| **Ray Cluster**   | Head Node 1개 + Worker Node N개로 구성된 분산 시스템         |
+| **KubeRay**       | Kubernetes에서 Ray 클러스터를 운영하는 공식 Operator           |
+| **RayService**    | **KubeRay의 CRD. RayCluster + Ray Serve 앱을 함께 관리** |
+
 
 Ray 자체는 Core 위에 Data · Train · Tune · Serve · RLlib가 얹힌 구조인데, 이 실습에서 쓰는 것은 **Serve 하나**다.
 
 ### Ray Serve의 네 가지 개념
 
-Ray Serve 문서를 읽을 때 걸리는 용어가 넷이다.
 
-**Deployment** — Ray Serve의 기본 단위다. 비즈니스 로직이나 ML 모델을 담고 요청을 처리한다. `@serve.deployment` 데코레이터로 정의하며, 런타임에 여러 개의 replica(각각 별도 Ray Actor)로 확장된다.
+
+**Deployment** 
+
+- Ray Serve의 기본 단위다. 비즈니스 로직이나 ML 모델을 담고 요청을 처리한다. `@serve.deployment` 데코레이터로 정의하며, 런타임에 여러 개의 replica(각각 별도 Ray Actor)로 확장된다.
 
 ```python
 @serve.deployment
@@ -42,13 +44,19 @@ class MyFirstDeployment:
         return self.msg
 ```
 
-**Application** — Deployment 하나 이상으로 구성된 **업그레이드 단위**다. 배포와 롤백이 이 단위로 이뤄진다.
+**Application**
 
-**Ingress Deployment** — `serve.run()`에 전달되는 최상위 Deployment다. HTTP 요청을 받아 필요하면 다른 Deployment로 라우팅한다.
+-  Deployment 하나 이상으로 구성된 **업그레이드 단위**다. 배포와 롤백이 이 단위로 이뤄진다.
 
-**DeploymentHandle** — Deployment 간 통신용 Python 네이티브 API다. 한 Deployment의 생성자에 다른 Deployment를 넘기면 런타임에 Handle로 바뀌어 비동기 호출이 가능해진다.
+**Ingress Deployment** 
 
-연결은 `.bind()`로 하고 `serve.run(ingress.bind(...))`로 실행한다. **이번 실습에서는 이 코드를 직접 쓰지 않는다.** `ray.serve.llm:build_openai_app`이 대신 만들어 주기 때문인데, 안에서 무슨 일이 벌어지는지는 알아 둘 필요가 있다.
+- `serve.run()`에 전달되는 최상위 Deployment다. HTTP 요청을 받아 필요하면 다른 Deployment로 라우팅한다.
+
+**DeploymentHandle**
+
+- Deployment 간 통신용 Python 네이티브 API다. 한 Deployment의 생성자에 다른 Deployment를 넘기면 런타임에 Handle로 바뀌어 비동기 호출이 가능해진다.
+
+연결은 `.bind()`로 하고 `serve.run(ingress.bind(...))`로 실행한다. **이번 실습에서는 이 코드를 직접 쓰지 않는다.** `ray.serve.llm:build_openai_app`이 대신 만들어 주기 때문인데, 안에서 무슨 일이 벌어지는지는 알아 둘 필요가 있다.
 
 ### Ray Serve LLM의 구성 요소
 
@@ -78,59 +86,79 @@ flowchart LR
 
 KubeRay는 CRD를 네 개 제공한다.
 
-| CRD | 용도 |
-| --- | --- |
-| **RayCluster** | Head/Worker 파드로 구성된 Ray 클러스터 자체의 생명주기 관리 |
-| **RayJob** | RayCluster를 만들어 Job 하나를 실행하고 완료되면 정리 (배치용) |
+
+| CRD            | 용도                                                 |
+| -------------- | -------------------------------------------------- |
+| **RayCluster** | Head/Worker 파드로 구성된 Ray 클러스터 자체의 생명주기 관리           |
+| **RayJob**     | RayCluster를 만들어 Job 하나를 실행하고 완료되면 정리 (배치용)         |
 | **RayService** | RayCluster 위에 Ray Serve 앱을 얹어 운영 — 무중단 업그레이드, 헬스체크 |
-| **RayCronJob** | RayJob을 크론 스케줄로 반복 실행 |
+| **RayCronJob** | RayJob을 크론 스케줄로 반복 실행                              |
 
-목표가 "vLLM을 서빙해서 OpenAI 호환 엔드포인트를 노출"하는 것이므로 **RayService**가 맞는다. RayCluster와의 차이는 다음과 같다.
 
-| 항목 | RayCluster | **RayService** |
-| --- | --- | --- |
-| 역할 범위 | Ray 클러스터 자체만 관리 | **클러스터 + Serve 앱까지** |
-| 배포 방식 | Helm 또는 CR 직접 apply | 단일 매니페스트에 `rayClusterConfig` + `serveConfigV2` |
-| 워크로드 접속 | head pod에 exec, 또는 dashboard port-forward 후 `ray job submit` | Serve용 Service로 **바로 HTTP** |
-| Serve 앱 | 없음 — `serve run`으로 직접 배포·갱신 | **자동 관리** — 무중단 in-place 업데이트 |
-| 헬스체크 / HA | Ray 자체 기능에 한정. k8s가 Serve 상태를 모름 | `/-/routes` 기반으로 k8s가 Serve 상태까지 파악 |
-| GPU 워커 설정 | `workerGroupSpec`에 직접 기술 | **동일** — 이 부분은 차이 없음 |
+목표가 "vLLM을 서빙해서 OpenAI 호환 엔드포인트를 노출"하는 것이므로 **RayService**를 선택한다. RayCluster와의 차이는 다음과 같다.
 
-정리하면 세 가지다. RayCluster만 쓰면 Serve 앱을 직접 올리고 파드가 죽었을 때 재배포도 챙겨야 한다. RayService는 무중단 업데이트와 헬스체크를 컨트롤러가 대신하므로 모델 교체나 replica 수 변경이 `kubectl apply` 한 번이면 된다. **GPU 워커 스펙 작성 난이도는 둘이 같으므로 RayCluster를 고를 이유가 없다.**
+
+| 항목        | RayCluster                                                   | **RayService**                                 |
+| --------- | ------------------------------------------------------------ | ---------------------------------------------- |
+| 역할 범위     | Ray 클러스터 자체만 관리                                              | **클러스터 + Serve 앱까지**                           |
+| 배포 방식     | Helm 또는 CR 직접 apply                                          | 단일 매니페스트에 `rayClusterConfig` + `serveConfigV2` |
+| 워크로드 접속   | head pod에 exec, 또는 dashboard port-forward 후 `ray job submit` | Serve용 Service로 **바로 HTTP**                    |
+| Serve 앱   | 없음 — `serve run`으로 직접 배포·갱신                                  | **자동 관리** — 무중단 in-place 업데이트                  |
+| 헬스체크 / HA | Ray 자체 기능에 한정. k8s가 Serve 상태를 모름                             | `/-/routes` 기반으로 k8s가 Serve 상태까지 파악            |
+| GPU 워커 설정 | `workerGroupSpec`에 직접 기술                                     | **동일** — 이 부분은 차이 없음                           |
+
+
+정리하면 RayCluster만 쓰면 Serve 앱을 직접 올리고 파드가 죽었을 때 재배포도 챙겨야 한다. RayService는 무중단 업데이트와 헬스체크를 컨트롤러가 대신하므로 모델 교체나 replica 수 변경이 `kubectl apply` 한 번이면 된다. **GPU 워커 스펙 작성 난이도는 둘이 같으므로 RayCluster를 고를 이유가 없다.**
 
 ## 3. 실습 환경
 
-| 항목 | 값 |
-| --- | --- |
-| OS | Ubuntu 24.04.2 LTS, kernel 7.0.0-28-generic, x86_64 |
-| CPU / 메모리 | 12 core / 31GB |
-| **GPU** | **NVIDIA GeForce RTX 3050 6144MiB**, Compute Capability 8.6 |
-| 드라이버 | 595.84 (CUDA 13.2) |
-| 컨테이너 | Docker — **DefaultRuntime = `nvidia`** |
-| NVIDIA Container Toolkit | 1.19.1 (`nvidia-ctk`, `nvidia-container-runtime`) |
-| 쿠버네티스 | **kind v0.32.0**, 노드 `kindest/node:v1.36.1`, containerd 2.3.1 |
-| Helm | v4.1.3 |
-| 디스크 | 457GB 중 약 230GB 여유 |
 
-**GPU가 6GB 한 장뿐이라는 것이 이 실습의 모든 제약을 만든다.** 모델 선택, `gpu_memory_utilization`, `max_model_len`, 동시 요청 수가 전부 여기서 역산된다.
+| 항목                       | 값                                                             |
+| ------------------------ | ------------------------------------------------------------- |
+| OS                       | Ubuntu 24.04.2 LTS, kernel 7.0.0-28-generic, x86_64           |
+| CPU / 메모리                | 12 core / 31GB                                                |
+| **GPU**                  | **NVIDIA GeForce RTX 3050 6144MiB**, Compute Capability 8.6   |
+| 드라이버                     | 595.84 (CUDA 13.2)                                            |
+| 컨테이너                     | Docker — **DefaultRuntime = `nvidia`**                        |
+| NVIDIA Container Toolkit | 1.19.1 (`nvidia-ctk`, `nvidia-container-runtime`)             |
+| 쿠버네티스                    | **kind v0.32.0**, 노드 `kindest/node:v1.36.1`, containerd 2.3.1 |
+| Helm                     | v4.1.3                                                        |
+| 디스크                      | 457GB 중 약 230GB 여유                                            |
+
+
+
+
+**GPU가 6GB 한 장뿐이라는 것이 이 실습의 모든 제약을 만든다.** 
+
+- 모델 선택, `gpu_memory_utilization`, `max_model_len`, 동시 요청 수가 전부 여기서 역산된다.
 
 > 이 둘은 결국 **KV 캐시 예산**을 나누는 손잡이다. `gpu_memory_utilization`은 vLLM이 선점할 VRAM 총량(가중치 + KV 캐시)을, `max_model_len`은 요청 하나가 그중 몇 토큰치를 차지할지를 정한다 — 계산 근거는 [1주차 5부 KV Cache](../llm-series-all-in-one/#5부-prefill-decode-kv-cache)에 있다.
 
-사전에 확인할 것이 셋이다.
 
-**GPU를 쓰는 다른 프로세스가 없어야 한다.** 앞선 실습의 잔여 프로세스가 남아 있기 쉽다. 실제로 이 서버에서는 멀티 모델 서빙 실습의 앱이 **21시간 넘게** 살아 있어 847MiB를 잡고 있었다.
+
+### 사전에 확인할 것
+
+**GPU를 쓰는 다른 프로세스가 없어야 한다.**
+
+- 앞선 실습의 잔여 프로세스가 남아 있기 쉽다. 실제로 이 서버에서는 멀티 모델 서빙 실습의 앱이 **21시간 넘게** 살아 있어 847MiB를 잡고 있었다.
 
 ```bash
 nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv
 ```
 
-**디스크 여유가 최소 25GB 필요하다.** `rayproject/ray-llm` 이미지가 11.6GB이고 전개하면 약 20GB를 쓴다.
 
-**Hugging Face 토큰은 필요 없다.** 이 실습에서 쓰는 `Qwen2.5-1.5B-Instruct-AWQ`는 gated 저장소가 아니다. 토큰은 `meta-llama/*` 같은 gated 모델을 쓸 때만 있으면 된다.
+
+**디스크 여유가 최소 25GB 필요하다.**
+
+- `rayproject/ray-llm` 이미지가 11.6GB이고 전개하면 약 20GB를 쓴다.
+
+**Hugging Face 토큰은 필요 없다.**
+
+- 이 실습에서 쓰는 `Qwen2.5-1.5B-Instruct-AWQ`는 gated 저장소가 아니다. 토큰은 `meta-llama/*` 같은 gated 모델을 쓸 때만 있으면 된다.
 
 ## 4. 만들 구조
 
-명령을 따라가기 전에 최종적으로 무엇이 서는지 먼저 본다.
+
 
 ```mermaid
 flowchart TB
@@ -319,11 +347,13 @@ flowchart TB
 
 **중간 단계가 빠지면 증상이 다르게 나타난다.** 실제로 순서대로 겪은 것이 이 셋이다.
 
-| 증상 | 원인 | 해결 |
-| --- | --- | --- |
-| 노드에 `/dev/nvidia0`은 있는데 `nvidia-smi`가 없음 | 노드 컨테이너에 `NVIDIA_*` env가 없어 toolkit이 userspace를 주입하지 않음 | ① `/var/run/nvidia-container-devices/all` 마운트 |
-| device plugin DaemonSet의 `DESIRED`가 0 | nodeAffinity가 요구하는 NFD 라벨이 없음 | ③ `nvidia.com/gpu.present=true` 라벨 |
-| 파드에서 `Failed to initialize NVML: ERROR_LIBRARY_NOT_FOUND` | 노드엔 GPU가 있어도 노드 안 containerd에 nvidia 런타임이 없어 파드로 전달 안 됨 | ② toolkit 마운트 + containerd 등록 |
+
+| 증상                                                        | 원인                                                      | 해결                                            |
+| --------------------------------------------------------- | ------------------------------------------------------- | --------------------------------------------- |
+| 노드에 `/dev/nvidia0`은 있는데 `nvidia-smi`가 없음                  | 노드 컨테이너에 `NVIDIA_*` env가 없어 toolkit이 userspace를 주입하지 않음 | ① `/var/run/nvidia-container-devices/all` 마운트 |
+| device plugin DaemonSet의 `DESIRED`가 0                     | nodeAffinity가 요구하는 NFD 라벨이 없음                           | ③ `nvidia.com/gpu.present=true` 라벨            |
+| 파드에서 `Failed to initialize NVML: ERROR_LIBRARY_NOT_FOUND` | 노드엔 GPU가 있어도 노드 안 containerd에 nvidia 런타임이 없어 파드로 전달 안 됨 | ② toolkit 마운트 + containerd 등록                 |
+
 
 세 번째가 가장 헷갈린다. **노드에서 `nvidia-smi`가 되는 것과 파드에서 되는 것은 별개**이며, 둘 사이를 잇는 것이 containerd의 런타임 설정이다.
 
@@ -386,16 +416,18 @@ docker.io/rayproject/ray-llm   2.52.0-py311-cu128   3d6cdf97592a7  11.6GB
 
 6GB에 맞춰 값을 정한 근거가 여기 있다.
 
-| 항목 | 값 | 근거 |
-| --- | --- | --- |
-| 모델 | `Qwen/Qwen2.5-1.5B-Instruct-AWQ` | AWQ 4bit 양자화로 가중치 약 1.1GB |
-| `quantization` | `awq` | AWQ 커널 강제 사용 |
-| `gpu_memory_utilization` | **0.70** | 6GB × 0.7 = 약 4.3GB. 디스플레이 점유분 여유 확보 |
-| `max_model_len` | **2048** | KV 캐시 예산 축소 |
-| `max_ongoing_requests` | **8** | replica 1개 기준 큐 과적 방지 |
-| `target_ongoing_requests` | **4** | 동일 |
-| `max_replicas` | **1** | 물리 GPU 1장 고정 |
-| worker CPU / 메모리 | **4 / 12Gi** | 노드가 12 core / 31GB |
+
+| 항목                        | 값                                | 근거                                   |
+| ------------------------- | -------------------------------- | ------------------------------------ |
+| 모델                        | `Qwen/Qwen2.5-1.5B-Instruct-AWQ` | AWQ 4bit 양자화로 가중치 약 1.1GB            |
+| `quantization`            | `awq`                            | AWQ 커널 강제 사용                         |
+| `gpu_memory_utilization`  | **0.70**                         | 6GB × 0.7 = 약 4.3GB. 디스플레이 점유분 여유 확보 |
+| `max_model_len`           | **2048**                         | KV 캐시 예산 축소                          |
+| `max_ongoing_requests`    | **8**                            | replica 1개 기준 큐 과적 방지                |
+| `target_ongoing_requests` | **4**                            | 동일                                   |
+| `max_replicas`            | **1**                            | 물리 GPU 1장 고정                         |
+| worker CPU / 메모리          | **4 / 12Gi**                     | 노드가 12 core / 31GB                   |
+
 
 ```yaml
 apiVersion: ray.io/v1
@@ -639,13 +671,15 @@ curl -s http://localhost:30006/api/serve/applications/ | jq
 
 별도 패키지 없이 표준 라이브러리만으로 `/v1/chat/completions`를 반복 호출한다. 서버 로컬에서 `localhost:30005`로 직접 쳐서 네트워크 홉을 없앤다.
 
-| 항목 | 값 | 이유 |
-| --- | --- | --- |
-| 동시 요청 | **4** | `max_ongoing_requests: 8` 이내. replica 1개라 과도한 동시성은 큐잉만 유발 |
-| 총 실행 시간 | 3분 | 트렌드만 확인 |
-| 프롬프트 | 고정된 짧은 문장 | 응답 길이가 매번 다르면 지표 해석이 어렵다 |
-| `max_tokens` | 64 | 한 사이클을 짧게 |
-| 요청 방식 | 응답 오면 즉시 다음 요청 | closed-loop |
+
+| 항목           | 값              | 이유                                                        |
+| ------------ | -------------- | --------------------------------------------------------- |
+| 동시 요청        | **4**          | `max_ongoing_requests: 8` 이내. replica 1개라 과도한 동시성은 큐잉만 유발 |
+| 총 실행 시간      | 3분             | 트렌드만 확인                                                   |
+| 프롬프트         | 고정된 짧은 문장      | 응답 길이가 매번 다르면 지표 해석이 어렵다                                  |
+| `max_tokens` | 64             | 한 사이클을 짧게                                                 |
+| 요청 방식        | 응답 오면 즉시 다음 요청 | closed-loop                                               |
+
 
 ```python
 import concurrent.futures, json, time, urllib.request
@@ -704,15 +738,17 @@ utilization, power, temp, memory
 0 %, 23.72 W, 44, 5163 MiB
 ```
 
-| 지표 | 값 |
-| --- | --- |
-| 총 요청 | 419건 |
-| 성공 / 실패 | **419 / 0 (100%)** |
-| 평균 지연 | 1.72s |
+
+| 지표              | 값                       |
+| --------------- | ----------------------- |
+| 총 요청            | 419건                    |
+| 성공 / 실패         | **419 / 0 (100%)**      |
+| 평균 지연           | 1.72s                   |
 | p50 / p95 / p99 | 1.65 / 2.24 / **2.60s** |
-| 처리량 | **2.33 req/s** |
-| GPU (부하 중) | 98%, 68.95W, 65°C |
-| GPU (유휴) | 0%, 23.72W, 44°C |
+| 처리량             | **2.33 req/s**          |
+| GPU (부하 중)      | 98%, 68.95W, 65°C       |
+| GPU (유휴)        | 0%, 23.72W, 44°C        |
+
 
 읽을 지점이 셋이다.
 
@@ -724,17 +760,19 @@ utilization, power, temp, memory
 
 ## 13. 트러블슈팅
 
-| 증상 | 원인 | 조치 |
-| --- | --- | --- |
-| kind 클러스터 API 서버 미기동 | `nvidia-ctk`가 쓴 드롭인 config 버전이 루트보다 높음 | `--config=/etc/containerd/config.toml` 지정해 재실행 (STEP 1) |
-| 파드에서 `NVML ERROR_LIBRARY_NOT_FOUND` | 노드 containerd에 nvidia 런타임 미등록 | STEP 1의 containerd 등록 |
-| device plugin 파드가 안 뜸 (`DESIRED` 0) | NFD 라벨 부재 | `nvidia.com/gpu.present=true` 라벨 |
-| 파드는 Running인데 `applicationStatuses`가 안 올라옴 | 모델 다운로드/로딩 중 | 워커 로그를 `-f`로 보며 대기 |
-| `curl`이 모델을 못 찾음 | `model`에 `model_source`를 넣음 | **`model_id`** 값을 넣는다 |
-| NodePort로 접속 안 됨 | selector의 RayCluster 이름 불일치, 또는 `extraPortMappings` 누락 | 실제 이름 확인 / kind 설정 확인 |
-| 이미지 pull이 매우 오래 걸림 | `ray-llm` 이미지 11.6GB | 정상. STEP 3으로 사전 pull |
-| GPU OOM | `gpu_memory_utilization`이 VRAM 대비 과다 | 0.60까지 낮추거나 `max_model_len` 축소 |
-| `torch.cuda.OutOfMemoryError` 또는 기동 실패 | 다른 프로세스가 GPU 점유 | `nvidia-smi`로 확인 후 정리 |
+
+| 증상                                         | 원인                                                     | 조치                                                      |
+| ------------------------------------------ | ------------------------------------------------------ | ------------------------------------------------------- |
+| kind 클러스터 API 서버 미기동                       | `nvidia-ctk`가 쓴 드롭인 config 버전이 루트보다 높음                 | `--config=/etc/containerd/config.toml` 지정해 재실행 (STEP 1) |
+| 파드에서 `NVML ERROR_LIBRARY_NOT_FOUND`        | 노드 containerd에 nvidia 런타임 미등록                          | STEP 1의 containerd 등록                                   |
+| device plugin 파드가 안 뜸 (`DESIRED` 0)        | NFD 라벨 부재                                              | `nvidia.com/gpu.present=true` 라벨                        |
+| 파드는 Running인데 `applicationStatuses`가 안 올라옴 | 모델 다운로드/로딩 중                                           | 워커 로그를 `-f`로 보며 대기                                      |
+| `curl`이 모델을 못 찾음                           | `model`에 `model_source`를 넣음                            | **`model_id`** 값을 넣는다                                   |
+| NodePort로 접속 안 됨                           | selector의 RayCluster 이름 불일치, 또는 `extraPortMappings` 누락 | 실제 이름 확인 / kind 설정 확인                                   |
+| 이미지 pull이 매우 오래 걸림                         | `ray-llm` 이미지 11.6GB                                   | 정상. STEP 3으로 사전 pull                                    |
+| GPU OOM                                    | `gpu_memory_utilization`이 VRAM 대비 과다                   | 0.60까지 낮추거나 `max_model_len` 축소                          |
+| `torch.cuda.OutOfMemoryError` 또는 기동 실패     | 다른 프로세스가 GPU 점유                                        | `nvidia-smi`로 확인 후 정리                                   |
+
 
 ## 14. 리소스 제거
 
