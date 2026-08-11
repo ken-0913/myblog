@@ -4,6 +4,7 @@ date: 2026-08-11T20:00:00+09:00
 draft: true
 tags: ["Ray", "Ray Serve", "KubeRay", "RayService", "vLLM", "Kubernetes", "LLM", "GPU", "k3s", "kind", "Prometheus", "Grafana"]
 categories: ["LLM"]
+featuredImage: images/banners/llm-ray-serving-result-15513a3c.png
 ---
 [앞선 두 실습](../llm-serving-single-model-lab/)은 서버 한 대에서 프로세스를 직접 띄웠다. 이번에는 **Kubernetes 위에 얹는다.** KubeRay Operator가 Ray 클러스터를 관리하고, 그 위에서 Ray Serve LLM이 vLLM 엔진을 감싸 **OpenAI 호환 엔드포인트**를 노출하는 구조를 만든다.
 
