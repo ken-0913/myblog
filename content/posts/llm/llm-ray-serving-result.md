@@ -667,7 +667,323 @@ curl -s http://localhost:30006/api/serve/applications/ | jq
 
 `SERVE_CONTROLLER_ACTOR`가 head 파드에서 돌고 있는 것이 확인된다. **Ray Serve의 제어 평면도 결국 Ray Actor 하나**라는 점이 여기서 드러난다.
 
-## 12. STEP 8 — 부하 테스트
+## 12. STEP 8 — Prometheus / Grafana 연동
+
+Dashboard는 지금 상태만 보여준다. **추세를 보려면 메트릭을 따로 모아야 한다.** Ray는 head와 worker 모두 `metrics` 포트(8080)로 Prometheus 형식 메트릭을 내보내므로, 이걸 긁어가면 된다.
+
+### 모니터링 스택 설치
+
+kind 환경에 맞춰 값을 조정한다.
+
+```yaml
+# kps-values.yaml
+# kind 환경 조정: 호스트에서 접근 불가한 컨트롤플레인 컴포넌트 스크레이프 비활성
+kubeControllerManager: {enabled: false}
+kubeScheduler:         {enabled: false}
+kubeEtcd:              {enabled: false}
+kubeProxy:             {enabled: false}
+
+prometheus:
+  service:
+    type: NodePort
+    nodePort: 30008
+  prometheusSpec:
+    # 차트 기본값은 자기 릴리스 라벨이 붙은 것만 수집한다. 전부 수집하도록 해제
+    podMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelectorNilUsesHelmValues: false
+    retention: 6h
+
+grafana:
+  service:
+    type: NodePort
+    nodePort: 30007
+  adminPassword: admin
+```
+
+```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+  -n monitoring --create-namespace -f kps-values.yaml --timeout 15m
+```
+
+`podMonitorSelectorNilUsesHelmValues: false` 가 **빠지면 뒤의 PodMonitor가 무시된다.** 차트 기본값은 자기 릴리스 라벨이 붙은 리소스만 수집하기 때문이다.
+
+kind 특유의 조정도 있다. `kubeScheduler`·`kubeControllerManager` 등은 kind 노드에서 메트릭 포트가 열려 있지 않아, 켜 두면 **실패한 타깃만 계속 쌓인다.**
+
+```terminal {title="kubectl get pods -n monitoring"}
+NAME                                                        READY   STATUS    RESTARTS   AGE
+alertmanager-kube-prometheus-stack-alertmanager-0           2/2     Running   0          2m
+kube-prometheus-stack-grafana-78777f756-22rfn               3/3     Running   0          2m
+kube-prometheus-stack-kube-state-metrics-6dcbc9db6d-krrmb   1/1     Running   0          2m
+kube-prometheus-stack-operator-778d64b5d8-4fbbd             1/1     Running   0          2m
+kube-prometheus-stack-prometheus-node-exporter-8b8hl        1/1     Running   0          2m
+prometheus-kube-prometheus-stack-prometheus-0               2/2     Running   0          2m
+```
+
+### 포트가 모자랄 때 — 노드 IP로 직접
+
+`kind-gpu.yaml`에는 30005와 30006만 매핑해 뒀다. **`extraPortMappings`는 클러스터 생성 시점에만 정할 수 있어서**, 나중에 포트를 늘리려면 클러스터를 다시 만들어야 한다.
+
+다행히 우회로가 있다. kind 노드는 docker 브리지 위의 컨테이너이므로 **호스트에서 노드 IP로 NodePort에 바로 닿는다.**
+
+```bash
+kubectl get node -o wide      # INTERNAL-IP 확인 → 172.18.0.2
+curl -s -o /dev/null -w "grafana:    HTTP %{http_code}\n" http://172.18.0.2:30007/login
+curl -s -o /dev/null -w "prometheus: HTTP %{http_code}\n" http://172.18.0.2:30008/-/ready
+```
+
+```terminal {title="노드 IP로 NodePort 접근"}
+grafana:    HTTP 200
+prometheus: HTTP 200
+```
+
+클러스터를 재생성하지 않고 포트를 추가할 수 있다. 다만 **호스트 안에서만 닿는다** — 외부에 열려면 `extraPortMappings`가 필요하다.
+
+### Ray 메트릭 수집 설정
+
+head와 worker를 각각 PodMonitor로 잡는다.
+
+```yaml
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: ray-head-monitor
+  namespace: monitoring
+spec:
+  jobLabel: ray-head
+  namespaceSelector: {matchNames: [kuberay]}
+  selector: {matchLabels: {ray.io/node-type: head}}
+  podMetricsEndpoints:
+    - port: metrics
+      relabelings:
+        - {action: replace, sourceLabels: [__meta_kubernetes_pod_label_ray_io_cluster], targetLabel: ray_io_cluster}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: ray-workers-monitor
+  namespace: monitoring
+spec:
+  jobLabel: ray-workers
+  namespaceSelector: {matchNames: [kuberay]}
+  selector: {matchLabels: {ray.io/node-type: worker}}
+  podMetricsEndpoints:
+    - port: metrics
+      relabelings:
+        - {action: replace, sourceLabels: [__meta_kubernetes_pod_label_ray_io_cluster], targetLabel: ray_io_cluster}
+```
+
+selector가 잡는 라벨은 KubeRay가 파드에 자동으로 붙여 준다.
+
+```terminal {title="파드 라벨"}
+ray.io/cluster=vllm-service-bslgp
+ray.io/node-type=head
+ray.io/node-type=worker
+```
+
+`relabelings`는 `ray_io_cluster` 라벨을 메트릭에 심는다. **클러스터가 여러 개일 때 메트릭을 구분하는 열쇠**이고, KubeRay 공식 대시보드가 이 라벨을 변수로 쓴다.
+
+### 수집 확인
+
+```bash
+curl -s "http://172.18.0.2:30008/api/v1/targets?state=active" | jq -r \
+  '.data.activeTargets[] | select(.scrapePool|test("ray")) | "\(.scrapePool) \(.health) \(.labels.pod)"'
+```
+
+```terminal {title="Prometheus 스크레이프 타깃"}
+podMonitor/monitoring/ray-head-monitor/0     up   vllm-service-bslgp-head-ks8hd
+podMonitor/monitoring/ray-workers-monitor/0  up   vllm-service-bslgp-gpu-group-worker-98c4b
+```
+
+둘 다 `up`이면 성공이다. 실제로 들어온 메트릭을 세어 보면 이렇다.
+
+```terminal {title="수집된 Ray 메트릭"}
+ray_* 메트릭 종류: 202
+
+ray_serve_num_http_requests_total         시계열 5개  최근값 19
+ray_serve_deployment_replica_healthy      시계열 2개  최근값 1
+ray_node_cpu_utilization                  시계열 2개  최근값 26.8
+ray_node_mem_used                         시계열 2개  최근값 4140105728
+```
+
+**메트릭이 202종이다.** Ray 클러스터 상태부터 Serve 요청 통계까지 한 번에 들어온다.
+
+### Grafana 대시보드 등록
+
+KubeRay가 공식 대시보드 JSON을 제공한다. ConfigMap에 `grafana_dashboard=1` 라벨을 붙이면 Grafana sidecar가 자동으로 읽어 간다.
+
+```bash
+BASE=https://raw.githubusercontent.com/ray-project/kuberay/master/config/grafana
+for f in default_grafana_dashboard.json serve_grafana_dashboard.json \
+         serve_deployment_grafana_dashboard.json serve_llm_grafana_dashboard.json; do
+  curl -sfLO $BASE/$f
+  n=$(echo $f | sed 's/_grafana_dashboard.json//' | tr '_' '-')
+  kubectl create configmap ray-dash-$n -n monitoring --from-file=$f \
+    --dry-run=client -o yaml \
+  | kubectl label -f - --local -o yaml grafana_dashboard=1 \
+  | kubectl apply -f -
+done
+```
+
+```terminal {title="Grafana에 등록된 대시보드"}
+$ curl -s -u admin:admin "http://172.18.0.2:30007/api/search?query=" | jq -r '.[].title'
+...
+Default Dashboard
+Serve Dashboard
+Serve Deployment Dashboard
+Serve LLM Dashboard
+```
+
+넷 중 **`Serve LLM Dashboard`가 이 실습에 가장 맞는다.** 토큰 처리량, TTFT 같은 LLM 고유 지표를 다룬다.
+
+### 부하를 걸고 메트릭 읽기
+
+대시보드에 값이 차려면 트래픽이 있어야 한다. 60초 동안 동시 4로 172건을 보낸 뒤 조회한 결과다.
+
+```bash
+curl -s "http://172.18.0.2:30008/api/v1/query?query=sum(ray_serve_num_http_requests_total)"
+```
+
+| 지표 | PromQL | 값 |
+| --- | --- | --- |
+| HTTP 요청 누적 | `sum(ray_serve_num_http_requests_total)` | 5,146 |
+| 현재 처리 중 요청 | `sum(ray_serve_num_ongoing_http_requests)` | **4** |
+| replica healthy | `sum(ray_serve_deployment_replica_healthy)` | **2** |
+| 노드 CPU 사용률 | `max(ray_node_cpu_utilization)` | 52.2% |
+| 노드 메모리 사용 | `max(ray_node_mem_used)` | 3.86GB |
+
+**`현재 처리 중 요청`이 정확히 4다.** 부하 스크립트의 동시성과 같다. `max_ongoing_requests: 8` 상한 아래이므로 큐잉 없이 곧바로 처리되고 있다는 뜻이고, 이 값이 상한에 붙기 시작하면 replica를 늘릴 시점이다.
+
+**`replica healthy`가 2인 것**도 짚어 둔다. LLMServer 하나와 OpenAiIngress 하나다. 9절에서 본 `NUM SERVE ENDPOINTS 2`와 같은 숫자를 메트릭 쪽에서 다시 확인한 셈이다.
+
+### Ray Dashboard에 Grafana 패널 임베드
+
+여기까지 하면 Grafana와 Ray Dashboard가 **따로 논다.** head에 env 네 개를 넣으면 Ray Dashboard 안에 Grafana 패널이 끼워진다.
+
+주소가 **두 종류**라는 점이 핵심이다.
+
+| env | 누가 접근하나 | 값 |
+| --- | --- | --- |
+| `RAY_GRAFANA_HOST` | **head 파드** → Grafana | 클러스터 내부 DNS |
+| `RAY_PROMETHEUS_HOST` | **head 파드** → Prometheus | 클러스터 내부 DNS |
+| `RAY_GRAFANA_IFRAME_HOST` | **브라우저** → Grafana | 외부에서 닿는 주소 |
+
+```yaml
+    headGroupSpec:
+      template:
+        spec:
+          containers:
+            - name: ray-head
+              env:
+                - {name: RAY_GRAFANA_HOST,        value: "http://kube-prometheus-stack-grafana.monitoring.svc:80"}
+                - {name: RAY_PROMETHEUS_HOST,     value: "http://kube-prometheus-stack-prometheus.monitoring.svc:9090"}
+                - {name: RAY_GRAFANA_IFRAME_HOST, value: "http://172.16.0.44:30007"}
+                - {name: RAY_PROMETHEUS_NAME,     value: "Prometheus"}
+```
+
+Grafana 쪽 설정도 필요한데, 앞의 `kps-values.yaml`에 이미 넣어 뒀다.
+
+```yaml
+  grafana.ini:
+    security:
+      allow_embedding: true       # iframe 삽입 허용
+    auth.anonymous:
+      enabled: true
+      org_role: Viewer            # 로그인 없이 패널 조회
+```
+
+> **보안 참고**: 익명 Viewer를 켜면 해당 포트에 닿는 누구나 **로그인 없이 Grafana를 조회**할 수 있다. 편집은 불가능하지만 인증 없는 열람이 가능해지는 정책 변화이므로, 사설망 안에서만 쓴다.
+
+### 브라우저가 닿을 주소가 없다면
+
+`RAY_GRAFANA_IFRAME_HOST`는 **브라우저 기준 주소**라 클러스터 내부 DNS를 쓸 수 없다. 그런데 `kind-gpu.yaml`에 매핑해 둔 포트는 30005와 30006뿐이라 Grafana(30007)는 호스트 밖에서 닿지 않는다.
+
+클러스터를 다시 만들지 않고 포트 하나를 여는 방법이 있다. 노드 IP로 중계하면 된다.
+
+```bash
+docker run -d --name grafana-fwd --network host alpine/socat \
+  tcp-listen:30007,fork,reuseaddr tcp-connect:172.18.0.2:30007
+```
+
+```terminal {title="호스트 IP로 Grafana 접근"}
+$ curl -s -o /dev/null -w "HTTP %{http_code}\n" http://172.16.0.44:30007/login
+HTTP 200
+```
+
+### GPU 1장에서는 무중단 업그레이드가 막힌다
+
+env를 추가하고 `kubectl apply`하면 **RayService가 새 RayCluster를 만들어 트래픽을 넘기는 무중단 업그레이드**를 시작한다. 그런데 GPU가 1장뿐이면 여기서 멈춘다.
+
+```terminal {title="새 worker가 Pending"}
+$ kubectl get pods -n kuberay
+vllm-service-bslgp-gpu-group-worker-98c4b   1/1     Running   124m   ← 구 클러스터
+vllm-service-bslgp-head-ks8hd               1/1     Running   124m
+vllm-service-xrcnp-gpu-group-worker-cdjr2   0/1     Pending    10m   ← 신 클러스터
+vllm-service-xrcnp-head-vx9hm               1/1     Running    10m
+
+$ kubectl describe pod -n kuberay vllm-service-xrcnp-gpu-group-worker-cdjr2
+Warning  FailedScheduling  0/1 nodes are available:
+  1 Insufficient cpu, 1 Insufficient memory, 1 Insufficient nvidia.com/gpu.
+```
+
+**구 클러스터가 GPU를 쥐고 있어서 신 클러스터가 뜨지 못한다.** 무중단 업그레이드는 전환 순간에 **자원이 2배** 필요한데, GPU가 하나뿐이라 교착 상태가 된다.
+
+이 환경에서는 구 클러스터를 직접 지워 진행시킨다. 그 순간 서빙이 잠시 끊긴다.
+
+```bash
+kubectl delete raycluster vllm-service-bslgp -n kuberay
+```
+
+> 2절에서 RayService의 장점으로 꼽은 **무중단 업그레이드가 단일 GPU에서는 성립하지 않는다.** 모델을 바꿀 때마다 다운타임이 생기므로, 이 규모에서는 "설정을 한 파일로 관리한다"는 이점만 취하는 셈이다.
+
+전환이 끝나면 **NodePort의 selector도 새 클러스터 이름으로 갱신**해야 한다. 이름이 바뀌었기 때문이다.
+
+```bash
+kubectl patch svc vllm-service-nodeport -n kuberay \
+  -p '{"spec":{"selector":{"ray.io/node-type":"head","ray.io/cluster":"vllm-service-xrcnp"}}}'
+```
+
+### 연동 확인
+
+Ray Dashboard가 Grafana를 인식했는지는 전용 엔드포인트로 확인한다.
+
+```bash
+curl -s http://localhost:30006/api/grafana_health | jq
+```
+
+```json {title="/api/grafana_health"}
+{
+  "result": true,
+  "msg": "Grafana running",
+  "data": {
+    "grafanaHost": "http://172.16.0.44:30007",
+    "grafanaOrgId": "1",
+    "dashboardUids": {
+      "default": "rayDefaultDashboard",
+      "serve": "rayServeDashboard",
+      "serveDeployment": "rayServeDeploymentDashboard",
+      "serveLlm": "rayServeLlmDashboard"
+    }
+  }
+}
+```
+
+`"result": true` 면 성공이다. `dashboardUids`가 앞서 ConfigMap으로 올린 대시보드와 이어진다. **Ray Dashboard는 이 UID로 Grafana 패널을 찾아 iframe으로 끼워 넣는다** — 그래서 대시보드 JSON을 먼저 등록해 둬야 했다.
+
+재생성 후 서빙과 메트릭이 모두 살아 있는지도 확인한다.
+
+```terminal {title="재생성 후 상태"}
+$ curl -s .../v1/chat/completions ... → "Hello! How can I assist you today?"
+$ curl -s -o /dev/null -w "%{http_code}" http://localhost:30006/     → 200
+
+# Prometheus 타깃도 새 파드로 자동 전환됨
+up  vllm-service-xrcnp-head-vx9hm
+up  vllm-service-xrcnp-gpu-group-worker-cdjr2
+```
+
+**PodMonitor는 손대지 않았는데 새 파드를 자동으로 잡았다.** 파드 이름이 아니라 `ray.io/node-type` 라벨로 선택하기 때문이다. NodePort는 클러스터 이름을 selector에 박아 둬서 수동 갱신이 필요했던 것과 대비된다.
+
+## 13. STEP 9 — 부하 테스트
 
 별도 패키지 없이 표준 라이브러리만으로 `/v1/chat/completions`를 반복 호출한다. 서버 로컬에서 `localhost:30005`로 직접 쳐서 네트워크 홉을 없앤다.
 
@@ -758,7 +1074,7 @@ utilization, power, temp, memory
 
 **실패가 0건이다.** replica 1개 + AWQ 양자화 구성이 동시 4요청은 여유롭게 감당한다. 동시성을 더 올리면 `max_ongoing_requests: 8`에 걸려 큐잉이 시작될 것이다.
 
-## 13. 트러블슈팅
+## 14. 트러블슈팅
 
 
 | 증상                                         | 원인                                                     | 조치                                                      |
@@ -774,14 +1090,16 @@ utilization, power, temp, memory
 | `torch.cuda.OutOfMemoryError` 또는 기동 실패     | 다른 프로세스가 GPU 점유                                        | `nvidia-smi`로 확인 후 정리                                   |
 
 
-## 14. 리소스 제거
+## 15. 리소스 제거
 
 ```bash
 kubectl delete -f vllm-service-6gb.yaml
 kubectl delete svc -n kuberay vllm-service-nodeport vllm-service-dashboard-nodeport
+docker rm -f grafana-fwd                       # socat 중계 제거
+helm uninstall kube-prometheus-stack -n monitoring
 helm uninstall kuberay-operator -n kuberay-system
 helm uninstall nvdp -n nvidia-device-plugin
-kubectl delete namespace kuberay kuberay-system nvidia-device-plugin
+kubectl delete namespace kuberay kuberay-system nvidia-device-plugin monitoring
 
 nvidia-smi                                      # GPU 반환 확인
 kind delete cluster --name gpu                  # 클러스터째 삭제
@@ -791,7 +1109,7 @@ docker exec gpu-control-plane crictl rmi \
 
 클러스터를 통째로 지우면 노드 컨테이너와 함께 이미지도 사라지므로 `kind delete cluster` 한 줄이면 충분하다.
 
-## 15. 정리
+## 16. 정리
 
 로그와 숫자로 직접 확인한 것들이다.
 
