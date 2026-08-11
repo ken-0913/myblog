@@ -245,13 +245,25 @@ watch -n 1 'nvidia-smi --query-gpu=memory.used,memory.free --format=csv; \
 curl -s http://localhost:8001/models | jq
 ```
 
-```terminal {title="GET /models"}
+```json {title="GET /models (name·framework만 발췌)"}
 {
   "available_models": {
-    "550e8400-...": { "name": "distilbert-base-uncased-finetuned-sst-2-english", "framework": "transformers", ... },
-    "6ba7b810-...": { "name": "mrm8488/bert-tiny-finetuned-sms-spam-detection",  "framework": "transformers", ... },
-    "7c9e6679-...": { "name": "pytorch/vision:mobilenet_v2",                     "framework": "torchvision",  ... },
-    "8ba7b810-...": { "name": "densenet_onnx",                                   "framework": "triton",       ... }
+    "550e8400-e29b-41d4-a716-446655440000": {
+      "name": "distilbert-base-uncased-finetuned-sst-2-english",
+      "framework": "transformers"
+    },
+    "6ba7b810-9dad-11d1-80b4-00c04fd430c8": {
+      "name": "mrm8488/bert-tiny-finetuned-sms-spam-detection",
+      "framework": "transformers"
+    },
+    "7c9e6679-7425-40de-944b-e07fc1f90ae7": {
+      "name": "pytorch/vision:mobilenet_v2",
+      "framework": "torchvision"
+    },
+    "8ba7b810-9dad-11d1-80b4-00c04fd430c9": {
+      "name": "densenet_onnx",
+      "framework": "triton"
+    }
   },
   "loaded_models": {}
 }
@@ -269,7 +281,7 @@ curl -s -X POST http://localhost:8001/predict \
   -d "{\"model_id\": \"$M_SENT\", \"input_data\": \"This movie was great! I really enjoyed it.\"}" | jq
 ```
 
-```terminal {title="POST /predict — sentiment"}
+```json {title="POST /predict — sentiment"}
 {
   "predictions": [
     [
@@ -299,7 +311,7 @@ time curl -s -X POST http://localhost:8001/predict -H "Content-Type: application
 curl -s http://localhost:8001/models | jq '.loaded_models'
 ```
 
-```terminal {title="loaded_models — 1/2"}
+```json {title="loaded_models — 1/2"}
 {
   "550e8400-e29b-41d4-a716-446655440000": "distilbert-base-uncased-finetuned-sst-2-english"
 }
@@ -315,7 +327,7 @@ curl -s -X POST http://localhost:8001/predict \
   -d "{\"model_id\": \"$M_SPAM\", \"input_data\": \"This movie was great! I really enjoyed it.\"}" | jq
 ```
 
-```terminal {title="POST /predict — spam"}
+```json {title="POST /predict — spam"}
 {
   "predictions": [
     [
@@ -332,7 +344,7 @@ ham 확률 0.937이다. **같은 입력인데 모델에 따라 답의 의미가 
 curl -s http://localhost:8001/models | jq '.loaded_models'
 ```
 
-```terminal {title="loaded_models — 2/2 (가득 참)"}
+```json {title="loaded_models — 2/2 (가득 참)"}
 {
   "550e8400-e29b-41d4-a716-446655440000": "distilbert-base-uncased-finetuned-sst-2-english",
   "6ba7b810-9dad-11d1-80b4-00c04fd430c8": "mrm8488/bert-tiny-finetuned-sms-spam-detection"
@@ -356,7 +368,7 @@ curl -s -X POST http://localhost:8001/predict \
 curl -s http://localhost:8001/models | jq '.loaded_models'
 ```
 
-```terminal {title="loaded_models — sentiment가 사라졌다"}
+```json {title="loaded_models — sentiment가 사라졌다"}
 {
   "6ba7b810-9dad-11d1-80b4-00c04fd430c8": "mrm8488/bert-tiny-finetuned-sms-spam-detection",
   "7c9e6679-7425-40de-944b-e07fc1f90ae7": "pytorch/vision:mobilenet_v2"
@@ -384,7 +396,7 @@ curl -s -X POST localhost:8001/predict -H "Content-Type: application/json" -d "{
 curl -s localhost:8001/models | jq '.loaded_models'
 ```
 
-```terminal {title="loaded_models — 이번엔 spam이 밀려났다"}
+```json {title="loaded_models — 이번엔 spam이 밀려났다"}
 {
   "550e8400-e29b-41d4-a716-446655440000": "distilbert-base-uncased-finetuned-sst-2-english",
   "7c9e6679-7425-40de-944b-e07fc1f90ae7": "pytorch/vision:mobilenet_v2"
@@ -491,7 +503,7 @@ docker run --gpus all -d --name triton-densenet \
 curl -s -X POST localhost:8009/v2/repository/index | jq
 ```
 
-```terminal {title="Triton — repository/index"}
+```json {title="Triton — repository/index"}
 [
   {
     "name": "densenet_onnx"
@@ -548,7 +560,7 @@ curl -s -X POST localhost:8009/v2/repository/models/densenet_onnx/load
 curl -s localhost:8009/v2/models/densenet_onnx | jq
 ```
 
-```terminal {title="Triton — 모델 메타데이터"}
+```json {title="Triton — 모델 메타데이터"}
 {
   "name": "densenet_onnx",
   "versions": [ "1" ],
@@ -607,7 +619,7 @@ curl -s -X POST http://localhost:8001/predict -H "Content-Type: application/json
 curl -s localhost:8001/models | jq '.loaded_models'
 ```
 
-```terminal {title="loaded_models — triton 워커도 캐시 대상"}
+```json {title="loaded_models — triton 워커도 캐시 대상"}
 {
   "7c9e6679-7425-40de-944b-e07fc1f90ae7": "pytorch/vision:mobilenet_v2",
   "8ba7b810-9dad-11d1-80b4-00c04fd430c9": "densenet_onnx"

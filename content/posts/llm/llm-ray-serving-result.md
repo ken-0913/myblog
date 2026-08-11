@@ -114,6 +114,8 @@ KubeRay는 CRD를 네 개 제공한다.
 
 **GPU가 6GB 한 장뿐이라는 것이 이 실습의 모든 제약을 만든다.** 모델 선택, `gpu_memory_utilization`, `max_model_len`, 동시 요청 수가 전부 여기서 역산된다.
 
+> 이 둘은 결국 **KV 캐시 예산**을 나누는 손잡이다. `gpu_memory_utilization`은 vLLM이 선점할 VRAM 총량(가중치 + KV 캐시)을, `max_model_len`은 요청 하나가 그중 몇 토큰치를 차지할지를 정한다 — 계산 근거는 [1주차 5부 KV Cache](../llm-series-all-in-one/#5부-prefill-decode-kv-cache)에 있다.
+
 사전에 확인할 것이 셋이다.
 
 **GPU를 쓰는 다른 프로세스가 없어야 한다.** 앞선 실습의 잔여 프로세스가 남아 있기 쉽다. 실제로 이 서버에서는 멀티 모델 서빙 실습의 앱이 **21시간 넘게** 살아 있어 847MiB를 잡고 있었다.
@@ -260,10 +262,12 @@ helm install nvdp nvdp/nvidia-device-plugin \
 kubectl get node gpu-control-plane -o jsonpath='{.status.allocatable}'
 ```
 
-```terminal {title="노드 allocatable"}
-{"cpu":"12"
-"memory":"32683004Ki"
-"nvidia.com/gpu":"1"
+```json {title="노드 allocatable (관련 항목 발췌)"}
+{
+  "cpu": "12",
+  "memory": "32683004Ki",
+  "nvidia.com/gpu": "1"
+}
 ```
 
 실제 파드에서 GPU가 잡히는지가 최종 확인이다.
@@ -563,7 +567,7 @@ curl -s http://localhost:30005/v1/chat/completions -H 'Content-Type: application
        "max_tokens":80}' | jq
 ```
 
-```terminal {title="POST /v1/chat/completions"}
+```json {title="POST /v1/chat/completions"}
 {
   "id": "chatcmpl-d84b8adf-7ec8-44fa-96df-909b471cd59e",
   "model": "qwen2.5-1.5b-instruct-awq",
@@ -617,7 +621,7 @@ HTTP 200
 curl -s http://localhost:30006/api/serve/applications/ | jq
 ```
 
-```terminal {title="/api/serve/applications/"}
+```json {title="/api/serve/applications/ (발췌)"}
 {
   "controller_info": {
     "node_id": "6b647d452cfe4f4e135c68b4695518c0ab8645111ec5361cf069fee0",
@@ -625,7 +629,8 @@ curl -s http://localhost:30006/api/serve/applications/ | jq
     "node_instance_id": "vllm-service-bslgp-head-ks8hd",
     "actor_id": "8cc20adab0daf4293ad5396701000000",
     "actor_name": "SERVE_CONTROLLER_ACTOR"
-    ...
+  }
+}
 ```
 
 `SERVE_CONTROLLER_ACTOR`가 head 파드에서 돌고 있는 것이 확인된다. **Ray Serve의 제어 평면도 결국 Ray Actor 하나**라는 점이 여기서 드러난다.
@@ -730,16 +735,6 @@ utilization, power, temp, memory
 | 이미지 pull이 매우 오래 걸림 | `ray-llm` 이미지 11.6GB | 정상. STEP 3으로 사전 pull |
 | GPU OOM | `gpu_memory_utilization`이 VRAM 대비 과다 | 0.60까지 낮추거나 `max_model_len` 축소 |
 | `torch.cuda.OutOfMemoryError` 또는 기동 실패 | 다른 프로세스가 GPU 점유 | `nvidia-smi`로 확인 후 정리 |
-
-### `pkill -f` 사용 시 주의
-
-원격 정리 중 겪은 함정이다. SSH로 아래를 실행하면 **명령을 실행하는 셸 자신이 먼저 죽는다.**
-
-```bash
-ssh host 'pkill -f "python -m app.server"; echo done'   # done이 안 찍힌다
-```
-
-`pkill -f`는 프로세스의 전체 커맨드라인을 매칭하는데, 원격 셸의 커맨드라인에 그 문자열이 그대로 들어 있기 때문이다. 뒤따르는 명령이 통째로 실행되지 않으므로, **정리 명령과 후속 작업은 분리해서 실행**한다.
 
 ## 14. 리소스 제거
 
