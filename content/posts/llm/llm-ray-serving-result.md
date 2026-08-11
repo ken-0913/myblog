@@ -6,15 +6,8 @@ tags: ["Ray", "Ray Serve", "KubeRay", "RayService", "vLLM", "Kubernetes", "LLM",
 categories: ["LLM"]
 featuredImage: images/banners/llm-ray-serving-result-15513a3c.png
 ---
-[앞선 두 실습](../llm-serving-single-model-lab/)은 서버 한 대에서 프로세스를 직접 띄웠다. 이번에는 **Kubernetes 위에 얹는다.** KubeRay Operator가 Ray 클러스터를 관리하고, 그 위에서 Ray Serve LLM이 vLLM 엔진을 감싸 **OpenAI 호환 엔드포인트**를 노출하는 구조를 만든다.
-
-최종 목표는 하나다. `kubectl apply` 한 번으로 LLM 서빙이 뜨고, 모델을 바꾸려면 매니페스트만 고치면 되는 상태다.
-
-이 매뉴얼의 명령 결과는 **실제로 실행한 것**이다. 본문(1~11절)은 k3s + 대용량 GPU 환경, 뒤쪽 12~14절은 **kind + RTX 3050 6GB로 축소해 검증한 결과**다.
 
 ## 1. 무엇을 쓰는지부터 정리
-
-레이어가 여러 겹이라 이름이 헷갈리기 쉽다. 실습에 필요한 만큼만 짚는다.
 
 
 | 이름                | 무엇인가                                              |
@@ -27,11 +20,9 @@ featuredImage: images/banners/llm-ray-serving-result-15513a3c.png
 | **RayService**    | KubeRay의 CRD. RayCluster + Ray Serve 앱을 **함께** 관리 |
 
 
-Ray 자체는 Core 위에 Data · Train · Tune · Serve · RLlib가 얹힌 구조인데, 이 실습에서 쓰는 것은 **Serve 하나**다.
+Ray 자체는 Core 위에 Data · Train · Tune · Serve · RLlib가 얹힌 구조인데 이 실습에서 쓰는 것은 **Serve 하나**다.
 
 ### Ray Serve의 네 가지 개념
-
-Ray Serve 문서를 읽을 때 걸리는 용어가 넷이다.
 
 **Deployment** — Ray Serve의 기본 단위다. 비즈니스 로직이나 ML 모델을 담고 요청을 처리한다. `@serve.deployment` 데코레이터로 정의하며, 런타임에 여러 개의 replica(각각 별도 Ray Actor)로 확장된다.
 
@@ -64,7 +55,7 @@ class MyFirstDeployment:
 - **배포 내 조율** — 데이터 병렬 attention, MoE 전문가 계층 조율
 - **배포 간 조율** — prefill-decode 분리로 단계별 독립 확장
 
-요청은 이렇게 흐른다.
+요청 흐름
 
 ```mermaid
 flowchart LR
@@ -811,6 +802,25 @@ spec:
 +-----------------------------------------+------------------------+----------------------+
 ```
 
+### GPU가 파드에 닿기까지
+
+네 단계를 **전부** 통과해야 파드가 GPU를 잡는다. 앞의 1~4단계가 각각 이 사슬의 한 칸이다.
+
+```mermaid
+flowchart TB
+    A["호스트<br/>/dev/nvidia* + 드라이버 라이브러리"]
+    A -->|"① kind extraMounts<br/>/dev/null → /var/run/nvidia-container-devices/all"| B
+    B["노드 컨테이너에 GPU 주입<br/><i>docker exec … nvidia-smi 성공</i>"]
+    B -->|"② nvidia-ctk runtime configure<br/>--config=… --set-as-default"| C
+    C["노드 containerd에 nvidia 런타임 등록<br/>RuntimeClass nvidia"]
+    C -->|"③ device plugin + 노드 라벨"| D
+    D["allocatable<br/><b>nvidia.com/gpu: 1</b>"]
+    D -->|"④ 파드가 runtimeClassName + limits 요청"| E
+    E["파드 안에서 nvidia-smi 성공"]
+```
+
+**중간 단계가 빠지면 증상이 다르게 나타난다.** ①만 하면 노드에서는 되는데 파드에서 `NVML ERROR_LIBRARY_NOT_FOUND`가 나고, ③이 빠지면 device plugin 파드 자체가 뜨지 않는다.
+
 ### 구축 중 만난 문제 셋
 
 순서대로 겪은 것이고, 각각이 앞 단계의 이유를 설명한다.
@@ -840,6 +850,51 @@ spec:
 ## 14. 6GB 배포 실측
 
 12절의 축소값을 이 kind 클러스터에 실제로 배포했다. **토큰 없이, GPU 1장 6GB에서 끝까지 동작했다.**
+
+### 배포된 구조
+
+명령을 따라가기 전에 최종적으로 무엇이 서는지 먼저 본다.
+
+```mermaid
+flowchart TB
+    C["curl localhost:30005"] -->|"extraPortMappings"| SVC
+    subgraph HOST["호스트 — RTX 3050 6GB · 12 core · 31GB"]
+        subgraph NODE["kind 노드 컨테이너 gpu-control-plane · containerd 2.3.1"]
+            subgraph SYS["ns: kuberay-system · nvidia-device-plugin"]
+                OP["kuberay-operator<br/>v1.6.0"]
+                DP["nvidia device plugin<br/>nvidia.com/gpu: 1 광고"]
+            end
+            subgraph KR["ns: kuberay"]
+                SVC["NodePort Service<br/>vllm-service-nodeport :30005"]
+                H["head pod<br/>num-gpus 0<br/>OpenAiIngress · GCS · Autoscaler"]
+                W["worker pod<br/>num-gpus 1 · runtimeClassName nvidia<br/>LLMServer → vLLM<br/>Qwen2.5-1.5B-Instruct-AWQ"]
+            end
+        end
+        G[("RTX 3050<br/>5155 / 6144 MiB")]
+    end
+    OP -.->|"reconcile"| KR
+    DP -.->|"allocatable"| W
+    SVC --> H
+    H -->|"DeploymentHandle RPC"| W
+    W --> G
+```
+
+한 노드짜리 클러스터지만 **역할은 셋으로 나뉜다.** Operator가 RayService를 감시하며 RayCluster를 만들고, head가 요청을 받아 라우팅하며, worker만 GPU를 잡는다.
+
+`num-gpus: "0"`인 head가 GPU를 전혀 쓰지 않는 것에 주목한다. Ray Cluster의 Head는 GCS와 Autoscaler를 돌리는 관리 노드이고, 이 구성에서는 OpenAiIngress까지 얹혀 있다. **7B 구성(7절)과 토폴로지가 같다** — 달라진 것은 모델과 리소스 값뿐이다.
+
+호스트에서 요청이 파드까지 닿는 경로는 kind 때문에 한 칸이 더 있다.
+
+```
+curl localhost:30005
+  → ① kind extraPortMappings (호스트 → 노드 컨테이너)
+  → ② NodePort Service (selector: node-type=head, cluster=vllm-service-bslgp)
+  → ③ head pod : 8000  OpenAiIngress
+  → ④ DeploymentHandle RPC → worker pod  LLMServer → vLLM
+  → ⑤ CUDA → RTX 3050
+```
+
+**①이 kind 특유의 단계다.** 노드가 컨테이너라 `extraPortMappings`로 호스트 포트를 뚫어 두지 않으면 NodePort를 열어도 호스트에서 닿지 않는다. k3s처럼 노드가 호스트 자체인 환경에는 이 단계가 없다.
 
 ### KubeRay Operator
 
