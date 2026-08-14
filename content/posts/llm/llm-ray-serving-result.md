@@ -8,11 +8,11 @@ featuredImage: images/banners/llm-ray-serving-result-15513a3c.png
 ---
 [앞선 두 실습](../llm-serving-single-model-lab/)은 서버 한 대에서 프로세스를 직접 띄웠다. 이번에는 **Kubernetes 위에 얹는다.** KubeRay Operator가 Ray 클러스터를 관리하고, 그 위에서 Ray Serve LLM이 vLLM 엔진을 감싸 **OpenAI 호환 엔드포인트**를 노출하는 구조를 만든다.
 
-최종 목표는 하나다. `kubectl apply` 한 번으로 LLM 서빙이 뜨고, 모델을 바꾸려면 매니페스트만 고치면 되는 상태다.
+최종 목표는  `kubectl apply` 한 번으로 LLM 서빙이 뜨고 모델을 바꾸려면 매니페스트만 고치면 되는 상태다.
 
-**이 글의 모든 명령과 결과는 RTX 3050 6GB 한 장이 달린 리눅스 데스크톱에서 실제로 실행한 것이다.** 6GB는 LLM 서빙에 넉넉한 크기가 아니라서, 모델과 설정을 어디까지 줄여야 하는지가 이 실습의 절반을 차지한다.
+ **RTX 3050 6GB 한 장이 달린 리눅스 데스크톱에서 실제로 실행한다.**
 
-## 1. 무엇을 쓰는지부터 정리
+## 1. Ray 종류
 
 
 | 이름                | 무엇인가                                              |
@@ -25,11 +25,9 @@ featuredImage: images/banners/llm-ray-serving-result-15513a3c.png
 | **RayService**    | **KubeRay의 CRD. RayCluster + Ray Serve 앱을 함께 관리** |
 
 
-Ray 자체는 Core 위에 Data · Train · Tune · Serve · RLlib가 얹힌 구조인데, 이 실습에서 쓰는 것은 **Serve 하나**다.
+Ray 자체는 Core 위에 Data · Train · Tune · Serve · RLlib가 얹힌 구조인데 이 실습에서 쓰는 것은 **Serve 하나**다.
 
 ### Ray Serve의 네 가지 개념
-
-
 
 **Deployment** 
 
@@ -70,7 +68,7 @@ class MyFirstDeployment:
 - **배포 내 조율** — 데이터 병렬 attention, MoE 전문가 계층 조율
 - **배포 간 조율** — prefill-decode 분리로 단계별 독립 확장
 
-요청은 이렇게 흐른다.
+요청흐름
 
 ```mermaid
 flowchart LR
@@ -80,11 +78,27 @@ flowchart LR
     V --> L --> I --> C
 ```
 
-**같은 노드의 replica를 우선 라우팅해 크로스노드 오버헤드를 줄이는 것**이 특징이다. 오토스케일링은 Ingress : LLMServer = **2:1** 비율이 권장값이며, `target_ongoing_requests`로 컴포넌트별 균형을 맞춘다.
+기본 request router는 **같은 노드의 replica를 먼저 고른다.** 다만 [공식 문서](https://docs.ray.io/en/latest/serve/llm/architecture/overview.html)는 이 크로스노드 오버헤드가 **LLM 서빙에서는 미미하다**고한다. 고동시성에서 TTFT에 몇 ms 붙는 수준이라, 요청당 수백 ms에서 수 초가 걸리는 LLM에서는 챙겨야 할 최적화가 아니라 기본값으로 두면 되는 항목이다.
+
+정작 병목은 다른 쪽에 생긴다. `OpenAiIngress`는 FastAPI 기반이라 **단일 이벤트 루프**로 돌고, GPU 없이 파싱·라우팅·스트리밍 중계만 하는데도 동시성이 오르면 여기 CPU가 먼저 포화된다. 그래서 문서는 **Ingress : LLMServer = 2:1** 이상을 권장한다. Ingress replica는 GPU를 쓰지 않으므로 늘려도 비용 부담이 작다.
+
+오토스케일링이 돌면 두 컴포넌트가 제각각 늘어나 비율이 깨진다. 이를 막으려고 `target_ongoing_requests`를 비율에 맞춰 미리 잡아 둔다.
+
+
+| 단계                                     | 문서의 예시 값          |
+| -------------------------------------- | ----------------- |
+| vLLM 프로파일링으로 구한 최대 동시 요청               | 64                |
+| `LLMServer`의 `target_ongoing_requests` | **48** (최대치의 75%) |
+| `Ingress`의 `target_ongoing_requests`   | **24** (2:1 유지)   |
+
+
+Ingress가 24에서 먼저 스케일아웃되므로 항상 2배 앞서 늘어난다. LLMServer를 64가 아닌 48로 잡는 것은 여유분인데 최대치에 맞추면 스케일아웃이 끝나기 전에 포화되기 때문이다.
+
+(이 실습에는 replica 1개에 `max_ongoing_requests: 8` 구성이라 스케일아웃 자체가 일어나지 않는다.)
 
 ## 2. RayService를 고르는 이유
 
-KubeRay는 CRD를 네 개 제공한다.
+KubeRay의 CRD
 
 
 | CRD            | 용도                                                 |
@@ -126,9 +140,7 @@ KubeRay는 CRD를 네 개 제공한다.
 | 디스크                      | 457GB 중 약 230GB 여유                                            |
 
 
-
-
-**GPU가 6GB 한 장뿐이라는 것이 이 실습의 모든 제약을 만든다.** 
+**실습제약 : GPU가 6GB 한장**
 
 - 모델 선택, `gpu_memory_utilization`, `max_model_len`, 동시 요청 수가 전부 여기서 역산된다.
 
@@ -137,16 +149,6 @@ KubeRay는 CRD를 네 개 제공한다.
 
 
 ### 사전에 확인할 것
-
-**GPU를 쓰는 다른 프로세스가 없어야 한다.**
-
-- 앞선 실습의 잔여 프로세스가 남아 있기 쉽다. 실제로 이 서버에서는 멀티 모델 서빙 실습의 앱이 **21시간 넘게** 살아 있어 847MiB를 잡고 있었다.
-
-```bash
-nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv
-```
-
-
 
 **디스크 여유가 최소 25GB 필요하다.**
 
@@ -158,21 +160,19 @@ nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv
 
 ## 4. 만들 구조
 
-
-
 ```mermaid
 flowchart TB
     C["curl localhost:30005"] -->|"extraPortMappings"| SVC
     subgraph HOST["호스트 — RTX 3050 6GB · 12 core · 31GB"]
         subgraph NODE["kind 노드 컨테이너 gpu-control-plane · containerd 2.3.1"]
             subgraph SYS["ns: kuberay-system · nvidia-device-plugin"]
-                OP["kuberay-operator<br/>v1.6.0"]
-                DP["nvidia device plugin<br/>nvidia.com/gpu: 1 광고"]
+                OP["kuberay-operator"]
+                DP["nvidia device plugin<br/>(nvidia.com/gpu: 1 광고)"]
             end
             subgraph KR["ns: kuberay"]
-                SVC["NodePort Service<br/>vllm-service-nodeport :30005"]
-                H["head pod<br/>num-gpus 0<br/>OpenAiIngress · GCS · Autoscaler"]
-                W["worker pod<br/>num-gpus 1 · runtimeClassName nvidia<br/>LLMServer → vLLM<br/>Qwen2.5-1.5B-Instruct-AWQ"]
+                SVC["NodePort Service<br/>(vllm-service-nodeport :30005)"]
+                H["head pod<br/>(num-gpus 0)<br/>OpenAiIngress · GCS · Autoscaler"]
+                W["worker pod<br/>(num-gpus 1) · runtimeClassName nvidia<br/>LLMServer → vLLM<br/>Qwen2.5-1.5B-Instruct-AWQ"]
             end
         end
         G[("RTX 3050<br/>5155 / 6144 MiB")]
@@ -184,7 +184,7 @@ flowchart TB
     W --> G
 ```
 
-한 노드짜리 클러스터지만 **역할은 셋으로 나뉜다.** Operator가 RayService를 감시하며 RayCluster를 만들고, head가 요청을 받아 라우팅하며, worker만 GPU를 잡는다.
+한 노드짜리 클러스터지만 **역할은 셋으로 나뉜다.** Operator가 RayService를 감시하며 RayCluster를 만들고, head가 요청을 받아 라우팅하며 worker만 GPU를 점유한다.
 
 `num-gpus: "0"`인 head가 GPU를 전혀 쓰지 않는 것에 주목한다. Ray Cluster의 Head는 GCS(Global Control Store)와 Autoscaler를 돌리는 관리 노드이고, 이 구성에서는 OpenAiIngress까지 얹혀 있다.
 
@@ -237,7 +237,7 @@ docker exec gpu-control-plane nvidia-smi -L
 GPU 0: NVIDIA GeForce RTX 3050 (UUID: GPU-472e819b-4b07-4fd5-ce17-9f1d2b6c17c6)
 ```
 
-`extraMounts`가 두 가지 일을 한다. **`/var/run/nvidia-container-devices/all`** 마운트는 앞의 `accept-...-as-volume-mounts` 설정과 짝을 이뤄 GPU 디바이스와 드라이버 라이브러리를 노드에 주입한다. **나머지 마운트**는 toolkit 바이너리를 노드로 들여보내는데, 다음 단계에서 필요하다.
+`extraMounts`가 두 가지 일을 한다. `**/var/run/nvidia-container-devices/all**` 마운트는 앞의 `accept-...-as-volume-mounts` 설정과 짝을 이뤄 GPU 디바이스와 드라이버 라이브러리를 노드에 주입한다. **나머지 마운트**는 toolkit 바이너리를 노드로 들여보내는데, 다음 단계에서 필요하다.
 
 `extraPortMappings`는 나중에 Ray Serve와 Dashboard를 NodePort로 노출할 때 쓴다. **노드가 컨테이너라 이 매핑이 없으면 NodePort를 열어도 호스트에서 닿지 않는다.**
 
@@ -252,7 +252,7 @@ docker exec gpu-control-plane \
 docker exec gpu-control-plane systemctl restart containerd
 ```
 
-> **`--config` 를 반드시 지정한다.** 이 옵션 없이 실행하면 nvidia-ctk가 루트 설정의 버전을 참조하지 않고 드롭인을 상위 버전으로 써서, containerd가 `drop-in config version 4 higher than root config version 2` 로 기동을 거부한다. 이 상태가 되면 kubelet이 `activating`에서 멈추고 API 서버가 영영 뜨지 않는다.
+> `--config` 를 반드시 지정한다. 이 옵션 없이 실행하면 nvidia-ctk가 루트 설정의 버전을 참조하지 않고 드롭인을 상위 버전으로 써서, containerd가 `drop-in config version 4 higher than root config version 2` 로 기동을 거부한다. 이 상태가 되면 kubelet이 `activating`에서 멈추고 API 서버가 영영 뜨지 않는다.
 
 ```terminal {title="드롭인 및 안정성 확인"}
 $ docker exec gpu-control-plane grep -m1 ^version /etc/containerd/conf.d/99-nvidia.toml
@@ -336,16 +336,16 @@ spec:
 flowchart TB
     A["호스트<br/>/dev/nvidia* + 드라이버 라이브러리"]
     A -->|"① kind extraMounts<br/>/dev/null → /var/run/nvidia-container-devices/all"| B
-    B["노드 컨테이너에 GPU 주입<br/><i>docker exec … nvidia-smi 성공</i>"]
+    B["노드 컨테이너에 GPU 주입<br/>docker exec … nvidia-smi 성공"]
     B -->|"② nvidia-ctk runtime configure<br/>--config=… --set-as-default"| C
     C["노드 containerd에 nvidia 런타임 등록<br/>RuntimeClass nvidia"]
     C -->|"③ device plugin + 노드 라벨"| D
-    D["allocatable<br/><b>nvidia.com/gpu: 1</b>"]
+    D["allocatable<br/>nvidia.com/gpu: 1"]
     D -->|"④ 파드가 runtimeClassName + limits 요청"| E
     E["파드 안에서 nvidia-smi 성공"]
 ```
 
-**중간 단계가 빠지면 증상이 다르게 나타난다.** 실제로 순서대로 겪은 것이 이 셋이다.
+**중간 단계가 빠지면 증상이 다르게 나타난다.** 
 
 
 | 증상                                                        | 원인                                                      | 해결                                            |
@@ -355,7 +355,7 @@ flowchart TB
 | 파드에서 `Failed to initialize NVML: ERROR_LIBRARY_NOT_FOUND` | 노드엔 GPU가 있어도 노드 안 containerd에 nvidia 런타임이 없어 파드로 전달 안 됨 | ② toolkit 마운트 + containerd 등록                 |
 
 
-세 번째가 가장 헷갈린다. **노드에서 `nvidia-smi`가 되는 것과 파드에서 되는 것은 별개**이며, 둘 사이를 잇는 것이 containerd의 런타임 설정이다.
+**노드에서** `nvidia-smi`**가 되는 것과 파드에서 되는 것은 별개**이며 둘 사이를 잇는 것이 containerd의 런타임 설정이다.
 
 ## 6. STEP 2 — KubeRay Operator 설치
 
@@ -413,8 +413,6 @@ docker.io/rayproject/ray-llm   2.52.0-py311-cu128   3d6cdf97592a7  11.6GB
 이 과정에서 디스크가 **184GB → 204GB**로 약 20GB 늘었다.
 
 ## 8. STEP 4 — RayService 매니페스트
-
-6GB에 맞춰 값을 정한 근거가 여기 있다.
 
 
 | 항목                        | 값                                | 근거                                   |
@@ -495,17 +493,11 @@ spec:
                   requests: {cpu: "4", memory: "12Gi", nvidia.com/gpu: 1}
 ```
 
-읽을 때 짚어야 할 곳이 넷이다.
-
-**`serveConfigV2`와 `rayClusterConfig`가 한 파일에 있다.** 이것이 RayService의 정체다. 앞의 것은 Serve 앱, 뒤의 것은 그 앱이 얹힐 클러스터다.
-
-**Head는 GPU를 안 쓴다**(`num-gpus: "0"`). 실제 추론은 Worker가 한다.
-
-**worker에 `runtimeClassName: nvidia`가 필요하다.** STEP 1에서 만든 RuntimeClass이며, 이게 없으면 파드가 GPU를 못 받는다.
-
-**`imagePullPolicy: IfNotPresent`로 미리 받은 이미지를 재사용한다.** 없으면 11.6GB를 다시 받으려 할 수 있다.
-
-Hugging Face 토큰과 Secret은 **쓰지 않는다.** 모델이 gated가 아니라서 `env` 블록 자체가 없다.
+- `serveConfigV2`와 `rayClusterConfig`가 한 파일에 있다. 이것이 RayService의 정체다. 앞의 것은 Serve 앱, 뒤의 것은 그 앱이 얹힐 클러스터다.
+- Head는 GPU를 안 쓴다(`num-gpus: "0"`). 실제 추론은 Worker가 한다.
+- worker에 `runtimeClassName: nvidia`가 필요하다. STEP 1에서 만든 RuntimeClass이며, 이게 없으면 파드가 GPU를 못 받는다.
+- `imagePullPolicy: IfNotPresent`로 미리 받은 이미지를 재사용한다. 없으면 11.6GB를 다시 받으려 할 수 있다.
+- Hugging Face 토큰과 Secret은 **쓰지 않는다.** 모델이 gated가 아니라서 `env` 블록 자체가 없다.
 
 ## 9. STEP 5 — 배포와 확인
 
@@ -521,7 +513,7 @@ vllm-service-bslgp-gpu-group-worker-98c4b   1/1     Running   0          2m16s
 vllm-service-bslgp-head-ks8hd               1/1     Running   0          2m16s
 ```
 
-파드가 Running이어도 아직 서빙되는 게 아니다. **`applicationStatuses`가 `RUNNING`이 되어야 한다.**
+파드가 Running이어도 아직 서빙되는 게 아니다. `applicationStatuses`가 `RUNNING`이 되어야 한다.
 
 ```bash
 kubectl describe rayservices.ray.io vllm-service -n kuberay
@@ -615,7 +607,7 @@ curl -s http://localhost:30005/v1/chat/completions -H 'Content-Type: application
 }
 ```
 
-`model` 필드에 넣는 값은 **`model_id`**(`qwen2.5-1.5b-instruct-awq`)이지 `model_source`가 아니다. 여기서 자주 틀린다.
+`model` 필드에 넣는 값은 `model_id`(`qwen2.5-1.5b-instruct-awq`)이지 `model_source`가 아니다. 
 
 응답이 짧고 단조롭다. **1.5B 모델을 6GB에 욱여넣은 대가가 품질로 나타난다.**
 
@@ -708,7 +700,7 @@ helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
 
 `podMonitorSelectorNilUsesHelmValues: false` 가 **빠지면 뒤의 PodMonitor가 무시된다.** 차트 기본값은 자기 릴리스 라벨이 붙은 리소스만 수집하기 때문이다.
 
-kind 특유의 조정도 있다. `kubeScheduler`·`kubeControllerManager` 등은 kind 노드에서 메트릭 포트가 열려 있지 않아, 켜 두면 **실패한 타깃만 계속 쌓인다.**
+kind 특유의 조정도 있다. `kubeScheduler`·`kubeControllerManager` 등은 kind 노드에서 메트릭 포트가 열려 있지 않아 켜 두면 **실패한 타깃만 계속 쌓인다.**
 
 ```terminal {title="kubectl get pods -n monitoring"}
 NAME                                                        READY   STATUS    RESTARTS   AGE
@@ -722,7 +714,7 @@ prometheus-kube-prometheus-stack-prometheus-0               2/2     Running   0 
 
 ### 포트가 모자랄 때 — 노드 IP로 직접
 
-`kind-gpu.yaml`에는 30005와 30006만 매핑해 뒀다. **`extraPortMappings`는 클러스터 생성 시점에만 정할 수 있어서**, 나중에 포트를 늘리려면 클러스터를 다시 만들어야 한다.
+`kind-gpu.yaml`에는 30005와 30006만 매핑해 뒀다. `extraPortMappings`는 클러스터 생성 시점에만 정할 수 있어서 나중에 포트를 늘리려면 클러스터를 다시 만들어야 한다.
 
 다행히 우회로가 있다. kind 노드는 docker 브리지 위의 컨테이너이므로 **호스트에서 노드 IP로 NodePort에 바로 닿는다.**
 
@@ -834,7 +826,7 @@ Serve Deployment Dashboard
 Serve LLM Dashboard
 ```
 
-넷 중 **`Serve LLM Dashboard`가 이 실습에 가장 맞는다.** 토큰 처리량, TTFT 같은 LLM 고유 지표를 다룬다.
+넷 중 `Serve LLM Dashboard`가 이 실습에 가장 맞는다.  토큰 처리량, TTFT 같은 LLM 고유 지표를 다룬다.
 
 ### 부하를 걸고 메트릭 읽기
 
@@ -844,17 +836,19 @@ Serve LLM Dashboard
 curl -s "http://172.18.0.2:30008/api/v1/query?query=sum(ray_serve_num_http_requests_total)"
 ```
 
-| 지표 | PromQL | 값 |
-| --- | --- | --- |
-| HTTP 요청 누적 | `sum(ray_serve_num_http_requests_total)` | 5,146 |
-| 현재 처리 중 요청 | `sum(ray_serve_num_ongoing_http_requests)` | **4** |
-| replica healthy | `sum(ray_serve_deployment_replica_healthy)` | **2** |
-| 노드 CPU 사용률 | `max(ray_node_cpu_utilization)` | 52.2% |
-| 노드 메모리 사용 | `max(ray_node_mem_used)` | 3.86GB |
 
-**`현재 처리 중 요청`이 정확히 4다.** 부하 스크립트의 동시성과 같다. `max_ongoing_requests: 8` 상한 아래이므로 큐잉 없이 곧바로 처리되고 있다는 뜻이고, 이 값이 상한에 붙기 시작하면 replica를 늘릴 시점이다.
+| 지표              | PromQL                                      | 값      |
+| --------------- | ------------------------------------------- | ------ |
+| HTTP 요청 누적      | `sum(ray_serve_num_http_requests_total)`    | 5,146  |
+| 현재 처리 중 요청      | `sum(ray_serve_num_ongoing_http_requests)`  | **4**  |
+| replica healthy | `sum(ray_serve_deployment_replica_healthy)` | **2**  |
+| 노드 CPU 사용률      | `max(ray_node_cpu_utilization)`             | 52.2%  |
+| 노드 메모리 사용       | `max(ray_node_mem_used)`                    | 3.86GB |
 
-**`replica healthy`가 2인 것**도 짚어 둔다. LLMServer 하나와 OpenAiIngress 하나다. 9절에서 본 `NUM SERVE ENDPOINTS 2`와 같은 숫자를 메트릭 쪽에서 다시 확인한 셈이다.
+
+`현재 처리 중 요청`이 정확히 4다. 부하 스크립트의 동시성과 같다. `max_ongoing_requests: 8` 상한 아래이므로 큐잉 없이 곧바로 처리되고 있다는 뜻이고, 이 값이 상한에 붙기 시작하면 replica를 늘릴 시점이다.
+
+`replica healthy`가 2인 것도 짚어 둔다. LLMServer 하나와 OpenAiIngress 하나다. 9절에서 본 `NUM SERVE ENDPOINTS 2`와 같은 숫자를 메트릭 쪽에서 다시 확인한 셈이다.
 
 ### Ray Dashboard에 Grafana 패널 임베드
 
@@ -862,11 +856,13 @@ curl -s "http://172.18.0.2:30008/api/v1/query?query=sum(ray_serve_num_http_reque
 
 주소가 **두 종류**라는 점이 핵심이다.
 
-| env | 누가 접근하나 | 값 |
-| --- | --- | --- |
-| `RAY_GRAFANA_HOST` | **head 파드** → Grafana | 클러스터 내부 DNS |
-| `RAY_PROMETHEUS_HOST` | **head 파드** → Prometheus | 클러스터 내부 DNS |
-| `RAY_GRAFANA_IFRAME_HOST` | **브라우저** → Grafana | 외부에서 닿는 주소 |
+
+| env                       | 누가 접근하나                  | 값           |
+| ------------------------- | ------------------------ | ----------- |
+| `RAY_GRAFANA_HOST`        | **head 파드** → Grafana    | 클러스터 내부 DNS |
+| `RAY_PROMETHEUS_HOST`     | **head 파드** → Prometheus | 클러스터 내부 DNS |
+| `RAY_GRAFANA_IFRAME_HOST` | **브라우저** → Grafana       | 외부에서 닿는 주소  |
+
 
 ```yaml
     headGroupSpec:
@@ -893,22 +889,6 @@ Grafana 쪽 설정도 필요한데, 앞의 `kps-values.yaml`에 이미 넣어 �
 ```
 
 > **보안 참고**: 익명 Viewer를 켜면 해당 포트에 닿는 누구나 **로그인 없이 Grafana를 조회**할 수 있다. 편집은 불가능하지만 인증 없는 열람이 가능해지는 정책 변화이므로, 사설망 안에서만 쓴다.
-
-### 브라우저가 닿을 주소가 없다면
-
-`RAY_GRAFANA_IFRAME_HOST`는 **브라우저 기준 주소**라 클러스터 내부 DNS를 쓸 수 없다. 그런데 `kind-gpu.yaml`에 매핑해 둔 포트는 30005와 30006뿐이라 Grafana(30007)는 호스트 밖에서 닿지 않는다.
-
-클러스터를 다시 만들지 않고 포트 하나를 여는 방법이 있다. 노드 IP로 중계하면 된다.
-
-```bash
-docker run -d --name grafana-fwd --network host alpine/socat \
-  tcp-listen:30007,fork,reuseaddr tcp-connect:172.18.0.2:30007
-```
-
-```terminal {title="호스트 IP로 Grafana 접근"}
-$ curl -s -o /dev/null -w "HTTP %{http_code}\n" http://172.16.0.44:30007/login
-HTTP 200
-```
 
 ### GPU 1장에서는 무중단 업그레이드가 막힌다
 
@@ -968,7 +948,7 @@ curl -s http://localhost:30006/api/grafana_health | jq
 }
 ```
 
-`"result": true` 면 성공이다. `dashboardUids`가 앞서 ConfigMap으로 올린 대시보드와 이어진다. **Ray Dashboard는 이 UID로 Grafana 패널을 찾아 iframe으로 끼워 넣는다** — 그래서 대시보드 JSON을 먼저 등록해 둬야 했다.
+`"result": true` 면 성공이다. `dashboardUids`가 앞서 ConfigMap으로 올린 대시보드와 이어진다. **Ray Dashboard는 이 UID로 Grafana 패널을 찾아 iframe으로 끼워 넣는다**. 그래서 대시보드 JSON을 먼저 등록해 둬야 했다.
 
 재생성 후 서빙과 메트릭이 모두 살아 있는지도 확인한다.
 
@@ -1066,13 +1046,9 @@ utilization, power, temp, memory
 | GPU (유휴)        | 0%, 23.72W, 44°C        |
 
 
-읽을 지점이 셋이다.
-
-**처리량은 산술과 정확히 맞는다.** 동시성 4 ÷ 평균지연 1.72s = 2.33이고 실측도 2.33 req/s다. **GPU가 병목으로 안정적으로 작동한다**는 뜻이고, 이 관계를 알면 목표 처리량에서 필요한 GPU 수를 역산할 수 있다.
-
-**꼬리 지연이 평균의 1.5배다.** p50이 1.65s인데 p99가 2.60s로 0.95s 벌어진다. VRAM 여유가 635MiB뿐이라 KV 캐시 블록이 빠듯하고, 요청이 겹칠 때 스케줄링 대기가 생기는 것으로 보인다. **작은 GPU에서는 평균보다 꼬리를 봐야 한다.**
-
-**실패가 0건이다.** replica 1개 + AWQ 양자화 구성이 동시 4요청은 여유롭게 감당한다. 동시성을 더 올리면 `max_ongoing_requests: 8`에 걸려 큐잉이 시작될 것이다.
+- **처리량은 산술과 정확히 맞는다.** 동시성 4 ÷ 평균지연 1.72s = 2.33이고 실측도 2.33 req/s다. **GPU가 병목으로 안정적으로 작동한다**는 뜻이고, 이 관계를 알면 목표 처리량에서 필요한 GPU 수를 역산할 수 있다.
+- **꼬리 지연이 평균의 1.5배다.** p50이 1.65s인데 p99가 2.60s로 0.95s 벌어진다. VRAM 여유가 635MiB뿐이라 KV 캐시 블록이 빠듯하고, 요청이 겹칠 때 스케줄링 대기가 생기는 것으로 보인다. **작은 GPU에서는 평균보다 꼬리를 봐야 한다.**
+- **실패가 0건이다.** replica 1개 + AWQ 양자화 구성이 동시 4요청은 여유롭게 감당한다. 동시성을 더 올리면 `max_ongoing_requests: 8`에 걸려 큐잉이 시작될 것이다.
 
 ## 14. 트러블슈팅
 
@@ -1083,7 +1059,7 @@ utilization, power, temp, memory
 | 파드에서 `NVML ERROR_LIBRARY_NOT_FOUND`        | 노드 containerd에 nvidia 런타임 미등록                          | STEP 1의 containerd 등록                                   |
 | device plugin 파드가 안 뜸 (`DESIRED` 0)        | NFD 라벨 부재                                              | `nvidia.com/gpu.present=true` 라벨                        |
 | 파드는 Running인데 `applicationStatuses`가 안 올라옴 | 모델 다운로드/로딩 중                                           | 워커 로그를 `-f`로 보며 대기                                      |
-| `curl`이 모델을 못 찾음                           | `model`에 `model_source`를 넣음                            | **`model_id`** 값을 넣는다                                   |
+| `curl`이 모델을 못 찾음                           | `model`에 `model_source`를 넣음                            | `**model_id**` 값을 넣는다                                   |
 | NodePort로 접속 안 됨                           | selector의 RayCluster 이름 불일치, 또는 `extraPortMappings` 누락 | 실제 이름 확인 / kind 설정 확인                                   |
 | 이미지 pull이 매우 오래 걸림                         | `ray-llm` 이미지 11.6GB                                   | 정상. STEP 3으로 사전 pull                                    |
 | GPU OOM                                    | `gpu_memory_utilization`이 VRAM 대비 과다                   | 0.60까지 낮추거나 `max_model_len` 축소                          |
@@ -1111,14 +1087,25 @@ docker exec gpu-control-plane crictl rmi \
 
 ## 16. 정리
 
-로그와 숫자로 직접 확인한 것들이다.
+**kind에서 GPU를 붙이는 과정**
 
-**kind에서 GPU를 붙이는 것은 세 관문이다.** 노드 컨테이너에 GPU 주입, 노드 containerd에 nvidia 런타임 등록, device plugin이 광고. 하나라도 빠지면 증상이 제각각으로 나타나며, 특히 **노드에서 `nvidia-smi`가 되는 것과 파드에서 되는 것은 별개**다.
+-  노드 컨테이너에 GPU 주입
+-  노드 containerd에 nvidia 런타임 등록
+-  device plugin이 광고. 하나라도 빠지면 증상이 제각각으로 나타나며, 특히 **노드에서** `nvidia-smi`**가 되는 것과 파드에서 되는 것은 별개**다.
 
-**RayService는 클러스터와 앱을 한 파일로 묶는다.** `rayClusterConfig`와 `serveConfigV2`가 함께 있어서, 모델을 바꾸든 replica를 늘리든 `kubectl apply` 한 번으로 끝난다.
+**RayService는 클러스터와 앱을 한 파일로 묶는다.** 
 
-**Head는 GPU를 쓰지 않는다.** GCS와 Autoscaler를 돌리는 관리 노드이고 추론은 Worker가 전담한다. 한 노드짜리 클러스터에서도 이 분리는 유지된다.
+- `rayClusterConfig`와 `serveConfigV2`가 함께 있어서, 모델을 바꾸든 replica를 늘리든 `kubectl apply` 한 번으로 끝난다.
 
-**6GB는 상한이 뚜렷하다.** 1.5B 모델을 AWQ로 양자화하고 `gpu_memory_utilization: 0.70`, `max_model_len: 2048`로 줄여야 들어간다. 그러고도 여유는 635MiB뿐이다. 모델 크기가 아니라 **설정이 VRAM을 정한다**는 것은 [앞선 vLLM 실습](../llm-serving-single-model-lab/)에서 본 것과 같다.
+**Head는 GPU를 쓰지 않는다.**
 
-**처리량은 동시성이 정한다.** 동시성 ÷ 평균지연 = 처리량이라는 관계가 실측과 정확히 맞았다. 지연을 줄이거나 동시성을 올리는 것 말고 처리량을 늘리는 길은 없고, 6GB에서는 둘 다 여유가 없다.
+- GCS와 Autoscaler를 돌리는 관리 노드이고 추론은 Worker가 전담한다. 한 노드짜리 클러스터에서도 이 분리는 유지된다.
+
+**6GB는 상한이 뚜렷하다.** 
+
+- 1.5B 모델을 AWQ로 양자화하고 `gpu_memory_utilization: 0.70`, `max_model_len: 2048`로 줄여야 들어간다. 그러고도 여유는 635MiB뿐이다. 모델 크기가 아니라 **설정이 VRAM을 정한다**는 것은 [앞선 vLLM 실습](../llm-serving-single-model-lab/)에서 본 것과 같다.
+
+**처리량은 동시성이 정한다.** 
+
+- 동시성 ÷ 평균지연 = 처리량이라는 관계가 실측과 정확히 맞았다. 지연을 줄이거나 동시성을 올리는 것 말고 처리량을 늘리는 길은 없고, 6GB에서는 둘 다 여유가 없다.
+
