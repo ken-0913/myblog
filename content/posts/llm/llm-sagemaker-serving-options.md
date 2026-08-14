@@ -1,5 +1,5 @@
 ---
-title: "클라우드 벤더와 함께 구축하기 — AWS SageMaker로 보는 모델 서빙 6단계"
+title: "LLM 스터디 2주차 - 클라우드 벤더와 함께 구축하기 — AWS SageMaker로 보는 모델 서빙 6단계"
 date: 2026-08-12T21:00:00+09:00
 draft: false
 tags: ["LLM", "Model Serving", "AWS", "SageMaker", "Bedrock", "vLLM", "TorchServe", "Docker", "EKS"]

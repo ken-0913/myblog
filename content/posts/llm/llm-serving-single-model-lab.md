@@ -16,14 +16,16 @@ LLM 서빙은 보통 vLLM이나 TGI 같은 프레임워크를 가져다 쓴다. 
 
 원본 코드는 **CPU 실행을 전제**로 작성되어 있다. GPU에서 돌리려면 뒤에 나올 패치 두 건이 반드시 필요하다.
 
-| 항목 | 요구사항 |
-| --- | --- |
-| OS | Linux x86_64 (vLLM 0.9.0.1 휠이 manylinux x86_64만 제공) |
-| Python | 3.9 ~ 3.12                    |
-| GPU | NVIDIA, Compute Capability 7.0 이상 |
-| VRAM | 6GB부터 가능 |
-| 드라이버 | CUDA 12.6+ 지원 |
-| 디스크 | 약 15GB |
+
+| 항목     | 요구사항                                                |
+| ------ | --------------------------------------------------- |
+| OS     | Linux x86_64 (vLLM 0.9.0.1 휠이 manylinux x86_64만 제공) |
+| Python | 3.9 ~ 3.12                                          |
+| GPU    | NVIDIA, Compute Capability 7.0 이상                   |
+| VRAM   | 6GB부터 가능                                            |
+| 드라이버   | CUDA 12.6+ 지원                                       |
+| 디스크    | 약 15GB                                              |
+
 
 실습에 쓴 RTX 3050은 Compute Capability 8.6(Ampere)이라 요구사항을 만족한다. 다만 6GB는 여유가 거의 없어서 패치가 없으면 서버가 아예 뜨지 않는다.
 
@@ -61,14 +63,16 @@ flowchart TB
 
 파일별 역할은 다음과 같다.
 
-| 파일 | 역할 |
-| --- | --- |
-| `main.py` | FastAPI — 엔드포인트 4개 |
-| `llm/llm.py` | `LLMEngine` — 오케스트레이터 + vLLM 통합 |
-| `llm/workload_manager.py` | `Sequence` 정의, 큐잉/배칭 (`batch_size=4`) |
-| `llm/model_executor.py` | `mp.Process` + task/result Queue (IPC) |
-| `llm/model_worker.py` | 별도 프로세스에서 실제 forward pass |
-| `llm/model_manager.py` | HF 모델·토크나이저 로드 |
+
+| 파일                        | 역할                                     |
+| ------------------------- | -------------------------------------- |
+| `main.py`                 | FastAPI — 엔드포인트 4개                     |
+| `llm/llm.py`              | `LLMEngine` — 오케스트레이터 + vLLM 통합        |
+| `llm/workload_manager.py` | `Sequence` 정의, 큐잉/배칭 (`batch_size=4`)  |
+| `llm/model_executor.py`   | `mp.Process` + task/result Queue (IPC) |
+| `llm/model_worker.py`     | 별도 프로세스에서 실제 forward pass              |
+| `llm/model_manager.py`    | HF 모델·토크나이저 로드                         |
+
 
 같은 모델이 두 벌 로드되는 것은 의도된 설계다. **수동 구현 경로와 vLLM 경로를 나란히 비교**하기 위해서다.
 
@@ -145,12 +149,14 @@ desired GPU memory utilization (0.9, 5.4 GiB).
 
 VRAM별 권장값은 다음과 같다.
 
-| VRAM | 권장값 | vLLM이 잡는 양 |
-| --- | --- | --- |
-| 6GB (RTX 3050) | `0.50` | 약 3.0GB |
-| 8GB | `0.45` | 약 3.6GB |
-| 12GB | `0.40` | 약 4.8GB |
-| 16GB 이상 | `0.35` | 약 5.6GB |
+
+| VRAM           | 권장값    | vLLM이 잡는 양 |
+| -------------- | ------ | ---------- |
+| 6GB (RTX 3050) | `0.50` | 약 3.0GB    |
+| 8GB            | `0.45` | 약 3.6GB    |
+| 12GB           | `0.40` | 약 4.8GB    |
+| 16GB 이상        | `0.35` | 약 5.6GB    |
+
 
 **0.50으로 충분한 이유**는 계산해보면 나온다. opt-125m의 KV 캐시는 토큰당 약 36KB이다(12 layer × 768 hidden × 2(K,V) × 2byte). 3.0GB에서 가중치와 CUDA 컨텍스트를 빼고 남는 2GB만으로도 5만 토큰 이상을 담는다.
 
@@ -261,7 +267,7 @@ flowchart TB
 
 이 숫자 두 개가 앞으로 계속 나온다. 여기서 한 번 정리하고 간다.
 
-`torch.Size([1, 6])`은 **`[batch, seq_len]`**, 즉 아직 임베딩을 거치지 않은 **정수 token ID 행렬**이다. 이 행렬이 임베딩 행렬 `W_E` 조회를 통과하면 차원이 하나 더 붙는다.
+`torch.Size([1, 6])`은 `**[batch, seq_len]**`, 즉 아직 임베딩을 거치지 않은 **정수 token ID 행렬**이다. 이 행렬이 임베딩 행렬 `W_E` 조회를 통과하면 차원이 하나 더 붙는다.
 
 ```mermaid
 flowchart LR
@@ -273,26 +279,30 @@ flowchart LR
 
 [1주차 글](../llm-series-all-in-one/)에서 다룬 `[batch, seq_len, d_model]`이 바로 오른쪽 상자다. 로그에 찍히는 것은 그보다 한 단계 앞이라 축이 둘뿐이다.
 
-| 축 | 뜻 | 실습 1의 값 |
-| --- | --- | --- |
-| `batch` | 한 번의 forward에 **몇 건**을 넣었나 | 1 |
-| `seq_len` | 그 안의 프롬프트가 **몇 token**인가 | 6 |
-| (`d_model`) | 임베딩 후에 붙는 벡터 길이 (opt-125m) | 768 |
+
+| 축           | 뜻                          | 실습 1의 값 |
+| ----------- | -------------------------- | ------- |
+| `batch`     | 한 번의 forward에 **몇 건**을 넣었나 | 1       |
+| `seq_len`   | 그 안의 프롬프트가 **몇 token**인가   | 6       |
+| (`d_model`) | 임베딩 후에 붙는 벡터 길이 (opt-125m) | 768     |
+
 
 ### token 수는 어떻게 세나
 
 `"Hello, I am"`은 단어가 셋인데 왜 6일까. opt-125m tokenizer로 직접 확인하면 이렇다.
 
-| 프롬프트 | token 수 | 분해 |
-| --- | --- | --- |
-| `"Hello, I am"` | 5 | `</s>` `Hello` `,` ` I` ` am` |
-| `"Hello, I am "` | **6** | `</s>` `Hello` `,` ` I` ` am` ` ` |
-| `"The weather is"` | 4 | `</s>` `The` ` weather` ` is` |
-| `"I want to"` | 4 | `</s>` `I` ` want` ` to` |
-| `"The best way to"` | 5 | `</s>` `The` ` best` ` way` ` to` |
-| `"The most efficient way to"` | 6 | `</s>` `The` ` most` ` efficient` ` way` ` to` |
 
-두 가지가 보인다. 첫째, 맨 앞에 **`</s>` (BOS) token이 자동으로 붙는다.** 둘째, **공백도 token이다.** 실습 1의 `seq_len`이 5가 아니라 6인 것은 요청 프롬프트 끝에 공백이 하나 있었기 때문이다.
+| 프롬프트                          | token 수 | 분해                                         |
+| ----------------------------- | ------- | ------------------------------------------ |
+| `"Hello, I am"`               | 5       | `</s>` `Hello` `,` `I` `am`                |
+| `"Hello, I am "`              | **6**   | `</s>` `Hello` `,` `I` `am` ``             |
+| `"The weather is"`            | 4       | `</s>` `The` `weather` `is`                |
+| `"I want to"`                 | 4       | `</s>` `I` `want` `to`                     |
+| `"The best way to"`           | 5       | `</s>` `The` `best` `way` `to`             |
+| `"The most efficient way to"` | 6       | `</s>` `The` `most` `efficient` `way` `to` |
+
+
+두 가지가 보인다. 첫째, 맨 앞에 `**</s>` (BOS) token이 자동으로 붙는다.** 둘째, **공백도 token이다.** 실습 1의 `seq_len`이 5가 아니라 6인 것은 요청 프롬프트 끝에 공백이 하나 있었기 때문이다.
 
 ### batch 축이 생기면 padding이 필요하다
 
@@ -310,12 +320,14 @@ flowchart LR
     IN -->|"가장 긴 5에 맞춰 padding"| OUT["<b>torch.Size([4, 5])</b><br/>4행 × 5열 정수 행렬<br/>한 번의 forward pass"]
 ```
 
-| | 1열 | 2열 | 3열 | 4열 | 5열 |
-| --- | --- | --- | --- | --- | --- |
-| `Hello, I am` | `</s>` | `Hello` | `,` | ` I` | ` am` |
-| `The weather is` | `</s>` | `The` | ` weather` | ` is` | **PAD** |
-| `I want to` | `</s>` | `I` | ` want` | ` to` | **PAD** |
-| `The best way to` | `</s>` | `The` | ` best` | ` way` | ` to` |
+
+|                   | 1열     | 2열      | 3열        | 4열    | 5열      |
+| ----------------- | ------ | ------- | --------- | ----- | ------- |
+| `Hello, I am`     | `</s>` | `Hello` | `,`       | `I`   | `am`    |
+| `The weather is`  | `</s>` | `The`   | `weather` | `is`  | **PAD** |
+| `I want to`       | `</s>` | `I`     | `want`    | `to`  | **PAD** |
+| `The best way to` | `</s>` | `The`   | `best`    | `way` | `to`    |
+
 
 1주차의 `seq_len` 축이 **한 문장을 옆으로 늘리는 축**이었다면, `batch` 축은 **서로 다른 사용자의 문장을 아래로 쌓는 축**이다. 문장 하나를 다룰 때는 길이가 자연히 맞았지만, 남의 요청과 같이 묶이는 순간 길이를 맞춰야 한다. 배칭의 비용이 여기서 처음 드러난다.
 
@@ -377,12 +389,14 @@ curl -s -X POST http://localhost:8000/generate \
 
 읽어볼 코드는 다음과 같다.
 
-| 파일 | 무엇 |
-| --- | --- |
-| `workload_manager.py` `Sequence` | id, prompt, output, finished, token_count, client_stream |
-| `workload_manager.py` `add_request()` | uuid 발급 → `incoming_queue` + `sequence_map` 등록 |
-| `workload_manager.py` `get_next_batch()` | **FIFO + 고정 4**. 빈 자리가 나야 다음 프롬프트 진입 |
-| `llm.py` `generate()` | 등록 → 배치 실행 루프 → `request_id`로 결과 매핑 |
+
+| 파일                                       | 무엇                                                       |
+| ---------------------------------------- | -------------------------------------------------------- |
+| `workload_manager.py` `Sequence`         | id, prompt, output, finished, token_count, client_stream |
+| `workload_manager.py` `add_request()`    | uuid 발급 → `incoming_queue` + `sequence_map` 등록           |
+| `workload_manager.py` `get_next_batch()` | **FIFO + 고정 4**. 빈 자리가 나야 다음 프롬프트 진입                     |
+| `llm.py` `generate()`                    | 등록 → 배치 실행 루프 → `request_id`로 결과 매핑                      |
+
 
 **트레이드오프**도 같이 보인다. `get_next_batch()`가 주는 배치는 "내가 보낸 프롬프트"가 아니라 큐에 쌓인 아무 프롬프트 4개다. 자원 공유는 이득이지만 요청별 지연은 들쭉날쭉해진다.
 
@@ -449,7 +463,7 @@ wait
 20:52:59,214 - Batch input shape: torch.Size([2, 25])
 ```
 
-**`torch.Size([1, ...])`가 한 번도 안 나온다.** 두 요청이 끝까지 같은 배치 슬롯에서 나란히 처리됐다는 뜻이다. 스물두 스텝 동안 배치 크기 2가 유지됐다.
+`**torch.Size([1, ...])`가 한 번도 안 나온다.** 두 요청이 끝까지 같은 배치 슬롯에서 나란히 처리됐다는 뜻이다. 스물두 스텝 동안 배치 크기 2가 유지됐다.
 
 두 번째 차원이 매 스텝 1씩 커지는 이유는 `update_sequence_output()`이 `sequence.prompt += token`으로 프롬프트를 계속 늘리기 때문이다. 뒤에서 다시 다룬다.
 
@@ -477,15 +491,17 @@ Received data in queue for sequence 8ee10313-...: {"token": " of",     "sequence
 
 각 토큰이 자기 `client_stream` 큐로만 갔으므로 두 문장이 섞이지 않고 각각 온전하게 재구성된다.
 
-구조를 정리하면 이렇다. 백그라운드 데몬 스레드가 GPU 배치를 계속 돌리고, API 코루틴이 사용자 연결을 잡고, **`asyncio.Queue`가 둘 사이를 연결**한다. 스레드에서 이벤트 루프로 넘어가는 지점은 `asyncio.run_coroutine_threadsafe()`이다.
+구조를 정리하면 이렇다. 백그라운드 데몬 스레드가 GPU 배치를 계속 돌리고, API 코루틴이 사용자 연결을 잡고, `**asyncio.Queue`가 둘 사이를 연결**한다. 스레드에서 이벤트 루프로 넘어가는 지점은 `asyncio.run_coroutine_threadsafe()`이다.
 
-| 파일 | 무엇 |
-| --- | --- |
-| `llm.py` `requests_processing_loop()` | 백그라운드 데몬 스레드 — 배치 스텝을 계속 돌림 |
-| `llm.py` `event_generator()` | 요청마다 `asyncio.Queue` 생성 → `await queue.get()` |
-| `llm.py` 완료 처리 | `queue.put(None)` → 스트림 종료 신호 |
-| `llm.py` 스레드 경계 | `asyncio.run_coroutine_threadsafe()` |
-| `main.py` | `StreamingResponse(media_type="text/event-stream")` = SSE |
+
+| 파일                                    | 무엇                                                        |
+| ------------------------------------- | --------------------------------------------------------- |
+| `llm.py` `requests_processing_loop()` | 백그라운드 데몬 스레드 — 배치 스텝을 계속 돌림                               |
+| `llm.py` `event_generator()`          | 요청마다 `asyncio.Queue` 생성 → `await queue.get()`             |
+| `llm.py` 완료 처리                        | `queue.put(None)` → 스트림 종료 신호                             |
+| `llm.py` 스레드 경계                       | `asyncio.run_coroutine_threadsafe()`                      |
+| `main.py`                             | `StreamingResponse(media_type="text/event-stream")` = SSE |
+
 
 안에서는 배치, 밖으로는 요청별 토큰 스트림이다. **배칭과 스트리밍은 반대 개념이 아니다.**
 
@@ -557,13 +573,15 @@ INFO:     127.0.0.1:49848 - "POST /generate_vllm HTTP/1.1" 200 OK
 
 ## 10. 수동 구현 vs vLLM
 
-|  | 수동 구현 | vLLM |
-| --- | --- | --- |
+
+|       | 수동 구현                                           | vLLM                             |
+| ----- | ----------------------------------------------- | -------------------------------- |
 | 배치 구성 | `get_next_batch()` FIFO + 고정 4, 배치가 다 끝나야 다음 진입 | 내부 스케줄러, **continuous batching** |
-| 토큰 생성 | `use_cache=False`로 매 토큰 전체 프롬프트 재계산 → **O(n²)** | PagedAttention + KV 캐시 |
-| 결과 매핑 | `sequence_map` / `request_id` 수동 추적 | 입력 순서 그대로 반환 |
-| 스트리밍 | `asyncio.Queue` + 백그라운드 스레드 직접 구현 | 내부 처리 (별도 API 필요) |
-| 코드량 | 약 300줄 | 약 20줄 |
+| 토큰 생성 | `use_cache=False`로 매 토큰 전체 프롬프트 재계산 → **O(n²)** | PagedAttention + KV 캐시           |
+| 결과 매핑 | `sequence_map` / `request_id` 수동 추적             | 입력 순서 그대로 반환                     |
+| 스트리밍  | `asyncio.Queue` + 백그라운드 스레드 직접 구현               | 내부 처리 (별도 API 필요)                |
+| 코드량   | 약 300줄                                          | 약 20줄                            |
+
 
 ### O(n²)를 로그로 확인하기
 
@@ -573,36 +591,25 @@ INFO:     127.0.0.1:49848 - "POST /generate_vllm HTTP/1.1" 200 OK
 
 [1주차 5부](../llm-series-all-in-one/#5부-prefill-decode-kv-cache)의 prefill · decode 구분으로 보면 무엇이 빠졌는지가 선명하다. 정상이라면 첫 스텝만 prefill이고 이후는 **새 token 한 줄만** 계산하는 decode다. 이 실습에는 KV Cache가 없으므로 **매 스텝이 전부 prefill**이다.
 
-```mermaid
-flowchart TB
-    subgraph NO["이 실습 — use_cache=False"]
-        direction TB
-        A1["step 1<br/><b>[2, 4]</b>"] --> A2["step 2<br/><b>[2, 5]</b>"] --> A3["step 3<br/><b>[2, 6]</b>"] --> A4["…<br/>step 22<br/><b>[2, 25]</b>"]
-    end
-    subgraph YES["KV Cache 있을 때 — 1주차 5부"]
-        direction TB
-        B1["prefill<br/><b>[2, 4]</b>"] --> B2["step 2<br/><b>[2, 1]</b>"] --> B3["step 3<br/><b>[2, 1]</b>"] --> B4["…<br/>step 22<br/><b>[2, 1]</b>"]
-    end
-    NO -.->|"K·V를 저장해두면"| YES
-```
 
-왼쪽은 `seq_len`이 4에서 25까지 자란다. 21번째 토큰 하나를 뽑으려고 **25토큰 전체의 Q·K·V를 처음부터 다시 구한다.** 오른쪽은 과거 token의 K·V가 캐시에 있으므로 매 스텝 계산량이 `[2, 1]`로 일정하다.
-
-| | 계산하는 token 수 | 22스텝 누적 |
-| --- | --- | --- |
+|              | 계산하는 token 수  | 22스텝 누적                 |
+| ------------ | ------------- | ----------------------- |
 | 캐시 없음 (이 실습) | 4, 5, 6, … 25 | 약 320 token — **O(n²)** |
-| 캐시 있음 | 4, 1, 1, … 1 | 약 25 token — **O(n)** |
+| 캐시 있음        | 4, 1, 1, … 1  | 약 25 token — **O(n)**   |
+
 
 흥미로운 것은 `model_worker.py`에 `self.stream_states = {}`가 **선언만 되고 전혀 쓰이지 않는다**는 점이다. `request_id -> past_key_values`를 담아 증분 디코딩으로 확장할 자리를 남겨두고 데모에서는 구현하지 않았다. "제대로 만들면 왜 KV 캐시가 필요한가"를 체감시키는 의도적인 반면교사다.
 
 ### 엔드포인트 요약
 
-| 엔드포인트 | 요청 | 실행 경로 | 배칭/캐싱 |
-| --- | --- | --- | --- |
-| `POST /basic_generate` | `{"prompt": str}` | `ModelExecutor` → HF `model.generate()` (1개) | HF 내부 KV 캐시 |
-| `POST /generate` | `{"prompts": [str]}` | `WorkloadManager` 큐 → 최대 4개 배치 | HF 내부 KV 캐시 / 정적 배칭 |
-| `POST /generate_stream` | `{"prompt": str}` → SSE | 백그라운드 스레드 → 토큰 1개씩 forward | **캐시 없음** (의도적) |
-| `POST /generate_vllm` | `{"prompts": [str]}` | `vllm.LLM` 직접 호출 | PagedAttention + continuous batching |
+
+| 엔드포인트                   | 요청                      | 실행 경로                                        | 배칭/캐싱                                |
+| ----------------------- | ----------------------- | -------------------------------------------- | ------------------------------------ |
+| `POST /basic_generate`  | `{"prompt": str}`       | `ModelExecutor` → HF `model.generate()` (1개) | HF 내부 KV 캐시                          |
+| `POST /generate`        | `{"prompts": [str]}`    | `WorkloadManager` 큐 → 최대 4개 배치               | HF 내부 KV 캐시 / 정적 배칭                  |
+| `POST /generate_stream` | `{"prompt": str}` → SSE | 백그라운드 스레드 → 토큰 1개씩 forward                   | **캐시 없음** (의도적)                      |
+| `POST /generate_vllm`   | `{"prompts": [str]}`    | `vllm.LLM` 직접 호출                             | PagedAttention + continuous batching |
+
 
 ## 11. 자동화 테스트와 정리
 
@@ -627,18 +634,20 @@ deactivate
 
 ## 12. 자주 만나는 에러
 
-| 증상 | 원인 | 조치 |
-| --- | --- | --- |
-| `Expected all tensors to be on the same device` | 패치 A 미적용 | `self.model.to(self.device)` 추가 |
-| `Free memory on device ... less than desired GPU memory utilization` | 패치 B 미적용 | `gpu_memory_utilization=0.50` |
-| `torch.OutOfMemoryError` | vLLM 예약분 + 워커가 VRAM 초과 | `0.45` → `0.40`으로 단계적으로 낮추기 |
-| 기동할 때마다 OOM 여부가 들쭉날쭉 | 워커 로딩과 vLLM 메모리 측정의 순서 경쟁 | `0.40`까지 낮추기 |
-| `No available memory for the cache blocks` | `gpu_memory_utilization`이 너무 낮음 | 0.05씩 올리기 |
-| `No matching distribution found for vllm` | Python 3.13 또는 비 x86_64 | Python 3.12 이하로 venv 재생성 |
-| `Unexpected result type from worker` | `/generate`와 `/generate_stream` 동시 실행 | 한 번에 한 경로만 |
-| curl에서 토큰이 한꺼번에 나옴 | curl 버퍼링 | `-N --no-buffer` 사용 |
-| 자식 프로세스에서 `CUDA re-initialization` | fork 후 CUDA 컨텍스트 충돌 | `mp.set_start_method("spawn", force=True)` |
-| `Waiting for debugger to attach...` | 죽은 로그 문구 (debugpy 연결 코드 없음) | 무시 |
+
+| 증상                                                                   | 원인                                    | 조치                                         |
+| -------------------------------------------------------------------- | ------------------------------------- | ------------------------------------------ |
+| `Expected all tensors to be on the same device`                      | 패치 A 미적용                              | `self.model.to(self.device)` 추가            |
+| `Free memory on device ... less than desired GPU memory utilization` | 패치 B 미적용                              | `gpu_memory_utilization=0.50`              |
+| `torch.OutOfMemoryError`                                             | vLLM 예약분 + 워커가 VRAM 초과                | `0.45` → `0.40`으로 단계적으로 낮추기                |
+| 기동할 때마다 OOM 여부가 들쭉날쭉                                                 | 워커 로딩과 vLLM 메모리 측정의 순서 경쟁             | `0.40`까지 낮추기                               |
+| `No available memory for the cache blocks`                           | `gpu_memory_utilization`이 너무 낮음       | 0.05씩 올리기                                  |
+| `No matching distribution found for vllm`                            | Python 3.13 또는 비 x86_64               | Python 3.12 이하로 venv 재생성                   |
+| `Unexpected result type from worker`                                 | `/generate`와 `/generate_stream` 동시 실행 | 한 번에 한 경로만                                 |
+| curl에서 토큰이 한꺼번에 나옴                                                   | curl 버퍼링                              | `-N --no-buffer` 사용                        |
+| 자식 프로세스에서 `CUDA re-initialization`                                   | fork 후 CUDA 컨텍스트 충돌                   | `mp.set_start_method("spawn", force=True)` |
+| `Waiting for debugger to attach...`                                  | 죽은 로그 문구 (debugpy 연결 코드 없음)           | 무시                                         |
+
 
 ## 13. 정리
 
