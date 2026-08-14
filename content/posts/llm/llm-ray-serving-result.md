@@ -1,5 +1,5 @@
 ---
-title: "kind + RTX 3050 6GB에서 Ray Serve LLM으로 vLLM 서빙하기 — RayService 실습 매뉴얼"
+title: "LLM 스터디 2주차 - kind + RTX 3050 6GB에서 Ray Serve LLM으로 vLLM 서빙하기 — RayService 실습 매뉴얼"
 date: 2026-08-11T20:00:00+09:00
 draft: false
 tags: ["Ray", "Ray Serve", "KubeRay", "RayService", "vLLM", "Kubernetes", "kind", "LLM", "GPU"]
