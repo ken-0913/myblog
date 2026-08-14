@@ -10,13 +10,10 @@ theme: "DoIt"
 frontmatter:
   date: [date, publishDate]
 
-# 발행 대상이 아닌 원본 메모(Notion export 등)를 빌드에서 제외한다.
-# front matter가 없어 Hugo가 페이지로 파싱하면 "invalid YAML delimiter"로 빌드가 통째로 실패한다.
-# 정리한 글은 별도 파일로 만들고, 원본은 여기에 한 줄 추가해 content/ 안에 그대로 둔다.
-# 값은 파일 경로에 대한 정규식이다.
-ignoreFiles:
-  - "content/posts/llm/llm-ray-serving\\.md$"
-  - "content/posts/llm/llm-building-cloud-vendor\\.md$"
+# front matter 없는 원본 메모(Notion export 등)를 content/ 안에 두려면 여기에 경로를 추가한다.
+# 그냥 두면 Hugo가 페이지로 파싱하다 "invalid YAML delimiter"로 빌드가 통째로 실패한다.
+# 값은 파일 경로에 대한 정규식이다. 예: "content/posts/llm/llm-ray-serving\\.md$"
+# ignoreFiles: []
 
 # 검색 인덱스(JSON) 생성을 위해 홈 출력에 JSON 추가
 outputs:
