@@ -223,6 +223,137 @@
 }
 
 // ==============================
+// 동적 터미널 창 — ```termcast (render hook: render-codeblock-termcast.html)
+// 화면에 들어오면 명령어가 타이핑되고 출력이 흘러나온다.
+// JS가 없으면 .is-shown 없이도 전부 보이도록 기본값을 visible 로 둔다.
+// ==============================
+.termcast {
+    margin: 1.5rem 0;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+    &__bar {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.55rem 0.8rem;
+        background: #161b22;
+        border-bottom: 1px solid #30363d;
+    }
+
+    &__dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+
+        &--red { background: #ff5f56; }
+        &--yellow { background: #ffbd2e; }
+        &--green { background: #27c93f; }
+    }
+
+    &__title {
+        margin-left: 0.5rem;
+        color: #8b949e;
+        font-size: 0.8rem;
+    }
+
+    &__actions {
+        margin-left: auto;
+        display: flex;
+        gap: 0.35rem;
+    }
+
+    &__btn {
+        appearance: none;
+        cursor: pointer;
+        background: transparent;
+        border: 1px solid #30363d;
+        border-radius: 6px;
+        color: #8b949e;
+        font-family: inherit;
+        font-size: 0.7rem;
+        line-height: 1;
+        padding: 0.28rem 0.5rem;
+
+        &:hover { color: #c9d1d9; border-color: #4b5563; }
+    }
+
+    &__body {
+        margin: 0;
+        padding: 1rem 1.1rem;
+        color: #c9d1d9;
+        font-size: 0.85rem;
+        line-height: 1.7;
+        white-space: pre;
+        overflow-x: auto;
+        // 출력이 아주 길어도 글이 통째로 밀리지 않게 세로 스크롤을 준다.
+        max-height: 30rem;
+        overflow-y: auto;
+    }
+
+    &__line {
+        display: block;
+        min-height: 1.2em;
+    }
+
+    &__prompt { color: #27c93f; }
+    &__cmd { color: #e6edf3; }
+
+    &__line[data-kind="comment"] { color: #6e7681; }
+
+    // 애니메이션이 도는 동안에만 줄을 숨긴다(=JS가 켜져 있을 때).
+    &.is-running .termcast__line { visibility: hidden; }
+    &.is-running .termcast__line.is-shown { visibility: visible; }
+
+    // 타이핑 중인 명령어 끝에 커서를 붙인다.
+    &__line.is-typing .termcast__cmd::after {
+        content: "▋";
+        color: #27c93f;
+        animation: termcast-blink 1s steps(1) infinite;
+    }
+}
+
+@keyframes termcast-blink {
+    50% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .termcast__line.is-typing .termcast__cmd::after { animation: none; }
+}
+
+// 테마의 `.single .content code/pre { background: ... !important }` 를 이겨야
+// 다크 배경이 보인다(.term-code 와 같은 이유).
+// 주의: 여기서 color/font-size 에 `inherit` 을 쓰면 이 선택자의 특이도(0,4,0)가
+// `.termcast__body`(0,1,0)를 이겨서 본문 글자색(밝은 테마에서 검정)을 상속해 버린다.
+// 다크 배경 위에 검은 글자가 되어 출력이 안 보이므로 반드시 명시값을 넣는다.
+.single .content .termcast {
+    .termcast__body,
+    .termcast__body code {
+        display: block;
+        margin: 0 !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        color: #c9d1d9;
+        font-size: 0.85rem;
+        line-height: 1.7;
+    }
+
+    .termcast__body code { padding: 0 !important; }
+
+    // 줄 단위 색상도 같은 특이도로 다시 못 박는다.
+    .termcast__line { color: #c9d1d9; }
+    .termcast__line[data-kind="comment"] { color: #6e7681; }
+    .termcast__prompt { color: #27c93f; }
+    .termcast__cmd { color: #e6edf3; }
+}
+
+// ==============================
 // 홈 프로필: 자기소개용 정적 터미널 창(장식용, 실제 기능 없음)
 // ==============================
 .home-term {

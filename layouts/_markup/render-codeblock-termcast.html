@@ -1,0 +1,175 @@
+{{- /*
+  코드블록 렌더 훅 — ```termcast 를 "타이핑되는" 동적 터미널 창으로 렌더한다.
+
+  정적 렌더인 ```terminal(.term) 과 달리, 화면에 들어오면 명령어가 한 글자씩
+  입력되고 그 뒤에 출력이 흘러나온다. JS가 없거나 prefers-reduced-motion 이면
+  전체 내용이 그대로 보인다(마크업에 이미 다 들어 있다).
+
+  사용법(글 본문):
+    ```termcast {title="root@controlplane: ~/code" prompt="root@controlplane ~/code ➜"}
+    $ python /root/code/verify_environment.py
+    [1/5] Checking Python virtual environment...
+      PASS - Virtual environment found at /root/venv
+    ```
+
+  규칙:
+    - "$ " 로 시작하는 줄 → 명령어(타이핑 대상)
+    - "# " 로 시작하는 줄 → 주석(회색)
+    - 그 외 줄          → 출력(명령 입력이 끝난 뒤 흘러나옴)
+
+  속성:
+    title  : 창 상단 제목(기본 "bash")
+    prompt : 명령어 앞에 붙는 프롬프트(기본 "$")
+    speed  : 글자당 타이핑 간격 ms(기본 26)
+    line   : 출력 한 줄당 간격 ms(기본 45)
+*/ -}}
+{{- $title := or (.Attributes.title) "bash" -}}
+{{- $prompt := or (.Attributes.prompt) "$" -}}
+{{- $speed := or (.Attributes.speed) "26" -}}
+{{- $line := or (.Attributes.line) "45" -}}
+{{- $lines := split (trim .Inner "\n\r") "\n" -}}
+<div class="termcast" data-termcast data-speed="{{ $speed }}" data-line="{{ $line }}">
+    <div class="termcast__bar">
+        <span class="termcast__dot termcast__dot--red"></span>
+        <span class="termcast__dot termcast__dot--yellow"></span>
+        <span class="termcast__dot termcast__dot--green"></span>
+        <span class="termcast__title">{{ $title }}</span>
+        <span class="termcast__actions">
+            <button type="button" class="termcast__btn" data-termcast-skip>건너뛰기</button>
+            <button type="button" class="termcast__btn" data-termcast-replay>다시 재생</button>
+        </span>
+    </div>
+    <pre class="termcast__body"><code>
+{{- range $lines -}}
+{{-   $l := strings.TrimRight "\r" . -}}
+{{-   if or (eq $l "$") (hasPrefix $l "$ ") -}}
+{{-     $cmd := "" -}}
+{{-     if hasPrefix $l "$ " -}}{{- $cmd = strings.TrimPrefix "$ " $l -}}{{- end -}}
+<span class="termcast__line" data-kind="cmd"><span class="termcast__prompt">{{ $prompt }}</span> <span class="termcast__cmd">{{ $cmd }}</span></span>
+{{-   else if hasPrefix $l "# " -}}
+<span class="termcast__line" data-kind="comment">{{ $l }}</span>
+{{-   else -}}
+<span class="termcast__line" data-kind="out">{{ $l }}</span>
+{{-   end -}}
+{{- end -}}
+</code></pre>
+</div>
+{{- if not (.Page.Store.Get "termcastAssets") -}}
+{{- .Page.Store.Set "termcastAssets" true -}}
+<script>
+(function () {
+  if (window.__termcastInit) return;
+  window.__termcastInit = true;
+
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function setup(root) {
+    var lines = Array.prototype.slice.call(root.querySelectorAll('.termcast__line'));
+    if (!lines.length) return;
+
+    // 원본 텍스트를 보관한 뒤 애니메이션 대상으로 전환한다.
+    var items = lines.map(function (el) {
+      var cmdEl = el.querySelector('.termcast__cmd');
+      return { el: el, cmdEl: cmdEl, text: cmdEl ? cmdEl.textContent : '' };
+    });
+
+    var speed = parseInt(root.getAttribute('data-speed'), 10) || 26;
+    var lineGap = parseInt(root.getAttribute('data-line'), 10) || 45;
+    var timers = [];
+    var running = false;
+
+    function clearTimers() {
+      timers.forEach(clearTimeout);
+      timers = [];
+    }
+
+    function after(ms, fn) {
+      timers.push(setTimeout(fn, ms));
+    }
+
+    function showAll() {
+      clearTimers();
+      running = false;
+      root.classList.remove('is-running');
+      items.forEach(function (it) {
+        it.el.classList.add('is-shown');
+        if (it.cmdEl) it.cmdEl.textContent = it.text;
+      });
+    }
+
+    // 재생 전/중 상태. is-running 을 함께 걸어야 줄이 감춰진다.
+    // (이게 없으면 관찰자가 발동하기 전까지 "빈 프롬프트 + 출력만 보임" 상태가 된다)
+    function reset() {
+      clearTimers();
+      root.classList.add('is-running');
+      items.forEach(function (it) {
+        it.el.classList.remove('is-shown', 'is-typing');
+        if (it.cmdEl) it.cmdEl.textContent = '';
+      });
+    }
+
+    function play() {
+      reset();
+      running = true;
+      step(0, 0);
+    }
+
+    function step(i, delay) {
+      if (i >= items.length) {
+        after(delay, function () {
+          running = false;
+          root.classList.remove('is-running');
+        });
+        return;
+      }
+      var it = items[i];
+      after(delay, function () {
+        it.el.classList.add('is-shown');
+        if (it.cmdEl) {
+          it.el.classList.add('is-typing');
+          typeCmd(it, 0, function () {
+            it.el.classList.remove('is-typing');
+            step(i + 1, 260);
+          });
+        } else {
+          step(i + 1, lineGap);
+        }
+      });
+    }
+
+    function typeCmd(it, n, done) {
+      if (n > it.text.length) { done(); return; }
+      it.cmdEl.textContent = it.text.slice(0, n);
+      after(speed, function () { typeCmd(it, n + 1, done); });
+    }
+
+    var skipBtn = root.querySelector('[data-termcast-skip]');
+    var replayBtn = root.querySelector('[data-termcast-replay]');
+    if (skipBtn) skipBtn.addEventListener('click', showAll);
+    if (replayBtn) replayBtn.addEventListener('click', play);
+
+    if (reduce) { showAll(); return; }
+
+    reset();
+    var seen = false;
+    if (!('IntersectionObserver' in window)) { showAll(); return; }
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting && !seen) { seen = true; play(); io.disconnect(); }
+      });
+    }, { threshold: 0.25 });
+    io.observe(root);
+  }
+
+  function init() {
+    document.querySelectorAll('[data-termcast]').forEach(setup);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+{{- end -}}
