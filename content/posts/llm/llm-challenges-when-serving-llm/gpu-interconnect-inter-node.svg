@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 960 400" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="gpu-interconnect-inter-node-title gpu-interconnect-inter-node-desc">
+      <title id="gpu-interconnect-inter-node-title">노드를 넘는 순간 대역폭이 18배 떨어진다</title>
+      <desc id="gpu-interconnect-inter-node-desc">노드 안에서는 NVSwitch 로 900 GB/s 로 통신하지만 노드를 넘으면 InfiniBand RDMA 로 약 50 GB/s 까지 떨어진다는 것을 보여준다.</desc>
+      <defs><style>@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap');</style>
+        <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+        <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker>
+        <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
+        <marker id="arrow-start" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto"><polygon points="8 0, 0 3, 8 6" fill="#4f5d75"/></marker>
+        <marker id="arrow-start-accent" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto"><polygon points="8 0, 0 3, 8 6" fill="#eb6c36"/></marker>
+      </defs>
+      <rect width="100%" height="100%" fill="#f5f5f5"/>
+      <rect x="40" y="64" width="320" height="232" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+      <rect x="56" y="68" width="152" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="132" y="77" fill="rgba(45,49,66,0.40)" font-size="7" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle" letter-spacing="0.14em">NODE 1 · NVSWITCH</text>
+      <rect x="600" y="64" width="320" height="232" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+      <rect x="616" y="68" width="152" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="692" y="77" fill="rgba(45,49,66,0.40)" font-size="7" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle" letter-spacing="0.14em">NODE 2 · NVSWITCH</text>
+      <line x1="200" y1="152" x2="200" y2="208" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)" marker-start="url(#arrow-start)"/>
+      <line x1="760" y1="152" x2="760" y2="208" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)" marker-start="url(#arrow-start)"/>
+      <rect x="210" y="174" width="80" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="250" y="183" fill="#7a8399" font-size="8" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle" letter-spacing="0.06em">900 GB/s</text>
+      <rect x="770" y="174" width="80" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="810" y="183" fill="#7a8399" font-size="8" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle" letter-spacing="0.06em">900 GB/s</text>
+      <line x1="360" y1="180" x2="600" y2="180" stroke="#eb6c36" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arrow-accent)" marker-start="url(#arrow-start-accent)"/>
+      <rect x="372" y="160" width="216" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="480" y="169" fill="#eb6c36" font-size="8" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle" letter-spacing="0.06em">InfiniBand RDMA · 50 GB/s</text>
+      <rect x="88" y="96" width="224" height="56" rx="6" fill="#f5f5f5"/>
+      <rect x="88" y="96" width="224" height="56" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+      <text x="200" y="128" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist','Apple SD Gothic Neo','Noto Sans KR',sans-serif" text-anchor="middle">GPU</text>
+      <rect x="88" y="208" width="224" height="56" rx="6" fill="#f5f5f5"/>
+      <rect x="88" y="208" width="224" height="56" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+      <text x="200" y="240" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist','Apple SD Gothic Neo','Noto Sans KR',sans-serif" text-anchor="middle">GPU</text>
+      <rect x="648" y="96" width="224" height="56" rx="6" fill="#f5f5f5"/>
+      <rect x="648" y="96" width="224" height="56" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+      <text x="760" y="128" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist','Apple SD Gothic Neo','Noto Sans KR',sans-serif" text-anchor="middle">GPU</text>
+      <rect x="648" y="208" width="224" height="56" rx="6" fill="#f5f5f5"/>
+      <rect x="648" y="208" width="224" height="56" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+      <text x="760" y="240" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist','Apple SD Gothic Neo','Noto Sans KR',sans-serif" text-anchor="middle">GPU</text>
+      <line x1="40" y1="332" x2="920" y2="332" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+      <text x="40" y="348" fill="#4f5d75" font-size="8" font-family="'Geist Mono',monospace" letter-spacing="0.14em">LEGEND</text>
+      <line x1="140" y1="344" x2="168" y2="344" stroke="#4f5d75" stroke-width="1.2"/>
+      <text x="176" y="348" fill="#4f5d75" font-size="8" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace">노드 안 · 900 GB/s</text>
+      <line x1="344" y1="344" x2="372" y2="344" stroke="#eb6c36" stroke-width="1.2" stroke-dasharray="4,3"/>
+      <text x="380" y="348" fill="#4f5d75" font-size="8" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace">노드 간 · 50 GB/s — 18배 느리다</text>
+    </svg>

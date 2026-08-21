@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 960 348" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="execution-data-movement-title execution-data-movement-desc">
+      <title id="execution-data-movement-title">실행 중 데이터 이동 — 가장 느린 구간이 기준이 된다</title>
+      <desc id="execution-data-movement-desc">추론 중 가중치가 오프칩 HBM에서 L2, L1/Shared 를 거쳐 레지스터까지 이동하며, 가장 느린 HBM 대역폭이 데이터 이동량 계산의 기준이 된다는 것을 보여준다.</desc>
+      <defs><style>@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap');</style>
+        <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+        <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker>
+        <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
+        <marker id="arrow-start" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto"><polygon points="8 0, 0 3, 8 6" fill="#4f5d75"/></marker>
+        <marker id="arrow-start-accent" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto"><polygon points="8 0, 0 3, 8 6" fill="#eb6c36"/></marker>
+      </defs>
+      <rect width="100%" height="100%" fill="#f5f5f5"/>
+      <line x1="220" y1="152" x2="272" y2="152" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <line x1="452" y1="152" x2="504" y2="152" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <line x1="684" y1="152" x2="736" y2="152" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="40" y="108" width="180" height="88" rx="6" fill="#f5f5f5"/>
+      <rect x="40" y="108" width="180" height="88" rx="6" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1"/>
+      <rect x="48" y="114" width="76" height="12" rx="2" fill="transparent" stroke="rgba(235,108,54,0.40)" stroke-width="0.8"/>
+      <text x="86" y="123" fill="rgba(235,108,54,0.90)" font-size="7" font-family="'Geist Mono',monospace" text-anchor="middle" letter-spacing="0.08em">OFF-CHIP</text>
+      <text x="130" y="150" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist','Apple SD Gothic Neo','Noto Sans KR',sans-serif" text-anchor="middle">GPU 메모리</text>
+      <text x="130" y="166" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">HBM · 864 GB/s</text>
+      <rect x="272" y="108" width="180" height="88" rx="6" fill="#f5f5f5"/>
+      <rect x="272" y="108" width="180" height="88" rx="6" fill="rgba(45,49,66,0.05)" stroke="#4f5d75" stroke-width="1"/>
+      <rect x="280" y="114" width="68" height="12" rx="2" fill="transparent" stroke="rgba(79,93,117,0.40)" stroke-width="0.8"/>
+      <text x="314" y="123" fill="rgba(79,93,117,0.80)" font-size="7" font-family="'Geist Mono',monospace" text-anchor="middle" letter-spacing="0.08em">ON-CHIP</text>
+      <text x="362" y="150" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist','Apple SD Gothic Neo','Noto Sans KR',sans-serif" text-anchor="middle">L2 캐시</text>
+      <text x="362" y="166" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">SRAM · 수 MB</text>
+      <rect x="504" y="108" width="180" height="88" rx="6" fill="#f5f5f5"/>
+      <rect x="504" y="108" width="180" height="88" rx="6" fill="rgba(45,49,66,0.05)" stroke="#4f5d75" stroke-width="1"/>
+      <rect x="512" y="114" width="68" height="12" rx="2" fill="transparent" stroke="rgba(79,93,117,0.40)" stroke-width="0.8"/>
+      <text x="546" y="123" fill="rgba(79,93,117,0.80)" font-size="7" font-family="'Geist Mono',monospace" text-anchor="middle" letter-spacing="0.08em">ON-CHIP</text>
+      <text x="594" y="150" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist','Apple SD Gothic Neo','Noto Sans KR',sans-serif" text-anchor="middle">L1 / Shared</text>
+      <text x="594" y="166" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">SRAM · 수백 KB</text>
+      <rect x="736" y="108" width="180" height="88" rx="6" fill="#f5f5f5"/>
+      <rect x="736" y="108" width="180" height="88" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+      <rect x="744" y="114" width="68" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+      <text x="778" y="123" fill="rgba(45,49,66,0.80)" font-size="7" font-family="'Geist Mono',monospace" text-anchor="middle" letter-spacing="0.08em">COMPUTE</text>
+      <text x="826" y="150" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist','Apple SD Gothic Neo','Noto Sans KR',sans-serif" text-anchor="middle">레지스터</text>
+      <text x="826" y="166" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">연산이 일어나는 곳</text>
+      <text x="40" y="248" fill="#7a8399" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace">← 크고 느리다</text>
+      <text x="916" y="248" fill="#7a8399" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="end">작고 빠르다 →</text>
+      <line x1="40" y1="288" x2="920" y2="288" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+      <text x="40" y="304" fill="#4f5d75" font-size="8" font-family="'Geist Mono',monospace" letter-spacing="0.14em">LEGEND</text>
+      <rect x="140" y="296" width="16" height="10" rx="2" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1"/>
+      <text x="164" y="304" fill="#4f5d75" font-size="8" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace">가장 느린 구간 — 데이터 이동량은 이 대역폭으로 계산한다</text>
+      <rect x="468" y="296" width="16" height="10" rx="2" fill="rgba(45,49,66,0.05)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="492" y="304" fill="#4f5d75" font-size="8" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace">온칩 SRAM</text>
+    </svg>

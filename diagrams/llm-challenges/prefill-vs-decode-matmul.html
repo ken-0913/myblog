@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>prefill 과 decode 의 행렬 모양이 병목을 가른다</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper: #f5f5f5; --color-ink: #2d3142; --color-muted: #4f5d75; --color-accent: #eb6c36;
+      --font-sans: 'Geist','Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',system-ui,sans-serif;
+      --font-serif: 'Instrument Serif', serif;
+      --font-mono: 'Geist Mono', ui-monospace, monospace;
+    }
+    body { font-family: var(--font-sans); background: var(--color-paper); color: var(--color-ink);
+      min-height: 100vh; display:flex; align-items:center; justify-content:center; padding: 3rem 2rem; }
+    .frame { max-width: 1200px; width: 100%; }
+    .eyebrow { font-family: var(--font-mono); font-size:.66rem; font-weight:500; letter-spacing:.18em;
+      text-transform: uppercase; color: var(--color-muted); margin-bottom:.5rem; }
+    h1 { font-family: var(--font-serif); font-size: clamp(1.5rem,2.4vw + .75rem,2rem); font-weight:400;
+      letter-spacing:-.02em; line-height:1.15; color: var(--color-ink); margin-bottom:1.5rem; }
+    svg { width:100%; min-width: 820px; display:block; }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Architecture · Diagram Design</p>
+    <h1>prefill 과 decode 의 행렬 모양이 병목을 가른다</h1>
+
+    <svg viewBox="0 0 960 460" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="prefill-vs-decode-matmul-title prefill-vs-decode-matmul-desc">
+      <title id="prefill-vs-decode-matmul-title">prefill 과 decode 의 행렬 모양이 병목을 가른다</title>
+      <desc id="prefill-vs-decode-matmul-desc">prefill 은 프롬프트 전체를 한 번에 처리해 큰 행렬 곱이 되지만 decode 는 토큰을 하나씩 만들어 시퀀스 길이가 1로 눌리면서 연산 강도가 약 1.0 까지 떨어진다는 것을 보여준다.</desc>
+      <defs>
+        <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+        <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker>
+        <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
+        <marker id="arrow-start" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto"><polygon points="8 0, 0 3, 8 6" fill="#4f5d75"/></marker>
+        <marker id="arrow-start-accent" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto"><polygon points="8 0, 0 3, 8 6" fill="#eb6c36"/></marker>
+      </defs>
+      <rect width="100%" height="100%" fill="#f5f5f5"/>
+      <rect x="40" y="64" width="420" height="300" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+      <rect x="56" y="68" width="200" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="156" y="77" fill="rgba(45,49,66,0.40)" font-size="7" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle" letter-spacing="0.14em">PREFILL · 프롬프트 전체를 한 번에</text>
+      <rect x="500" y="64" width="420" height="300" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+      <rect x="516" y="68" width="136" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="584" y="77" fill="rgba(45,49,66,0.40)" font-size="7" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle" letter-spacing="0.14em">DECODE · 토큰 하나씩</text>
+      <rect x="72" y="116" width="72" height="160" fill="#f5f5f5"/>
+      <rect x="72" y="116" width="72" height="160" fill="rgba(79,93,117,0.15)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="108" y="292" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">[s, h]</text>
+      <text x="108" y="306" fill="#7a8399" font-size="8" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">s = 4096</text>
+      <text x="168" y="200" fill="#7a8399" font-size="16" font-family="'Geist Mono',monospace" text-anchor="middle">×</text>
+      <rect x="192" y="140" width="112" height="112" fill="#f5f5f5"/>
+      <rect x="192" y="140" width="112" height="112" fill="rgba(79,93,117,0.15)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="248" y="268" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">[h, h]</text>
+      <text x="248" y="282" fill="#7a8399" font-size="8" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">h = 4096</text>
+      <text x="328" y="200" fill="#7a8399" font-size="16" font-family="'Geist Mono',monospace" text-anchor="middle">=</text>
+      <rect x="352" y="116" width="72" height="160" fill="#f5f5f5"/>
+      <rect x="352" y="116" width="72" height="160" fill="rgba(79,93,117,0.15)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="388" y="292" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">[s, h]</text>
+      <text x="250" y="332" fill="#4f5d75" font-size="12" font-weight="600" font-family="'Geist','Apple SD Gothic Neo','Noto Sans KR',sans-serif" text-anchor="middle">1,365 FLOPS/B — compute bound</text>
+      <rect x="532" y="192" width="72" height="16" fill="#f5f5f5"/>
+      <rect x="532" y="192" width="72" height="16" fill="rgba(235,108,54,0.12)" stroke="#eb6c36" stroke-width="1"/>
+      <text x="568" y="224" fill="#eb6c36" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">[1, h]</text>
+      <text x="568" y="238" fill="#7a8399" font-size="8" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">s = 1</text>
+      <text x="628" y="200" fill="#7a8399" font-size="16" font-family="'Geist Mono',monospace" text-anchor="middle">×</text>
+      <rect x="652" y="140" width="112" height="112" fill="#f5f5f5"/>
+      <rect x="652" y="140" width="112" height="112" fill="rgba(79,93,117,0.15)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="708" y="268" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">[h, h]</text>
+      <text x="708" y="282" fill="#7a8399" font-size="8" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">h = 4096</text>
+      <text x="788" y="200" fill="#7a8399" font-size="16" font-family="'Geist Mono',monospace" text-anchor="middle">=</text>
+      <rect x="812" y="192" width="72" height="16" fill="#f5f5f5"/>
+      <rect x="812" y="192" width="72" height="16" fill="rgba(235,108,54,0.12)" stroke="#eb6c36" stroke-width="1"/>
+      <text x="848" y="224" fill="#eb6c36" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">[1, h]</text>
+      <text x="710" y="332" fill="#eb6c36" font-size="12" font-weight="600" font-family="'Geist','Apple SD Gothic Neo','Noto Sans KR',sans-serif" text-anchor="middle">약 1.0 FLOPS/B — memory bound</text>
+      <line x1="40" y1="400" x2="920" y2="400" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+      <text x="40" y="416" fill="#4f5d75" font-size="8" font-family="'Geist Mono',monospace" letter-spacing="0.14em">LEGEND</text>
+      <rect x="140" y="408" width="16" height="10" rx="2" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1"/>
+      <text x="164" y="416" fill="#4f5d75" font-size="8" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace">시퀀스 길이가 1로 눌려 행렬이 벡터가 된다</text>
+    </svg>
+  </div>
+</body>
+</html>
