@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>prefix 캐싱 — 앞부분이 같으면 다시 계산하지 않는다</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper: #f5f5f5; --color-ink: #2d3142; --color-muted: #4f5d75; --color-accent: #eb6c36;
+      --font-sans: 'Geist','Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',system-ui,sans-serif;
+      --font-serif: 'Instrument Serif', serif;
+      --font-mono: 'Geist Mono', ui-monospace, monospace;
+    }
+    body { font-family: var(--font-sans); background: var(--color-paper); color: var(--color-ink);
+      min-height: 100vh; display:flex; align-items:center; justify-content:center; padding: 3rem 2rem; }
+    .frame { max-width: 1200px; width: 100%; }
+    .eyebrow { font-family: var(--font-mono); font-size:.66rem; font-weight:500; letter-spacing:.18em;
+      text-transform: uppercase; color: var(--color-muted); margin-bottom:.5rem; }
+    h1 { font-family: var(--font-serif); font-size: clamp(1.5rem,2.4vw + .75rem,2rem); font-weight:400;
+      letter-spacing:-.02em; line-height:1.15; color: var(--color-ink); margin-bottom:1.5rem; }
+    svg { width:100%; min-width: 820px; display:block; }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Tree · Diagram Design</p>
+    <h1>prefix 캐싱 — 앞부분이 같으면 다시 계산하지 않는다</h1>
+
+    <svg viewBox="0 0 960 452" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="prefix-cache-radix-tree-title prefix-cache-radix-tree-desc">
+      <title id="prefix-cache-radix-tree-title">prefix 캐싱 — 앞부분이 같으면 다시 계산하지 않는다</title>
+      <desc id="prefix-cache-radix-tree-desc">여러 요청이 같은 앞부분을 공유하면 radix 트리가 그 구간의 KV 캐시를 재사용하고, 갈라지는 뒷부분만 새로 계산한다는 것을 보여준다.</desc>
+      <defs>
+        <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+        <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker>
+        <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
+        <marker id="arrow-start" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto"><polygon points="8 0, 0 3, 8 6" fill="#4f5d75"/></marker>
+        <marker id="arrow-start-accent" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto"><polygon points="8 0, 0 3, 8 6" fill="#eb6c36"/></marker>
+      </defs>
+      <rect width="100%" height="100%" fill="#f5f5f5"/>
+      <path d="M 480,168 V 200 Q 480,208 472,208 H 288 Q 280,208 280,216 V 248" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 480,168 V 200 Q 480,208 488,208 H 672 Q 680,208 680,216 V 248" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="320" y="96" width="320" height="72" rx="6" fill="#f5f5f5"/>
+      <rect x="320" y="96" width="320" height="72" rx="6" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1"/>
+      <rect x="328" y="102" width="60" height="12" rx="2" fill="transparent" stroke="rgba(235,108,54,0.40)" stroke-width="0.8"/>
+      <text x="358" y="111" fill="rgba(235,108,54,0.90)" font-size="7" font-family="'Geist Mono',monospace" text-anchor="middle" letter-spacing="0.08em">SHARED</text>
+      <text x="480" y="130" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist','Apple SD Gothic Neo','Noto Sans KR',sans-serif" text-anchor="middle">You are a helpful assistant</text>
+      <text x="480" y="146" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">공유 prefix — KV 캐시 재사용</text>
+      <rect x="120" y="248" width="320" height="72" rx="6" fill="#f5f5f5"/>
+      <rect x="120" y="248" width="320" height="72" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+      <rect x="128" y="254" width="44" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+      <text x="150" y="263" fill="rgba(45,49,66,0.80)" font-size="7" font-family="'Geist Mono',monospace" text-anchor="middle" letter-spacing="0.08em">요청 A</text>
+      <text x="280" y="282" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist','Apple SD Gothic Neo','Noto Sans KR',sans-serif" text-anchor="middle">요청 A 의 뒷부분</text>
+      <text x="280" y="298" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">여기서부터 새로 계산한다</text>
+      <rect x="520" y="248" width="320" height="72" rx="6" fill="#f5f5f5"/>
+      <rect x="520" y="248" width="320" height="72" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+      <rect x="528" y="254" width="44" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+      <text x="550" y="263" fill="rgba(45,49,66,0.80)" font-size="7" font-family="'Geist Mono',monospace" text-anchor="middle" letter-spacing="0.08em">요청 B</text>
+      <text x="680" y="282" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist','Apple SD Gothic Neo','Noto Sans KR',sans-serif" text-anchor="middle">요청 B 의 뒷부분</text>
+      <text x="680" y="298" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">여기서부터 새로 계산한다</text>
+      <text x="480" y="360" fill="#7a8399" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">트리는 CPU 메모리에, 각 노드가 가리키는 KV 캐시는 GPU 메모리에 있다</text>
+      <line x1="40" y1="392" x2="920" y2="392" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+      <text x="40" y="408" fill="#4f5d75" font-size="8" font-family="'Geist Mono',monospace" letter-spacing="0.14em">LEGEND</text>
+      <rect x="140" y="400" width="16" height="10" rx="2" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1"/>
+      <text x="164" y="408" fill="#4f5d75" font-size="8" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace">재계산하지 않는 구간</text>
+      <rect x="300" y="400" width="16" height="10" rx="2" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+      <text x="324" y="408" fill="#4f5d75" font-size="8" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace">요청마다 새로 계산하는 구간</text>
+    </svg>
+  </div>
+</body>
+</html>

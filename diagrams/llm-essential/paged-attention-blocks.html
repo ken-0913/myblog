@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PagedAttention — KV 캐시를 블록으로 쪼개 흩어 놓는다</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper: #f5f5f5; --color-ink: #2d3142; --color-muted: #4f5d75; --color-accent: #eb6c36;
+      --font-sans: 'Geist','Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',system-ui,sans-serif;
+      --font-serif: 'Instrument Serif', serif;
+      --font-mono: 'Geist Mono', ui-monospace, monospace;
+    }
+    body { font-family: var(--font-sans); background: var(--color-paper); color: var(--color-ink);
+      min-height: 100vh; display:flex; align-items:center; justify-content:center; padding: 3rem 2rem; }
+    .frame { max-width: 1200px; width: 100%; }
+    .eyebrow { font-family: var(--font-mono); font-size:.66rem; font-weight:500; letter-spacing:.18em;
+      text-transform: uppercase; color: var(--color-muted); margin-bottom:.5rem; }
+    h1 { font-family: var(--font-serif); font-size: clamp(1.5rem,2.4vw + .75rem,2rem); font-weight:400;
+      letter-spacing:-.02em; line-height:1.15; color: var(--color-ink); margin-bottom:1.5rem; }
+    svg { width:100%; min-width: 820px; display:block; }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Architecture · Diagram Design</p>
+    <h1>PagedAttention — KV 캐시를 블록으로 쪼개 흩어 놓는다</h1>
+
+    <svg viewBox="0 0 960 416" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="paged-attention-blocks-title paged-attention-blocks-desc">
+      <title id="paged-attention-blocks-title">PagedAttention — KV 캐시를 블록으로 쪼개 흩어 놓는다</title>
+      <desc id="paged-attention-blocks-desc">요청이 보는 논리 블록 순서를 블록 테이블이 물리 KV 캐시의 흩어진 블록으로 이어 주어, 연속된 메모리 없이도 시퀀스를 담을 수 있다는 것을 보여준다.</desc>
+      <defs>
+        <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+        <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker>
+        <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
+        <marker id="arrow-start" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto"><polygon points="8 0, 0 3, 8 6" fill="#4f5d75"/></marker>
+        <marker id="arrow-start-accent" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto"><polygon points="8 0, 0 3, 8 6" fill="#eb6c36"/></marker>
+      </defs>
+      <rect width="100%" height="100%" fill="#f5f5f5"/>
+      <rect x="40" y="64" width="260" height="264" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+      <rect x="56" y="68" width="152" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="132" y="77" fill="rgba(45,49,66,0.40)" font-size="7" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle" letter-spacing="0.14em">논리 블록 · 요청이 보는 순서</text>
+      <rect x="340" y="64" width="200" height="264" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+      <rect x="356" y="68" width="64" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="388" y="77" fill="rgba(45,49,66,0.40)" font-size="7" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle" letter-spacing="0.14em">블록 테이블</text>
+      <rect x="580" y="64" width="340" height="264" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+      <rect x="596" y="68" width="152" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="672" y="77" fill="rgba(45,49,66,0.40)" font-size="7" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle" letter-spacing="0.14em">물리 KV 캐시 · 흩어져 있다</text>
+      <rect x="72" y="104" width="196" height="48" rx="4" fill="#f5f5f5"/>
+      <rect x="72" y="104" width="196" height="48" rx="4" fill="rgba(79,93,117,0.15)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="170" y="131" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">블록 0 · 토큰 1~4</text>
+      <rect x="72" y="172" width="196" height="48" rx="4" fill="#f5f5f5"/>
+      <rect x="72" y="172" width="196" height="48" rx="4" fill="rgba(79,93,117,0.15)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="170" y="199" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">블록 1 · 토큰 5~8</text>
+      <rect x="72" y="240" width="196" height="48" rx="4" fill="#f5f5f5"/>
+      <rect x="72" y="240" width="196" height="48" rx="4" fill="rgba(79,93,117,0.15)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="170" y="267" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">블록 2 · 토큰 9~10</text>
+      <rect x="368" y="104" width="144" height="48" rx="4" fill="#f5f5f5"/>
+      <rect x="368" y="104" width="144" height="48" rx="4" fill="rgba(235,108,54,0.12)" stroke="#eb6c36" stroke-width="1"/>
+      <text x="440" y="131" fill="#eb6c36" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">0 → 7</text>
+      <rect x="368" y="172" width="144" height="48" rx="4" fill="#f5f5f5"/>
+      <rect x="368" y="172" width="144" height="48" rx="4" fill="rgba(235,108,54,0.12)" stroke="#eb6c36" stroke-width="1"/>
+      <text x="440" y="199" fill="#eb6c36" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">1 → 1</text>
+      <rect x="368" y="240" width="144" height="48" rx="4" fill="#f5f5f5"/>
+      <rect x="368" y="240" width="144" height="48" rx="4" fill="rgba(235,108,54,0.12)" stroke="#eb6c36" stroke-width="1"/>
+      <text x="440" y="267" fill="#eb6c36" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">2 → 3</text>
+      <rect x="612" y="104" width="68" height="48" rx="4" fill="#f5f5f5"/>
+      <rect x="612" y="104" width="68" height="48" rx="4" fill="rgba(45,49,66,0.03)" stroke="rgba(45,49,66,0.30)" stroke-width="1"/>
+      <text x="646" y="131" fill="rgba(45,49,66,0.30)" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">#0</text>
+      <rect x="688" y="104" width="68" height="48" rx="4" fill="#f5f5f5"/>
+      <rect x="688" y="104" width="68" height="48" rx="4" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+      <text x="722" y="131" fill="#2d3142" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">#1</text>
+      <rect x="764" y="104" width="68" height="48" rx="4" fill="#f5f5f5"/>
+      <rect x="764" y="104" width="68" height="48" rx="4" fill="rgba(45,49,66,0.03)" stroke="rgba(45,49,66,0.30)" stroke-width="1"/>
+      <text x="798" y="131" fill="rgba(45,49,66,0.30)" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">#2</text>
+      <rect x="840" y="104" width="68" height="48" rx="4" fill="#f5f5f5"/>
+      <rect x="840" y="104" width="68" height="48" rx="4" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+      <text x="874" y="131" fill="#2d3142" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">#3</text>
+      <rect x="612" y="172" width="68" height="48" rx="4" fill="#f5f5f5"/>
+      <rect x="612" y="172" width="68" height="48" rx="4" fill="rgba(45,49,66,0.03)" stroke="rgba(45,49,66,0.30)" stroke-width="1"/>
+      <text x="646" y="199" fill="rgba(45,49,66,0.30)" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">#4</text>
+      <rect x="688" y="172" width="68" height="48" rx="4" fill="#f5f5f5"/>
+      <rect x="688" y="172" width="68" height="48" rx="4" fill="rgba(45,49,66,0.03)" stroke="rgba(45,49,66,0.30)" stroke-width="1"/>
+      <text x="722" y="199" fill="rgba(45,49,66,0.30)" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">#5</text>
+      <rect x="764" y="172" width="68" height="48" rx="4" fill="#f5f5f5"/>
+      <rect x="764" y="172" width="68" height="48" rx="4" fill="rgba(45,49,66,0.03)" stroke="rgba(45,49,66,0.30)" stroke-width="1"/>
+      <text x="798" y="199" fill="rgba(45,49,66,0.30)" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">#6</text>
+      <rect x="840" y="172" width="68" height="48" rx="4" fill="#f5f5f5"/>
+      <rect x="840" y="172" width="68" height="48" rx="4" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+      <text x="874" y="199" fill="#2d3142" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">#7</text>
+      <line x1="268" y1="128" x2="368" y2="128" stroke="#4f5d75" stroke-width="1" marker-end="url(#arrow)"/>
+      <line x1="512" y1="128" x2="580" y2="128" stroke="#eb6c36" stroke-width="1" marker-end="url(#arrow-accent)"/>
+      <line x1="268" y1="196" x2="368" y2="196" stroke="#4f5d75" stroke-width="1" marker-end="url(#arrow)"/>
+      <line x1="512" y1="196" x2="580" y2="196" stroke="#eb6c36" stroke-width="1" marker-end="url(#arrow-accent)"/>
+      <line x1="268" y1="264" x2="368" y2="264" stroke="#4f5d75" stroke-width="1" marker-end="url(#arrow)"/>
+      <line x1="512" y1="264" x2="580" y2="264" stroke="#eb6c36" stroke-width="1" marker-end="url(#arrow-accent)"/>
+      <text x="750" y="284" fill="#7a8399" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">연속된 공간이 필요 없다 — 빈 블록 아무 데나 쓴다</text>
+      <line x1="40" y1="356" x2="920" y2="356" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+      <text x="40" y="372" fill="#4f5d75" font-size="8" font-family="'Geist Mono',monospace" letter-spacing="0.14em">LEGEND</text>
+      <rect x="140" y="364" width="16" height="10" rx="2" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+      <text x="164" y="372" fill="#4f5d75" font-size="8" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace">실제로 쓰인 블록</text>
+      <rect x="284" y="364" width="16" height="10" rx="2" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1"/>
+      <text x="308" y="372" fill="#4f5d75" font-size="8" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace">테이블이 이어 주는 경로</text>
+      <rect x="460" y="364" width="16" height="10" rx="2" fill="rgba(45,49,66,0.03)" stroke="rgba(45,49,66,0.30)" stroke-width="1"/>
+      <text x="484" y="372" fill="#4f5d75" font-size="8" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace">빈 블록</text>
+    </svg>
+  </div>
+</body>
+</html>

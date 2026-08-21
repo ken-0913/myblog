@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>동적 배칭과 연속 배칭 — 유휴 시간이 사라진다</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper: #f5f5f5; --color-ink: #2d3142; --color-muted: #4f5d75; --color-accent: #eb6c36;
+      --font-sans: 'Geist','Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',system-ui,sans-serif;
+      --font-serif: 'Instrument Serif', serif;
+      --font-mono: 'Geist Mono', ui-monospace, monospace;
+    }
+    body { font-family: var(--font-sans); background: var(--color-paper); color: var(--color-ink);
+      min-height: 100vh; display:flex; align-items:center; justify-content:center; padding: 3rem 2rem; }
+    .frame { max-width: 1200px; width: 100%; }
+    .eyebrow { font-family: var(--font-mono); font-size:.66rem; font-weight:500; letter-spacing:.18em;
+      text-transform: uppercase; color: var(--color-muted); margin-bottom:.5rem; }
+    h1 { font-family: var(--font-serif); font-size: clamp(1.5rem,2.4vw + .75rem,2rem); font-weight:400;
+      letter-spacing:-.02em; line-height:1.15; color: var(--color-ink); margin-bottom:1.5rem; }
+    svg { width:100%; min-width: 820px; display:block; }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Process · Diagram Design</p>
+    <h1>동적 배칭과 연속 배칭 — 유휴 시간이 사라진다</h1>
+
+    <svg viewBox="0 0 960 532" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="batching-dynamic-vs-continuous-title batching-dynamic-vs-continuous-desc">
+      <title id="batching-dynamic-vs-continuous-title">동적 배칭과 연속 배칭 — 유휴 시간이 사라진다</title>
+      <desc id="batching-dynamic-vs-continuous-desc">동적 배칭에서는 배치 안의 가장 긴 요청이 끝날 때까지 다른 슬롯이 유휴로 남지만, 연속 배칭에서는 요청이 끝나는 즉시 대기 중인 요청이 그 자리에 들어간다는 것을 보여준다.</desc>
+      <defs>
+        <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+        <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker>
+        <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
+        <marker id="arrow-start" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto"><polygon points="8 0, 0 3, 8 6" fill="#4f5d75"/></marker>
+        <marker id="arrow-start-accent" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto"><polygon points="8 0, 0 3, 8 6" fill="#eb6c36"/></marker>
+      </defs>
+      <rect width="100%" height="100%" fill="#f5f5f5"/>
+      <rect x="40" y="64" width="880" height="168" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+      <rect x="56" y="68" width="248" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="180" y="77" fill="rgba(45,49,66,0.40)" font-size="7" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle" letter-spacing="0.14em">DYNAMIC BATCHING · 배치 단위로 끝난다</text>
+      <text x="184" y="121" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="end">슬롯 1</text>
+      <text x="184" y="165" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="end">슬롯 2</text>
+      <text x="184" y="209" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="end">슬롯 3</text>
+      <rect x="200" y="104" width="176" height="24" rx="4" fill="#f5f5f5"/>
+      <rect x="200" y="104" width="176" height="24" rx="4" fill="rgba(79,93,117,0.15)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="288" y="119" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">요청 1</text>
+      <rect x="376" y="104" width="296" height="24" rx="4" fill="#f5f5f5"/>
+      <rect x="376" y="104" width="296" height="24" rx="4" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1" stroke-dasharray="4,3"/>
+      <text x="524" y="119" fill="#eb6c36" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">GPU 유휴</text>
+      <rect x="200" y="148" width="272" height="24" rx="4" fill="#f5f5f5"/>
+      <rect x="200" y="148" width="272" height="24" rx="4" fill="rgba(79,93,117,0.15)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="336" y="163" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">요청 2</text>
+      <rect x="472" y="148" width="200" height="24" rx="4" fill="#f5f5f5"/>
+      <rect x="472" y="148" width="200" height="24" rx="4" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1" stroke-dasharray="4,3"/>
+      <text x="572" y="163" fill="#eb6c36" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">GPU 유휴</text>
+      <rect x="200" y="192" width="472" height="24" rx="4" fill="#f5f5f5"/>
+      <rect x="200" y="192" width="472" height="24" rx="4" fill="rgba(79,93,117,0.15)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="436" y="207" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">요청 3 — 가장 길다</text>
+      <rect x="676" y="104" width="220" height="24" rx="4" fill="#f5f5f5"/>
+      <rect x="676" y="104" width="220" height="24" rx="4" fill="rgba(79,93,117,0.15)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="786" y="119" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">요청 4</text>
+      <rect x="676" y="148" width="220" height="24" rx="4" fill="#f5f5f5"/>
+      <rect x="676" y="148" width="220" height="24" rx="4" fill="rgba(79,93,117,0.15)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="786" y="163" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">요청 5</text>
+      <rect x="676" y="192" width="220" height="24" rx="4" fill="#f5f5f5"/>
+      <rect x="676" y="192" width="220" height="24" rx="4" fill="rgba(79,93,117,0.15)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="786" y="207" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">요청 6</text>
+      <rect x="40" y="264" width="880" height="168" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+      <rect x="56" y="268" width="272" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="192" y="277" fill="rgba(45,49,66,0.40)" font-size="7" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle" letter-spacing="0.14em">CONTINUOUS BATCHING · 끝나는 즉시 채운다</text>
+      <text x="184" y="321" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="end">슬롯 1</text>
+      <text x="184" y="365" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="end">슬롯 2</text>
+      <text x="184" y="409" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="end">슬롯 3</text>
+      <rect x="200" y="304" width="176" height="24" rx="4" fill="#f5f5f5"/>
+      <rect x="200" y="304" width="176" height="24" rx="4" fill="rgba(79,93,117,0.15)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="288" y="319" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">요청 1</text>
+      <rect x="376" y="304" width="220" height="24" rx="4" fill="#f5f5f5"/>
+      <rect x="376" y="304" width="220" height="24" rx="4" fill="rgba(79,93,117,0.15)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="486" y="319" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">요청 4</text>
+      <rect x="596" y="304" width="300" height="24" rx="4" fill="#f5f5f5"/>
+      <rect x="596" y="304" width="300" height="24" rx="4" fill="rgba(79,93,117,0.15)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="746" y="319" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">요청 7</text>
+      <rect x="200" y="348" width="272" height="24" rx="4" fill="#f5f5f5"/>
+      <rect x="200" y="348" width="272" height="24" rx="4" fill="rgba(79,93,117,0.15)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="336" y="363" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">요청 2</text>
+      <rect x="472" y="348" width="220" height="24" rx="4" fill="#f5f5f5"/>
+      <rect x="472" y="348" width="220" height="24" rx="4" fill="rgba(79,93,117,0.15)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="582" y="363" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">요청 5</text>
+      <rect x="692" y="348" width="204" height="24" rx="4" fill="#f5f5f5"/>
+      <rect x="692" y="348" width="204" height="24" rx="4" fill="rgba(79,93,117,0.15)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="794" y="363" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">요청 8</text>
+      <rect x="200" y="392" width="472" height="24" rx="4" fill="#f5f5f5"/>
+      <rect x="200" y="392" width="472" height="24" rx="4" fill="rgba(79,93,117,0.15)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="436" y="407" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">요청 3 — 가장 길다</text>
+      <rect x="676" y="392" width="220" height="24" rx="4" fill="#f5f5f5"/>
+      <rect x="676" y="392" width="220" height="24" rx="4" fill="rgba(79,93,117,0.15)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="786" y="407" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">요청 6</text>
+      <text x="920" y="452" fill="#7a8399" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="end">시간 →</text>
+      <line x1="40" y1="472" x2="920" y2="472" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+      <text x="40" y="488" fill="#4f5d75" font-size="8" font-family="'Geist Mono',monospace" letter-spacing="0.14em">LEGEND</text>
+      <rect x="140" y="480" width="16" height="10" rx="2" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1"/>
+      <text x="164" y="488" fill="#4f5d75" font-size="8" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace">가장 긴 요청을 기다리며 생기는 유휴</text>
+      <rect x="372" y="480" width="16" height="10" rx="2" fill="rgba(45,49,66,0.05)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="396" y="488" fill="#4f5d75" font-size="8" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace">실행 중인 요청</text>
+    </svg>
+  </div>
+</body>
+</html>
