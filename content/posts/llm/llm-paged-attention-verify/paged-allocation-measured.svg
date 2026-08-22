@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 960 400" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="paged-allocation-measured-title paged-allocation-measured-desc">
+      <title id="paged-allocation-measured-title">실측 — 최악 케이스가 아니라 쓴 만큼만 잡는다</title>
+      <desc id="paged-allocation-measured-desc">6 · 56 · 337 토큰 요청이 연속 할당이라면 모두 32블록을 잡지만 PagedAttention 에서는 각각 1 · 4 · 22 블록만 잡는다는 실측 결과를 보여준다.</desc>
+      <defs><style>@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap');</style>
+        <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+        <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker>
+        <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
+        <marker id="arrow-start" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto"><polygon points="8 0, 0 3, 8 6" fill="#4f5d75"/></marker>
+        <marker id="arrow-start-accent" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto"><polygon points="8 0, 0 3, 8 6" fill="#eb6c36"/></marker>
+      </defs>
+      <rect width="100%" height="100%" fill="#f5f5f5"/>
+      <text x="336" y="72" fill="#7a8399" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle" letter-spacing="0.14em">연속 할당</text>
+      <text x="560" y="72" fill="#eb6c36" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" letter-spacing="0.14em">PAGEDATTENTION</text>
+      <text x="40" y="112" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist','Apple SD Gothic Neo','Noto Sans KR',sans-serif">6 토큰</text>
+      <rect x="176" y="96" width="320" height="24" rx="4" fill="#f5f5f5"/>
+      <rect x="176" y="96" width="320" height="24" rx="4" fill="rgba(45,49,66,0.05)" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4,3"/>
+      <text x="336" y="112" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">32 블록 고정</text>
+      <rect x="560" y="96" width="16" height="24" rx="4" fill="#f5f5f5"/>
+      <rect x="560" y="96" width="16" height="24" rx="4" fill="rgba(235,108,54,0.12)" stroke="#eb6c36" stroke-width="1"/>
+      <text x="588" y="112" fill="#eb6c36" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace">1 블록</text>
+      <text x="40" y="168" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist','Apple SD Gothic Neo','Noto Sans KR',sans-serif">56 토큰</text>
+      <rect x="176" y="152" width="320" height="24" rx="4" fill="#f5f5f5"/>
+      <rect x="176" y="152" width="320" height="24" rx="4" fill="rgba(45,49,66,0.05)" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4,3"/>
+      <text x="336" y="168" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">32 블록 고정</text>
+      <rect x="560" y="152" width="40" height="24" rx="4" fill="#f5f5f5"/>
+      <rect x="560" y="152" width="40" height="24" rx="4" fill="rgba(235,108,54,0.12)" stroke="#eb6c36" stroke-width="1"/>
+      <text x="612" y="168" fill="#eb6c36" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace">4 블록</text>
+      <text x="40" y="224" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist','Apple SD Gothic Neo','Noto Sans KR',sans-serif">337 토큰</text>
+      <rect x="176" y="208" width="320" height="24" rx="4" fill="#f5f5f5"/>
+      <rect x="176" y="208" width="320" height="24" rx="4" fill="rgba(45,49,66,0.05)" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4,3"/>
+      <text x="336" y="224" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">32 블록 고정</text>
+      <rect x="560" y="208" width="220" height="24" rx="4" fill="#f5f5f5"/>
+      <rect x="560" y="208" width="220" height="24" rx="4" fill="rgba(235,108,54,0.12)" stroke="#eb6c36" stroke-width="1"/>
+      <text x="792" y="224" fill="#eb6c36" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace">22 블록</text>
+      <text x="40" y="300" fill="#7a8399" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace">낭비는 각각 10 · 8 · 15 칸 — 전부 블록 크기(16) 미만으로 묶인다</text>
+      <line x1="40" y1="340" x2="920" y2="340" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+      <text x="40" y="356" fill="#4f5d75" font-size="8" font-family="'Geist Mono',monospace" letter-spacing="0.14em">LEGEND</text>
+      <rect x="140" y="348" width="16" height="10" rx="2" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1"/>
+      <text x="164" y="356" fill="#4f5d75" font-size="8" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace">실제로 잡은 블록 = ceil(토큰수 / 16)</text>
+    </svg>
