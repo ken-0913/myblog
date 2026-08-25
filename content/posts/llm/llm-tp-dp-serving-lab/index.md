@@ -1,5 +1,5 @@
 ---
-title: "TP/DP 멀티 GPU 서빙 실습 매뉴얼 — Runpod A100 4-GPU + Spec-Bench"
+title: "LLM 스터디 4주차 - TP/DP 멀티 GPU 서빙 실습 매뉴얼 — Runpod A100 4-GPU"
 date: 2026-08-24T18:00:00+09:00
 draft: false
 tags: ["LLM", "vLLM", "Tensor Parallelism", "Data Parallelism", "Runpod", "Spec-Bench", "Speculative Decoding", "Model Serving"]
@@ -75,6 +75,12 @@ openssl rand -hex 32
 
 
 
+&nbsp;
+
+- 위에서 설정한 참조변수를 Pods의 Edit Pods를 클릭후 환경변수 VALUE에 넣어준다. 
+
+![](orca-paste-1787659735508-367ec211-a31b-4793-a92d-a42313c0acd5.png)
+
 ## 2. 접속 후 확인
 
 ```bash
@@ -98,29 +104,37 @@ Pods에서 배포한 컨테이너의 맨 오른쪽 오버플로우 메뉴를 클
 
 
 
-Runpod Edit Pod의 **Container Start Command**에 아래 인자를 그대로 붙여넣는다. vLLM Verified 템플릿은 ENTRYPOINT에 `vllm serve`가 이미 포함돼 있어서, 필드에는 모델 이름부터 시작하는 인자만 적으면 된다.
-
 ### 3-1. TP=4
 
-```
+Runpod Edit Pod의 **Container Start Command**에 아래 인자를 그대로 붙여넣는다. vLLM Verified 템플릿은 ENTRYPOINT에 `vllm serve`가 이미 포함돼 있어서, 필드에는 모델 이름부터 시작하는 인자만 적으면 된다.
+
+```bash
 Qwen/Qwen3-8B --tensor-parallel-size 4 --host 0.0.0.0 --port 8000 --dtype auto --enforce-eager --gpu-memory-utilization 0.95 --max-model-len 8128
 ```
 
 ![](orca-paste-1787579461447-7689f89d-e55f-4b5b-8344-4b3e689fcfe0.png)
 
+
+
 ### 3-2. TP=2 × DP=2
 
-```
+```bash
 Qwen/Qwen3-8B --tensor-parallel-size 2 --data-parallel-size 2 --host 0.0.0.0 --port 8000 --dtype auto --enforce-eager --gpu-memory-utilization 0.95 --max-model-len 8128
 ```
 
+
+
 ### 3-3. DP=4
 
-```
+```bash
 Qwen/Qwen3-8B --tensor-parallel-size 1 --data-parallel-size 4 --host 0.0.0.0 --port 8000 --dtype auto --enforce-eager --gpu-memory-utilization 0.95 --max-model-len 8128
 ```
 
+
+
 편집 후에는 Pod를 재시작(Stop → Start, 또는 Edit 저장 시 자동 재시작)해야 새 커맨드가 적용된다. 모델을 바꿀 경우 **attention head 수가 TP 크기로 나눠떨어지는지** 미리 확인한다. 나눠떨어지지 않으면 "must be divisible" 에러가 뜬다.
+
+
 
 ## 4. 속도 측정
 
@@ -179,45 +193,46 @@ vllm bench serve \
 - **결과** (요청 50개, 동시성 최대)
 
 
-| 지표                           | TP=4 (L40S, PCIe) | TP=4 (A100 SXM, NVLink) | TP=2×DP=2 (A100 SXM, NVLink) | DP=4 (A100 SXM, NVLink) |
-| ---------------------------- | ----------------- | ----------------------- | ---------------------------- | ----------------------- |
-| Successful / Failed          | 50 / 0            | 50 / 0                  | 50 / 0                       | 50 / 0                  |
-| Benchmark duration           | 6.08s             | 4.34s                   | 4.01s                        | 3.24s                   |
-| Request throughput           | 8.23 req/s        | 11.53 req/s             | 12.46 req/s                  | 15.41 req/s             |
-| Output token throughput      | 1,052.99 tok/s    | 1,475.59 tok/s          | 1,594.41 tok/s               | 1,972.70 tok/s          |
-| Peak output token throughput | 2,717.00 tok/s    | 2,250.00 tok/s          | 2,350.00 tok/s               | 2,851.00 tok/s          |
-| Total token throughput       | 9,476.87 tok/s    | 13,280.32 tok/s         | 14,349.68 tok/s              | 17,754.27 tok/s         |
-| Mean TTFT                    | 2,053.43 ms       | 831.52 ms               | 706.38 ms                    | 605.67 ms               |
-| Median TTFT                  | 2,052.03 ms       | 831.12 ms               | 721.52 ms                    | 643.24 ms               |
-| P99 TTFT                     | 3,784.41 ms       | 1,485.30 ms             | 1,161.65 ms                  | 945.33 ms               |
-| Mean TPOT                    | 30.11 ms          | 25.53 ms                | 24.25 ms                     | 19.59 ms                |
-| Mean ITL                     | 30.11 ms          | 25.53 ms                | 24.25 ms                     | 19.59 ms                |
-| Median ITL                   | 18.38 ms          | 22.68 ms                | 21.20 ms                     | 17.34 ms                |
-| P99 ITL                      | 146.51 ms         | 56.01 ms                | 83.02 ms                     | 126.87 ms               |
+| 지표                           | TP=4 (L40S, PCIe) | TP=4 (A100 SXM, Qwen3-8B) | TP=2×DP=2 (A100 SXM, Qwen3-8B) | DP=4 (A100 SXM, Qwen3-8B) | TP=4 (A100 SXM, Qwen2.5-72B) | TP=2×DP=2 (A100 SXM, Qwen2.5-72B) | TP=4 (A100 SXM, Qwen3-14B) | TP=2×DP=2 (A100 SXM, Qwen3-14B) | DP=4 (A100 SXM, Qwen3-14B) |
+| ---------------------------- | ----------------- | ----------------------- | ---------------------------- | ----------------------- | ----------------------------- | ----------------------------------- | ---------------------------- | ---------------------------------- | ---------------------------- |
+| Successful / Failed          | 50 / 0            | 50 / 0                  | 50 / 0                       | 50 / 0                  | 50 / 0                         | 50 / 0                               | 50 / 0                        | 50 / 0                              | 50 / 0                        |
+| Benchmark duration           | 6.08s              | 4.34s                   | 4.01s                        | 3.24s                    | 14.49s                         | 15.61s                               | 5.89s                         | 5.22s                               | 4.43s                         |
+| Request throughput           | 8.23 req/s        | 11.53 req/s             | 12.46 req/s                  | 15.41 req/s              | 3.45 req/s                     | 3.20 req/s                           | 8.49 req/s                    | 9.58 req/s                          | 11.29 req/s                   |
+| Output token throughput      | 1,052.99 tok/s    | 1,475.59 tok/s          | 1,594.41 tok/s               | 1,972.70 tok/s          | 441.55 tok/s                   | 410.12 tok/s                         | 1,086.76 tok/s                | 1,226.62 tok/s                      | 1,445.66 tok/s                |
+| Peak output token throughput | 2,717.00 tok/s    | 2,250.00 tok/s          | 2,350.00 tok/s               | 2,851.00 tok/s          | 1,150.00 tok/s                 | 850.00 tok/s                         | 1,800.00 tok/s                | 2,058.00 tok/s                      | 2,250.00 tok/s                |
+| Total token throughput       | 9,476.87 tok/s    | 13,280.32 tok/s         | 14,349.68 tok/s              | 17,754.27 tok/s          | 3,973.93 tok/s                 | 3,691.06 tok/s                       | 9,780.86 tok/s                | 11,039.57 tok/s                     | 13,010.98 tok/s               |
+| Mean TTFT                    | 2,053.43 ms       | 831.52 ms               | 706.38 ms                    | 605.67 ms                | 4,796.50 ms                    | 4,488.11 ms                          | 1,291.49 ms                   | 1,094.67 ms                         | 1,006.66 ms                   |
+| Median TTFT                  | 2,052.03 ms       | 831.12 ms               | 721.52 ms                    | 643.24 ms                | 4,789.68 ms                    | 4,644.79 ms                          | 1,291.18 ms                   | 1,104.89 ms                         | 1,110.72 ms                   |
+| P99 TTFT                     | 3,784.41 ms       | 1,485.30 ms             | 1,161.65 ms                  | 945.33 ms                | 8,939.45 ms                    | 7,819.13 ms                          | 2,319.03 ms                   | 1,839.10 ms                         | 1,586.65 ms                   |
+| Mean TPOT                    | 30.11 ms          | 25.53 ms                | 24.25 ms                     | 19.59 ms                 | 72.04 ms                       | 84.62 ms                             | 33.49 ms                      | 30.96 ms                            | 25.87 ms                      |
+| Mean ITL                     | 30.11 ms          | 25.53 ms                | 24.25 ms                     | 19.59 ms                 | 72.04 ms                       | 84.62 ms                             | 33.49 ms                      | 30.96 ms                            | 25.87 ms                      |
+| Median ITL                   | 18.38 ms          | 22.68 ms                | 21.20 ms                     | 17.34 ms                 | 43.37 ms                       | 61.59 ms                             | 27.58 ms                      | 24.88 ms                            | 22.23 ms                      |
+| P99 ITL                      | 146.51 ms         | 56.01 ms                | 83.02 ms                     | 126.87 ms                | 352.62 ms                      | 610.64 ms                            | 89.03 ms                      | 135.43 ms                           | 221.29 ms                     |
 
 
 (Total input tokens 51,200 / Total generated tokens 6,400은 네 구성 모두 동일 — 같은 프롬프트 셋을 썼기 때문)
 
+> Qwen2.5-72B는 DP=4(`tensor-parallel-size 1 --data-parallel-size 4`) 구성을 시도하지 않았다. DP는 모델을 쪼개지 않고 GPU마다 전체 모델을 복제하는 방식이라, bf16 기준 약 144GB인 72B 모델을 80GB A100 한 장에 올려야 한다. 실제로 시도하면 `torch.OutOfMemoryError`로 즉시 실패하며, Pod를 재시작해도 동일하게 실패한다 — 잔여 메모리 문제가 아니라 GPU 용량을 넘어서는 구조적 한계다.
+
 ### 고찰
 
-**1. NVLink 효과가 뚜렷하다.** 
+**1. NVLink 효과가 뚜렷하다**
 
-- 같은 TP=4 구성에서 L40S(PCIe) → A100 SXM(NVLink)로 바꾸자 Mean TTFT가 2,053ms → 832ms로 약 2.5배 줄었고 벤치마크 시간도 6.08s → 4.34s로 단축됐다. TP=4는 레이어마다 4-way all-reduce가 필요한 구성이라, GPU 간 통신 경로가 PCIe 폴백이냐 NVLink냐에 따른 차이가 그대로 드러난다. 다만 L40S와 A100 SXM은 GPU 자체 스펙(연산 성능, 메모리 대역폭)도 다르므로, 이 차이가 순수하게 인터커넥트 때문만은 아니라는 점은 감안해야 한다.
+같은 TP=4 구성에서 L40S(PCIe) → A100 SXM(NVLink)로 바꾸자 Mean TTFT가 `2,053ms` → `832ms`로 약 2.5배 줄었다. TP=4는 레이어마다 4-way all-reduce가 필요해 인터커넥트 차이가 그대로 드러난다. 다만 두 GPU는 스펙 자체도 달라 이 차이가 순수하게 인터커넥트 때문만은 아니다.
 
+**2. TP=2×DP=2가 TP=4보다 낫다 — Qwen3-8B 기준**
 
+예상과 달리 같은 A100 SXM 환경에서 TP=2×DP=2가 TP=4보다 TTFT(`706ms` vs `832ms`)와 처리량(`12.46` vs `11.53 req/s`) 모두 앞선다. 통신량이 절반으로 줄어드는 이득과, 두 replica가 요청을 나눠 처리하는 이득이 합쳐진 결과로 보인다.
 
-**2. 예상을 뒤집는 TP vs DP 결과**
+**3. GPU 한 장에 들어가는 모델은 DP가 유리하다**
 
-- 4절에서는 "TP 비중이 높을수록 TTFT가 짧다"고 예상했지만, 같은 A100 SXM(NVLink) 환경에서 TP=2×DP=2가 TP=4보다 TTFT(706ms vs 832ms)와 처리량(12.46 req/s vs 11.53 req/s) 둘 다 앞선다. 요청 50개가 한꺼번에 몰리는 이 부하 조건에서는, 4-way all-reduce 통신량이 절반으로 줄어드는 이득(TP=2)과 두 개의 독립된 엔진이 요청을 나눠 처리하는 이득(DP=2)이 합쳐져, 통신 오버헤드가 더 큰 TP=4의 세밀한 병렬성보다 유리하게 작용한 것으로 보인다.
+Qwen3-8B·14B처럼 GPU 한 장(80GB)에 여유 있게 들어가는 모델은 TP=4 → TP=2×DP=2 → DP=4로 갈수록 모든 지표가 일관되게 개선된다. 메모리가 부족하지 않은 이상 TP는 all-reduce 통신 오버헤드만 추가할 뿐 이득을 주지 못해서다.
 
+**4. GPU 한 장에 안 들어가는 모델은 TP가 필수다**
 
-
-**3. 이 모델 크기에서는 TP가 통신 오버헤드만 더한다**
-
-- **** A100 SXM 세 구성만 놓고 보면 TP=4 → TP=2×DP=2 → DP=4로 갈수록 모든 지표가 일관되게 개선된다 
--  throughput 11.53 → 12.46 → 15.41 req/s, Mean TTFT 832 → 706 → 606ms, Mean TPOT 25.53 → 24.25 → 19.59ms. Qwen3-8B는 A100 80GB 한 장에 여유 있게 올라가는 크기라, 애초에 TP로 쪼갤 필요(메모리 부족)가 없다. 이런 경우 TP는 all-reduce 통신 오버헤드만 추가하고 실질적 이득은 주지 못하며, 4개의 완전히 독립된 replica가 요청을 나눠 처리하는 DP=4가 가장 효율적이다. **TP는 모델이 GPU 한 장에 안 들어갈 때 쓰는 도구지 이미 한 장에 들어가는 모델을 더 빠르게 서빙하기 위한 도구가 아니라는 걸** 이 실측 결과가 보여준다.
-
+Qwen2.5-72B(bf16 약 144GB)는 반대로 TP=4가 TP=2×DP=2보다 처리량(`3.45` vs `3.20 req/s`)과 TPOT(`72.04` vs `84.62ms`)에서 앞섰고, DP=4는 `torch.OutOfMemoryError`로 시도조차 불가능했다. **모델이 GPU 한 장에 들어가는지 여부가 TP/DP 비중을 정하는 1차 기준**이라는 뜻이다 
 
 
-TTFT가 전반적으로 수백 ms~2초대로 나온 건 `--request-rate inf`로 50개 요청이 한 번에 몰려서 prefill 큐가 밀린 영향이 크다 — 개별 요청의 최선 레이턴시가 아니라 최대 부하 상태의 처리량 지표로 봐야 한다.
+
+TTFT가 전반적으로 수백 ms~2초대로 나온 건 `--request-rate inf`로 50개 요청이 한 번에 몰려서 prefill 큐가 밀린 영향이 크다. 개별 요청의 최선 레이턴시가 아니라 최대 부하 상태의 처리량 지표로 봐야 한다.
 
