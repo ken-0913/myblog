@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 400" role="img" aria-labelledby="tpdp-title tpdp-desc">
+    <title id="tpdp-title">TP=4, TP=2×DP=2, DP=4 세 구성 비교</title>
+    <desc id="tpdp-desc">4개의 GPU를 하나의 노드 안에서 텐서 병렬화와 데이터 병렬화 비중을 달리해 나누는 세 가지 구성을 나란히 보여준다. TP 비중이 높을수록 GPU 간 통신선이 많고, DP 비중이 높을수록 통신선이 줄어든다.</desc>
+
+    <defs>
+<style>@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap');</style>
+      <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/>
+      </marker>
+    </defs>
+
+    <rect width="960" height="400" fill="#f5f5f5"/>
+
+    <!-- ===================== Zone 1: TP=4 ===================== -->
+    <rect x="24" y="52" width="288" height="292" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+    <rect x="40" y="60" width="64" height="16" rx="2" fill="#f5f5f5"/>
+    <text x="72" y="72" fill="rgba(45,49,66,0.55)" font-size="10" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.10em">TP=4</text>
+
+    <!-- 4 GPU chips, 2x2 -->
+    <!-- chip coords: (76,104) (216,104) (76,192) (216,192), size 92x56 -->
+    <g id="tp4-chips">
+      <rect x="76" y="104" width="92" height="56" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+      <text x="122" y="128" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">GPU 0</text>
+      <text x="122" y="144" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">1/4 model</text>
+
+      <rect x="216" y="104" width="92" height="56" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+      <text x="262" y="128" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">GPU 1</text>
+      <text x="262" y="144" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">1/4 model</text>
+
+      <rect x="76" y="192" width="92" height="56" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+      <text x="122" y="216" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">GPU 2</text>
+      <text x="122" y="232" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">1/4 model</text>
+
+      <rect x="216" y="192" width="92" height="56" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+      <text x="262" y="216" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">GPU 3</text>
+      <text x="262" y="232" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">1/4 model</text>
+    </g>
+
+    <!-- full mesh connectors, muted, drawn under chips already placed above so draw before -->
+    <!-- horizontal top pair -->
+    <line x1="168" y1="132" x2="216" y2="132" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+    <!-- horizontal bottom pair -->
+    <line x1="168" y1="220" x2="216" y2="220" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+    <!-- vertical left pair -->
+    <line x1="122" y1="160" x2="122" y2="192" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+    <!-- vertical right pair -->
+    <line x1="262" y1="160" x2="262" y2="192" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+    <!-- diagonal comms represented as elbow paths (0->3 and 1->2) to avoid diagonal lines -->
+    <path d="M 168,120 H 192 Q 200,120 200,128 V 184 Q 200,192 208,192 H 216" fill="none" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+    <path d="M 216,208 H 192 Q 184,208 184,200 V 144 Q 184,136 176,136 H 168" fill="none" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+
+    <rect x="52" y="270" width="232" height="14" rx="2" fill="#f5f5f5"/>
+    <text x="168" y="281" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.04em">ALL-REDUCE · 매 레이어</text>
+
+    <text x="168" y="310" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">모델 1개를 4등분</text>
+    <text x="168" y="326" fill="#4f5d75" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle">4-way 통신, 가장 촘촘하게 연결</text>
+
+    <!-- ===================== Zone 2: TP=2 x DP=2 ===================== -->
+    <rect x="336" y="52" width="288" height="292" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+    <rect x="352" y="60" width="128" height="16" rx="2" fill="#f5f5f5"/>
+    <text x="416" y="72" fill="rgba(45,49,66,0.55)" font-size="10" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.10em">TP=2 &#215; DP=2</text>
+
+    <!-- replica group A: GPU0-1 -->
+    <rect x="360" y="96" width="240" height="80" rx="8" fill="rgba(45,49,66,0.03)" stroke="rgba(45,49,66,0.16)" stroke-width="0.8"/>
+    <rect x="388" y="112" width="92" height="56" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+    <text x="434" y="136" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">GPU 0</text>
+    <text x="434" y="152" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">1/2 model</text>
+    <rect x="488" y="112" width="92" height="56" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+    <text x="534" y="136" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">GPU 1</text>
+    <text x="534" y="152" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">1/2 model</text>
+    <line x1="480" y1="140" x2="488" y2="140" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+    <!-- replica group B: GPU2-3 -->
+    <rect x="360" y="188" width="240" height="80" rx="8" fill="rgba(45,49,66,0.03)" stroke="rgba(45,49,66,0.16)" stroke-width="0.8"/>
+    <rect x="388" y="204" width="92" height="56" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+    <text x="434" y="228" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">GPU 2</text>
+    <text x="434" y="244" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">1/2 model</text>
+    <rect x="488" y="204" width="92" height="56" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+    <text x="534" y="228" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">GPU 3</text>
+    <text x="534" y="244" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">1/2 model</text>
+    <line x1="480" y1="232" x2="488" y2="232" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+    <rect x="404" y="270" width="152" height="14" rx="2" fill="#f5f5f5"/>
+    <text x="480" y="281" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.04em">그룹 내 2-WAY만</text>
+
+    <text x="480" y="310" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">2등분 모델 &#215; 복제본 2개</text>
+    <text x="480" y="326" fill="#4f5d75" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle">그룹 사이엔 통신선 없음</text>
+
+    <!-- ===================== Zone 3: DP=4 ===================== -->
+    <rect x="648" y="52" width="288" height="292" rx="8" fill="rgba(235,108,54,0.05)" stroke="rgba(235,108,54,0.35)" stroke-width="0.8"/>
+    <rect x="664" y="60" width="64" height="16" rx="2" fill="#f5f5f5"/>
+    <text x="696" y="72" fill="#eb6c36" font-size="10" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.10em">DP=4</text>
+
+    <rect x="700" y="104" width="92" height="56" rx="6" fill="#fdece3" stroke="#eb6c36" stroke-width="1"/>
+    <text x="746" y="128" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">GPU 0</text>
+    <text x="746" y="144" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">전체 model</text>
+
+    <rect x="840" y="104" width="92" height="56" rx="6" fill="#fdece3" stroke="#eb6c36" stroke-width="1"/>
+    <text x="886" y="128" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">GPU 1</text>
+    <text x="886" y="144" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">전체 model</text>
+
+    <rect x="700" y="192" width="92" height="56" rx="6" fill="#fdece3" stroke="#eb6c36" stroke-width="1"/>
+    <text x="746" y="216" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">GPU 2</text>
+    <text x="746" y="232" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">전체 model</text>
+
+    <rect x="840" y="192" width="92" height="56" rx="6" fill="#fdece3" stroke="#eb6c36" stroke-width="1"/>
+    <text x="886" y="216" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">GPU 3</text>
+    <text x="886" y="232" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">전체 model</text>
+
+    <rect x="756" y="270" width="80" height="14" rx="2" fill="#f5f5f5"/>
+    <text x="796" y="281" fill="#eb6c36" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.04em">통신 0 byte</text>
+
+    <text x="796" y="310" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">완전한 복제본 4개</text>
+    <text x="796" y="326" fill="#4f5d75" font-size="10" font-family="'Geist', sans-serif" text-anchor="middle">서로 완전히 독립적으로 처리</text>
+
+    <!-- legend -->
+    <line x1="24" y1="366" x2="936" y2="366" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+    <text x="24" y="384" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.14em">LEGEND</text>
+    <line x1="120" y1="380" x2="148" y2="380" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+    <text x="156" y="384" fill="#4f5d75" font-size="9" font-family="'Geist', sans-serif">GPU 간 all-reduce 통신</text>
+    <rect x="340" y="374" width="14" height="14" rx="3" fill="#fdece3" stroke="#eb6c36" stroke-width="1"/>
+    <text x="362" y="384" fill="#4f5d75" font-size="9" font-family="'Geist', sans-serif">완전 독립 replica (DP)</text>
+  </svg>
