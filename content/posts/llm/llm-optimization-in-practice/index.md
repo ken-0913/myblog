@@ -4,6 +4,7 @@ date: 2026-08-28T20:00:00+09:00
 draft: false
 tags: ["LLM", "vLLM", "Qwen3", "AWQ", "Quantization", "Benchmarking", "KV Cache", "Model Serving", "Prometheus", "Grafana", "DCGM", "Runpod"]
 categories: ["LLM"]
+featuredImage: images/banners/llm-optimization-in-practice-05d84900.png
 ---
 # Qwen3-14B vLLM 서빙 최적화 정리
 
