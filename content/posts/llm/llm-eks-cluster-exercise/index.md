@@ -296,9 +296,9 @@ $ kubectl exec -n vllm <pod> -c downloader -- python3 -c "
 import socket, time
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.settimeout(5)
-s.connect(('151.10#4.223', 443))
+s.connect(('151.101.64.223', 443))
 print('OK')"
-# 151.10#4.223:443 OK in 0.00s → TCP 3-way handshake는 즉시 성공
+# 151.101.64.223:443 OK in 0.00s → TCP 3-way handshake는 즉시 성공
 
 $ kubectl exec -n vllm <pod> -c downloader -- python3 -c "
 import socket, ssl, time
