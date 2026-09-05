@@ -574,7 +574,7 @@ README가 소개하는
 
 ![](orca-paste-1788590242569-8e1db9f5-84d8-46bc-844a-05011fcc82fa.png)
 
-![](orca-paste-1788590367775-b9bc5ccb-206e-4cfa-b466-8dfad59ad39b.png)
+![](orca-paste-1788602412112-515e30b1-5054-4129-8b5c-a4c1da05edd5.png)
 
 ### 4.1 여섯 번째 함정 — GPU KV Cache Hit Rate/Usage 패널이 비어있는 이유
 
