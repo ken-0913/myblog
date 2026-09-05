@@ -4,6 +4,7 @@ date: 2026-09-05T13:00:00+09:00
 draft: false
 tags: ["LLM", "vLLM", "AWS", "EKS", "Terraform", "Kubernetes", "GPU", "Qwen3", "LMCache", "Model Serving", "Production Stack"]
 categories: ["LLM"]
+featuredImage: images/banners/llm-eks-cluster-exercise-bc591db1.png
 ---
 `vllm-project/production-stack` 레포의 [`tutorials/terraform/eks`](https://github.com/vllm-project/production-stack/tree/main/tutorials/terraform/eks) 튜토리얼을 따라가며 AWS EKS에 Managed Kubernetes + GPU 노드그룹 + vLLM Production Stack을 Terraform으로 올리는 과정을 명령어 단위로 기록한다. 기본 예시는 TinyLlama-1.1B였지만, 이번엔 NVIDIA L4(g6.2xlarge)에 Qwen3-8B를 올리고, 나아가 LMCache로 KV 캐시 CPU 오프로딩까지 켜본다.
 
