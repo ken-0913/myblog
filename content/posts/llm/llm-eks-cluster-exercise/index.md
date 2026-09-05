@@ -16,7 +16,7 @@ featuredImage: images/banners/llm-eks-cluster-exercise-bc591db1.png
 
 클라우드 GPU 인프라는 리전별 쿼터, k8s 버전과 GPU 드라이버 호환성처럼 튜토리얼 문서만 봐서는 알 수 없는 제약이 많다. 그래서 **인프라를 실제로 만들기 전에** 같은 종류의 제약을 먼저 CLI로 확인하는 것부터 시작했다.
 
-### 1.1 사전 점검 — AWS GPU 쿼터를 리전별로 먼저 확인
+### 1.1 사전 점검(AWS GPU 쿼터를 리전별로 먼저 확인)
 
 AWS는 신규/저사용 리전에서 GPU 인스턴스(G/VT 계열: g4dn, g5, g6 등) 관련 vCPU 쿼터가 기본 0인 경우가 흔하다. 튜토리얼 README 기본 리전(`us-east-2`)을 그대로 쓰기 전에 `aws service-quotas`로 먼저 확인했다.
 
@@ -36,7 +36,7 @@ $ aws service-quotas get-service-quota --service-code ec2 --quota-code L-DB2E81B
 
 `L-DB2E81BA` (Running On-Demand G and VT instances)가 `us-east-2`와 계정 기본 리전(`ap-northeast-2`, 서울)에서는 0인데, `us-east-1`/`us-west-2`는 이미 8 vCPU가 열려 있었다. 굳이 쿼터 신청 승인을 기다릴 필요 없이 **리전을 `us-east-1`로 바꾸는 것만으로 문제를 회피**했다.
 
-### 1.2 사전 점검 — k8s 버전 × GPU 지원 매트릭스
+### 1.2 사전 점검 (k8s 버전 × GPU 지원 매트릭스)
 
 k8s 버전과 GPU 드라이버 호환성 문제로 나중에 발목 잡히지 않도록, apply 전에 먼저 확인했다.
 
@@ -66,15 +66,15 @@ $ cp env-vars.template env-vars
 | `TF_VAR_region`                  | `us-east-1`                | GPU 쿼터가 이미 열려있는 리전                                                  |
 | `TF_VAR_cluster_version`         | `1.36`                     | 최신 지원 버전, GPU AMI 확인됨                                               |
 | `TF_VAR_inference_hardware`      | `gpu`                      | GPU 노드풀 활성화                                                         |
-| `TF_VAR_gpu_node_instance_types` | `["g6.2xlarge"]`           | NVIDIA L4 24GB, 8vCPU/32GiB — 8 vCPU 쿼터에 정확히 맞춤                     |
+| `TF_VAR_gpu_node_instance_types` | `["g6.2xlarge"]`           | NVIDIA L4 24GB, 8vCPU/32GiB (8 vCPU 쿼터에 정확히 맞춤)                     |
 | `TF_VAR_gpu_vllm_helm_config`    | `gpu-qwen3-8b-ingress.tpl` | 새로 작성한 Qwen3-8B 템플릿                                                 |
 | `TF_VAR_enable_lb_ctl`           | `true`                     | vLLM ingress가 `className: alb`를 쓰므로 AWS Load Balancer Controller 필요 |
 | `TF_VAR_hf_token`                | `hf_...`                   | Hugging Face 토큰                                                     |
 
 
-기존 `gpu-tinyllama-light-ingress.tpl`을 베이스로 `gpu-qwen3-8b-ingress.tpl`을 새로 작성했다 (ingress는 ALB 방식). g6.2xlarge의 L4 GPU는 compute capability 8.9라 `bfloat16`을 네이티브로 지원한다 (참고로 원래 템플릿의 T4는 7.5라 float16만 지원한다. 주석에 이유가 적혀 있었다).
+기존 `gpu-tinyllama-light-ingress.tpl`을 베이스로 `gpu-qwen3-8b-ingress.tpl`을 새로 작성했다 (ingress는 ALB 방식). g6.2xlarge의 L4 GPU는 compute capability 8.9라 `bfloat16`을 네이티브로 지원한다 (참고로 원래 템플릿의 T4는 7.5라 float16만 지원한다. 주석에 이유가 적혀 있었다)
 
-### 1.4 terraform init — 첫 번째 함정: `hashicorp/template` 프로바이더가 Apple Silicon을 지원 안 함
+### 1.4 terraform init
 
 ```termcast {title="~/production-stack/tutorials/terraform/eks" prompt="$ "}
 $ terraform init
@@ -85,7 +85,7 @@ Provider registry.terraform.io/hashicorp/template v2.2.0 does not have a
 package available for your current platform, darwin_arm64.
 ```
 
-`hashicorp/template` 프로바이더(`data "template_file"` 리소스가 암묵적으로 요구)는 이미 수년 전에 deprecated된 프로바이더라 Apple Silicon(darwin_arm64)용 바이너리가 아예 없다. 레포를 뒤져보니 `vllm-production-stack.tf`와 `cluster-tools.tf` 두 곳에서 이 패턴을 쓰고 있었다. Terraform 내장 함수 `templatefile()`로 교체하면 별도 프로바이더 없이 해결된다.
+`hashicorp/template` 프로바이더(`data "template_file"` 리소스가 암묵적으로 요구)는 이미 수년 전에 deprecated된 프로바이더라 Apple Silicon(darwin_arm64)용 바이너리가 아예 없다. 레포를 뒤져보니 `vllm-production-stack.tf`와 `cluster-tools.tf` 두 곳에서 이 패턴을 쓰고 있었다. Terraform 내장 함수 `templatefile()`로 교체하면 별도 프로바이더 없이 해결된다. `templatefile()`은 Terraform 내장 함수라 별도 프로바이더가 필요 없고, `.tpl` 파일의 `${var}` 보간 문법도 그대로 호환된다. 
 
 ```diff
 - data "template_file" "vllm_values" {
@@ -117,7 +117,9 @@ package available for your current platform, darwin_arm64.
 +   })]
 ```
 
-`templatefile()`은 Terraform 내장 함수라 별도 프로바이더가 필요 없고, `.tpl` 파일의 `${var}` 보간 문법도 그대로 호환된다. 수정 후 재시도.
+
+
+수정후 재시도
 
 ```termcast {title="~/production-stack/tutorials/terraform/eks" prompt="$ "}
 $ terraform init
@@ -157,7 +159,7 @@ $ aws pricing get-products --service-code AmazonEC2 --region us-east-1 \
 $0.9776 per On Demand Linux g6.2xlarge Instance Hour
 ```
 
-GPU 노드(g6.2xlarge) 단독 시간당 **$0.98**. 여기에 CPU 노드 2대(t3a 계열, 저렴), EKS 컨트롤 플레인 고정비($0.10/h), NAT Gateway, ALB 비용이 소폭 추가된다 — 대략 시간당$1.2~1.3 수준으로 추산.
+GPU 노드(g6.2xlarge) 단독 시간당 **$0.98**. 여기에 CPU 노드 2대(t3a 계열, 저렴), EKS 컨트롤 플레인 고정비($0.10/h), NAT Gateway, ALB 비용이 소폭 추가된다. 대략 시간당$1.2~1.3 수준으로 추산.
 
 ### 1.7 terraform apply
 
@@ -171,7 +173,7 @@ module.eks_addons.module.aws_load_balancer_controller.helm_release.this[0]: Crea
 module.eks_addons.module.cert_manager.helm_release.this[0]: Creation complete after 59s
 ```
 
-리전별 GPU 쿼터, k8s 버전 × 드라이버 호환을 미리 검증해둔 덕분에 **CPU/GPU 노드그룹 둘 다 재시도 없이 한 번에 생성 완료**됐다. 컨트롤 플레인 10분 46초, 노드그룹 각각 2분 이내로 완료
+리전별 GPU 쿼터, k8s 버전 × 드라이버 호환을 미리 검증해둔 덕분에 **CPU/GPU 노드그룹 둘 다 재시도 없이 한 번에 생성 완료**됐다. 
 
 ### 1.8 두 번째 함정 — `huggingface-cli`가 최근 삭제됨
 
@@ -185,7 +187,7 @@ NAME                                                     READY   STATUS         
 vllm-gpu-qwen3-8b-gpu-deployment-vllm-7d79dc5559-hhjqh   0/1     Init:CrashLoopBackOff   6
 ```
 
-init 컨테이너(`downloader`)가 계속 재시작 중이었다. 로그를 보니:
+로그를 보니 init 컨테이너(`downloader`)가 계속 재시작 중이었다. 
 
 ```termcast {title="~/production-stack/tutorials/terraform/eks" prompt="$ "}
 $ kubectl logs -n vllm vllm-gpu-qwen3-8b-gpu-deployment-vllm-7d79dc5559-hhjqh -c downloader
@@ -270,7 +272,7 @@ routerSpec:
 2. **플랫폼 버전 호환성** (k8s 버전 × GPU 드라이버 프리셋) : 문서화된 지원 매트릭스 확인
 3. **애플리케이션 레벨 타이밍/버전 드리프트** (deprecated CLI, 너무 타이트한 헬스체크 기본값) : 로그와 이벤트를 직접 읽어야만 보이는 문제
 
-### 1.10 세 번째 함정 — Calico VXLAN MTU 블랙홀
+### 1.10 세 번째 함정 (Calico VXLAN MTU 블랙홀)
 
 router가 안정화된 뒤에도 vLLM pod의 init 컨테이너(`downloader`)가 `pip install` 단계에서 20분 넘게 멈춰있었다.
 
@@ -345,7 +347,7 @@ Fetching 15 files: 100%|██████████| 15/15 [00:XX<00:00]
 
 이후 모델 다운로드, vLLM 엔진 로딩, router 안정화까지 전부 순조롭게 끝났다.
 
-### 1.11 최종 확인 — 실제 추론 테스트
+### 1.11 최종 확인(실제 추론 테스트)
 
 `terraform apply`를 최종 재실행해서 state를 정리하고 (`3 added, 0 changed, 1 destroyed`), ALB ingress URL을 받았다.
 
@@ -467,9 +469,7 @@ vllm-gpu-qwen3-8b-gpu-engine-service   ClusterIP   172.20.91.183    <none>      
 vllm-gpu-router-service                ClusterIP   172.20.183.144   <none>        80/TCP,9000/TCP
 ```
 
-### 3.1 사소한 함정 — `jq '.choices[].text'`를 zsh에서 따옴표 없이 쓰면 깨진다
-
-`/completions` 엔드포인트도 테스트하다가 zsh에서 이런 실수를 했다.
+### 3.1  `jq '.choices[].text'`를 zsh에서 따옴표 넣기
 
 ```bash
 curl -s ${vllm_api_url}/completions ... | jq .choices[].text   # 따옴표 없음
@@ -495,7 +495,9 @@ $ curl -s ${vllm_api_url}/completions \
 
 `/v1/chat/completions`뿐 아니라 legacy `/v1/completions` 엔드포인트까지 정상 동작 확인.
 
-## 4. 옵저버빌리티 : Grafana 접속
+![](orca-paste-1788596555382-51867e7b-0eef-4c62-9ab8-23e462cb7871.png)
+
+## 4. 옵저버빌리티 (Grafana 접속)
 
 이 스택은 `kube-prometheus-stack`을 애드온으로 같이 설치하기 때문에 Prometheus + Grafana가 기본 내장돼 있다. 별도 Ingress는 안 뚫려있어서 포트포워딩으로 접속한다.
 
@@ -555,7 +557,16 @@ Dashboard title: vLLM Dashboard
  - Disk Usage (%)
 ```
 
-README가 소개하는 "Available vLLM Instances / Request Latency Distribution / TTFT Distribution / Running·Pending Requests / GPU KV Usage / GPU KV Cache Hit Rate" 패널이 전부 실제로 배포돼 있는 걸 확인했고, 여기에 QPS·ITL·Swapped Requests·GPU-CPU-Memory-Disk 리소스 사용률까지 추가로 포함되어 있었다. Grafana 로그인 후 Dashboards 목록에서 "vLLM Dashboard"를 열면 이 전부를 한 화면에서 볼 수 있다.
+README가 소개하는 
+
+- Available vLLM Instances
+- Request Latency Distribution
+- TTFT Distribution
+- Running·Pending Requests
+- GPU KV Usage
+- GPU KV Cache Hit Rate
+
+ 패널이 전부 실제로 배포돼 있는 걸 확인했고, 여기에 QPS·ITL·Swapped Requests·GPU-CPU-Memory-Disk 리소스 사용률까지 추가로 포함되어 있었다. Grafana 로그인 후 Dashboards 목록에서 "vLLM Dashboard"를 열면 이 전부를 한 화면에서 볼 수 있다.
 
 ![](orca-paste-1788590396631-b3850212-f6cf-42aa-877e-3e1e90807500.png)
 
@@ -564,6 +575,78 @@ README가 소개하는 "Available vLLM Instances / Request Latency Distribution 
 ![](orca-paste-1788590242569-8e1db9f5-84d8-46bc-844a-05011fcc82fa.png)
 
 ![](orca-paste-1788590367775-b9bc5ccb-206e-4cfa-b466-8dfad59ad39b.png)
+
+### 4.1 여섯 번째 함정 — GPU KV Cache Hit Rate/Usage 패널이 비어있는 이유
+
+블로그를 다시 점검하다가, "vLLM Dashboard"에서 **GPU KV Cache Hit Rate**와 **GPU KV Usage Percentage** 패널이 값 없이 비어있는 걸 발견했다. 패널이 실제로 어떤 PromQL을 쓰는지 ConfigMap에서 직접 꺼내봤다.
+
+```termcast {title="~/production-stack" prompt="$ "}
+$ kubectl get configmap vllm-dashboard -n kube-prometheus-stack -o jsonpath='{.data.vllm-dashboard\.json}' \
+    | python3 -c "import json,sys
+d=json.load(sys.stdin)
+for p in d.get('panels', []):
+    if 'GPU KV' in p.get('title',''):
+        print(p['title'])
+        for t in p.get('targets', []): print(' ', t.get('expr'))"
+GPU KV Usage Percentage
+  vllm:gpu_cache_usage_perc
+GPU KV Cache Hit Rate
+  vllm:gpu_prefix_cache_hits_total{endpoint="service-port"} / vllm:gpu_prefix_cache_queries_total
+```
+
+그런데 지금 떠 있는 vLLM(0.27.1)의 `/metrics`엔 이 이름이 아예 없다.
+
+```termcast {title="~/production-stack" prompt="$ "}
+$ curl -s .../metrics | grep "gpu_prefix_cache\|gpu_cache_usage_perc"
+# (결과 없음 — 둘 다 없음)
+
+$ curl -s .../metrics | grep "prefix_cache\|kv_cache_usage_perc"
+vllm:prefix_cache_queries_total           3736.0
+vllm:prefix_cache_hits_total              2096.0
+vllm:external_prefix_cache_queries_total  1640.0
+vllm:external_prefix_cache_hits_total     0.0
+vllm:kv_cache_usage_perc                  0.0
+```
+
+어느 시점에 vLLM이 이 지표들 이름에서 `gpu_` 접두사를 뗐다 — 아마 cross-instance KV 공유용 `external_prefix_cache_*` 지표가 추가되면서 기존 `gpu_prefix_cache_*`를 `prefix_cache_*`로 통일한 것으로 보인다. `vllm-production-stack` 레포에 패키징된 `vllm-dashboard.json`은 그 이전 이름 그대로 남아있었다. 같은 이름을 쓰는 "GPU Cache Usage (%)" 패널(Current Resource Usage 섹션)도 같은 이유로 같이 비어있었다.
+
+ConfigMap을 직접 패치해서 실제로 고쳐지는지 확인했다.
+
+```termcast {title="~/production-stack" prompt="$ "}
+$ kubectl get configmap vllm-dashboard -n kube-prometheus-stack -o jsonpath='{.data.vllm-dashboard\.json}' > dashboard.json
+$ sed -i '' \
+    -e 's/vllm:gpu_prefix_cache_hits_total/vllm:prefix_cache_hits_total/' \
+    -e 's/vllm:gpu_prefix_cache_queries_total/vllm:prefix_cache_queries_total/' \
+    -e 's/vllm:gpu_cache_usage_perc/vllm:kv_cache_usage_perc/g' \
+    dashboard.json
+
+$ kubectl patch configmap vllm-dashboard -n kube-prometheus-stack \
+    --type merge --patch-file=<(python3 -c "import json; print(json.dumps({'data':{'vllm-dashboard.json': open('dashboard.json').read()}}))")
+configmap/vllm-dashboard patched
+```
+
+`grafana_dashboard=1` 라벨 덕분에 `grafana-sc-dashboard` 사이드카가 별도 재시작 없이 바로 반영했다.
+
+```termcast {title="~/production-stack" prompt="$ "}
+$ kubectl logs -n kube-prometheus-stack -l app.kubernetes.io/name=grafana -c grafana-sc-dashboard --tail=5
+{"msg": "Writing /tmp/dashboards/vllm-dashboard.json (ascii)", "level": "INFO"}
+```
+
+고친 쿼리를 Prometheus에 직접 쏴서 실제로 값이 나오는지 확인했다.
+
+```termcast {title="local" prompt="$ "}
+$ curl -s --data-urlencode 'query=vllm:prefix_cache_hits_total{endpoint="service-port"} / vllm:prefix_cache_queries_total' \
+    http://localhost:19090/api/v1/query | jq '.data.result[0].value'
+[1788597948.265, "0.5610278372591007"]
+
+$ curl -s --data-urlencode 'query=vllm:kv_cache_usage_perc' \
+    http://localhost:19090/api/v1/query | jq '.data.result[0].value'
+[1788597948.807, "0"]
+```
+
+**GPU KV Cache Hit Rate가 56.1%로 정상 조회됐다.** GPU KV Usage Percentage는 그 시점에 처리 중인 요청이 없어서 0으로 나온 것뿐 — 지표 자체는 살아있다.
+
+**교훈**: Helm 차트에 딸려오는 대시보드 JSON은 그 차트가 만들어진 시점의 vLLM 지표 이름을 그대로 박아둔 스냅샷이다. vLLM 버전이 올라가면서 지표 이름이 바뀌면(이번처럼 접두사가 빠지는 것도 흔한 패턴이다), 대시보드는 아무 에러 메시지 없이 그냥 조용히 빈 그래프만 보여준다. 패널이 비어있으면 먼저 `/metrics`에서 그 이름이 실제로 존재하는지부터 확인하는 게 맞다.
 
 ## 5. LMCache로 KV 캐시 CPU 오프로딩 켜보기
 
@@ -590,7 +673,7 @@ $ find /Users/hyeonjaelee/production-stack -iname "*lmcache-dashboard*"
 helm/dashboards/lmcache-dashboard.json
 ```
 
-이 chart의 `dashboards.yaml` 템플릿은 `grafanaDashboards.enabled=true` **그리고** `cacheserverSpec.enabled=true`일 때만 `lmcache-dashboard.json`을 자동으로 프로비저닝한다. 그런데 EKS 튜토리얼은 그 메커니즘을 안 쓰고, `vllm-production-stack.tf`에서 `vllm-dashboard.json`을 정적 파일로 읽어 직접 ConfigMap을 만드는 방식이었다 — `lmcache-dashboard.json`은 아예 복사돼 있지 않았다. 그래서 같은 방식으로 하나 더 추가했다.
+이 chart의 `dashboards.yaml` 템플릿은 `grafanaDashboards.enabled=true` **그리고** `cacheserverSpec.enabled=true`일 때만 `lmcache-dashboard.json`을 자동으로 프로비저닝한다. 그런데 EKS 튜토리얼은 그 메커니즘을 안 쓰고, `vllm-production-stack.tf`에서 `vllm-dashboard.json`을 정적 파일로 읽어 직접 ConfigMap을 만드는 방식이었다. `lmcache-dashboard.json`은 아예 복사돼 있지 않았다. 그래서 같은 방식으로 하나 더 추가했다.
 
 ```diff
 # vllm-production-stack.tf
@@ -616,9 +699,11 @@ cp helm/dashboards/lmcache-dashboard.json tutorials/terraform/eks/config/lmcache
 
 
 
-### 5.2 이미지 태그도 배웠던 교훈 그대로 — "latest" 대신 핀 고정
+### 5.2  "latest" 대신 핀 고정
 
-LMCache 튜토리얼은 이미지를 `lmcache/vllm-openai:latest`로 쓰라고 하는데, `huggingface-cli` 사건 이후로 버전 안 박은 태그는 안 믿기로 했다. Docker Hub API로 실제 태그를 확인했다.
+LMCache 튜토리얼은 이미지를 `lmcache/vllm-openai:latest`로 쓰라고 하지만 실제 버전을 찾아서 고정한다.
+
+- `latest`와 `v0.5.4`가 같은 시각·같은 크기라 사실상 동일 이미지 — `v0.5.4`로 핀 고정
 
 ```termcast {title="local" prompt="$ "}
 $ curl -s "https://hub.docker.com/v2/repositories/lmcache/vllm-openai/tags?page_size=100" \
@@ -631,7 +716,7 @@ v0.5.4        2026-08-24T18:57:24Z   # ← latest와 동일 시각/크기, 이�
 v0.5.3        2026-08-05T22:35:30Z
 ```
 
-`latest`와 `v0.5.4`가 같은 시각·같은 크기라 사실상 동일 이미지 — `v0.5.4`로 핀 고정.
+
 
 ### 5.3 `gpu-qwen3-8b-ingress.tpl`에 `lmcacheConfig` 추가
 
@@ -662,7 +747,7 @@ v0.5.3        2026-08-05T22:35:30Z
 
 g6.2xlarge 노드가 32GiB RAM인데, CPU 오프로딩 버퍼(12GB) + 모델 로딩 여유를 감안해서 `limitMemory`를 24Gi → 28Gi로 올렸다.
 
-### 5.4 apply 도중 네 번째 함정 — `force_update=true`가 바인딩된 PVC를 강제 교체하려 함
+### 5.4 apply 도중 네 번째 함정(`force_update=true`가 바인딩된 PVC를 강제 교체하려 함)
 
 `terraform apply` 하자마자 처음 보는 에러가 났다.
 
@@ -671,7 +756,7 @@ Error: failed to replace object: PersistentVolumeClaim "vllm-gpu-qwen3-8b-gpu-st
 spec: Forbidden: spec is immutable after creation except resources.requests and volumeAttributesClassName for bound claims
 ```
 
-`vllm-production-stack.tf`의 `helm_release.vllm_stack`에 이미 `force_update = true`가 박혀 있었다. 이 옵션은 릴리스 안의 **모든 매니페스트를 diff 여부와 상관없이 강제로 delete+recreate**하는데, `modelSpec`(이미지/설정)을 바꾼 이번 업데이트에서 PVC까지 강제 교체 대상에 걸렸다. 문제는 **바인딩된 PVC는 storage 크기 외의 필드를 바꿀 수 없다** — Kubernetes가 이를 거부하면서 helm 업그레이드 전체가 실패로 기록됐다.
+`vllm-production-stack.tf`의 `helm_release.vllm_stack`에 이미 `force_update = true`가 박혀 있었다. 이 옵션은 릴리스 안의 **모든 매니페스트를 diff 여부와 상관없이 강제로 delete+recreate**하는데, `modelSpec`(이미지/설정)을 바꾼 이번 업데이트에서 PVC까지 강제 교체 대상에 걸렸다. 문제는 **바인딩된 PVC는 storage 크기 외의 필드를 바꿀 수 없다**. Kubernetes가 이를 거부하면서 helm 업그레이드 전체가 실패로 기록됐다.
 
 동시에 또 다른 문제가 겹쳤다. helm이 Deployment까지는 이미 새 스펙으로 반영해버린 상태라, 새 pod가 스케줄되려는데 **GPU가 1장뿐이라 기존 pod가 물고 있는 GPU를 놓지 않는 롤링 업데이트 교착**이 발생했다.
 
@@ -695,7 +780,7 @@ $ kubectl scale rs vllm-gpu-qwen3-8b-gpu-deployment-vllm-7686474d97 -n vllm --re
   recreate_pods     = true  # pod 재시작은 이걸로 충분
 ```
 
-수정 후 재시도하니 PVC 에러 없이 정상 업그레이드됐다. **교훈**: `force_update`는 릴리스에 PVC 같은 불변 필드를 가진 리소스가 하나라도 있으면 언젠가 터진다. `recreate_pods`만으로 대부분의 "설정 바꾸면 pod 재시작" 요구는 충분히 해결된다.
+수정 후 재시도하니 PVC 에러 없이 정상 업그레이드됐다.**** `force_update`는 릴리스에 PVC 같은 불변 필드를 가진 리소스가 하나라도 있으면 언젠가 터진다. `recreate_pods`만으로 대부분의 "설정 바꾸면 pod 재시작" 요구는 충분히 해결된다.
 
 ### 5.5 LMCache 활성화 확인
 
@@ -711,6 +796,10 @@ LMCache INFO: LMCache initialized for role KVConnectorRole.WORKER with version 0
   vllm version 0.27.1, ...
 ```
 
+![](orca-paste-1788596672513-7f3f5831-494b-45a0-9240-a22b1de961e9.png)
+
+
+
 `max_local_cpu_size: 12.0`이 우리가 설정한 버퍼 크기와 일치. 그런데 같은 prompt로 두 번 요청을 보내도 캐시 히트가 0이었다.
 
 ```termcast {title="~/production-stack/tutorials/terraform/eks" prompt="$ "}
@@ -718,6 +807,8 @@ $ kubectl logs -n vllm <pod> | grep "LMCache hit tokens"
 LMCache INFO: Reqid: cmpl-...-0, Total tokens 13, Inference Engine computed tokens: 0, LMCache hit tokens: 0, need to load: 0
 LMCache INFO: Reqid: cmpl-...-1, Total tokens 13, Inference Engine computed tokens: 0, LMCache hit tokens: 0, need to load: 0
 ```
+
+![](orca-paste-1788596697696-f2855231-8fca-4aa2-80f6-9a6c803d0473.png)
 
 원인은 vLLM 자체의 prefix caching이 꺼져있어서였다 (`enable_prefix_caching=False`). LMCache는 vLLM의 KV 커넥터로 붙는 구조라, vLLM 스케줄러가 prefix caching으로 "재사용 가능한 블록"을 인식해야 그 조회를 LMCache 쪽으로 넘긴다 — prefix caching이 꺼져있으면 LMCache까지 요청이 아예 안 간다.
 
@@ -752,9 +843,7 @@ vllm-gpu-qwen3-8b-gpu-deployment-vllm-78cd56d4cc-l6nmp   0/1   Pending   # Insuf
 
 > **후기(5.8절 참고)**: 나중에 라이브 클러스터를 다시 점검해보니, 이 `strategy: Recreate` 값이 Helm values에는 정확히 들어갔는데도 실제 Deployment 리소스에는 반영되지 않고 있었다. 차트 자체의 갭이었다 — 자세한 재현은 5.8절에.
 
-(사담: 이 과정에서 앞선 apply가 아직 끝나기 전에 다음 apply를 백그라운드로 또 돌리는 바람에 `Error acquiring the state lock`도 한 번 겪었다 — terraform은 로컬 state 파일에 락을 걸기 때문에 같은 워킹 디렉토리에서 apply를 동시에 두 개 돌리면 안 된다는, 당연하지만 실제로 겪어야 각인되는 교훈.)
-
-### 5.7 최종 확인 — 실제 LMCache 히트 재현하기
+### 5.7 최종 확인(실제 LMCache 히트 재현하기)
 
 `--enable-prefix-caching`을 켰는데도 처음엔 히트가 안 잡혔다. 원인은 **LMCache가 `chunk_size`(기본 256토큰) 단위로만 저장·조회**한다는 점 — 짧은 테스트 prompt(28토큰)는 chunk 하나도 못 채워서 애초에 저장 자체가 안 일어났다. vLLM 엔진의 `/metrics`를 직접 까봐서 확인했다.
 
@@ -764,15 +853,20 @@ $ curl -s http://localhost:18000/metrics | grep "lmcache:num_stored_tokens_total
 lmcache:num_stored_tokens_total{...} 0.0   # 28토큰짜리 prompt로는 저장 자체가 안 됨
 ```
 
+![](orca-paste-1788596747122-d99a2814-370c-4839-9b3b-8af8199aba20.png)
+
 280단어 이상(≈440 토큰)짜리 긴 prompt로 다시 테스트했다.
 
 ```termcast {title="local" prompt="$ "}
-$ curl -s ${vllm_api_url}/completions -d '{"model":"/data/models/qwen3-8b","prompt":"<439-token prompt>","max_tokens":10}'
-" Toronto is the capital city of Ontario, Canada's"
+$ curl -s ${vllm_api_url}/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"/data/models/qwen3-8b","prompt":"<439-token prompt>","max_tokens":10}'
 
 $ curl -s http://localhost:18000/metrics | grep num_stored_tokens_total
 lmcache:num_stored_tokens_total{...} 256.0   # 정확히 chunk_size(256) 하나가 저장됨
 ```
+
+
 
 같은 prompt로 두 번째 요청을 보내고 pod 로그의 요청별 상세 라인을 확인했다.
 
@@ -781,9 +875,15 @@ $ kubectl logs -n vllm <pod> | grep "LMCache hit tokens"
 Reqid: ...-b0aefc6a, Total tokens 439, Inference Engine computed tokens: 432, LMCache hit tokens: 256, need to load: 0
 ```
 
-`**LMCache hit tokens: 256**` — 두 번째 요청에서 정확히 1 chunk를 LMCache의 CPU 오프로딩 계층에서 그대로 가져왔다. GPU 메모리가 아니라 CPU RAM(우리가 설정한 12GB 버퍼)에 저장돼 있던 KV 캐시가 재사용된 것을 수치로 확인.
+![](orca-paste-1788597148372-4ab03be6-b4bf-4075-9aaf-938720bbd66a.png)
 
-### 5.8 사후 검증 — `kubectl patch`로 Recreate 전략 실측 재현
+`LMCache hit tokens: 256`   두 번째 요청에서 정확히 1 chunk를 LMCache의 CPU 오프로딩 계층에서 그대로 가져왔다. GPU 메모리가 아니라 CPU RAM(우리가 설정한 12GB 버퍼)에 저장돼 있던 KV 캐시가 재사용된 것을 수치로 확인.
+
+
+
+![](orca-paste-1788597704090-f1261596-ddce-435c-ad38-a5d5908af14c.png)
+
+### 5.8 사후 검증 : `kubectl patch`로 Recreate 전략 실측 재현
 
 블로그를 다시 점검하면서 5.6절의 "Recreate로 고쳤다"는 주장을 라이브 클러스터에서 실제로 검증했다. 결과부터 말하면 **값은 Helm에 제대로 전달됐지만, 차트가 그 값을 Deployment로 렌더링하지 않고 있었다.**
 
@@ -842,12 +942,9 @@ $ curl -s http://localhost:30081/v1/models
 {"object":"list","data":[{"id":"/data/models/qwen3-8b", ...}]}
 ```
 
-**정리**: 5.6절에서 내린 "Recreate가 교착을 해결한다"는 결론 자체는 맞았다. 다만 그 시점에 실제로 걸려 있던 값은 차트 버그 때문에 여전히 `RollingUpdate`였고, 이후 `modelSpec`을 더 바꾸지 않아서 우연히 문제가 재발하지 않았던 것뿐이다. 값을 Helm chart에만 맡기지 말고 `kubectl get deployment -o jsonpath='{.spec.strategy}'`로 실제 반영 여부를 확인하는 습관이 필요하다는 게 이번에 새로 얻은 교훈이다.
 
-**교훈 정리**:
 
-1. LMCache는 vLLM 자체의 (GPU 상주) prefix cache가 먼저 만족시키면 호출조차 안 된다 — CPU 오프로딩의 진가는 **GPU 캐시가 감당 못 하는 규모**(더 많은 동시 세션, 더 긴 컨텍스트)에서 나온다.
+1. LMCache는 vLLM 자체의 (GPU 상주) prefix cache가 먼저 만족시키면 호출조차 안 된다. CPU 오프로딩의 진가는 **GPU 캐시가 감당 못 하는 규모**(더 많은 동시 세션, 더 긴 컨텍스트)에서 나온다.
 2. **chunk_size 미만의 짧은 요청으로는 아무것도 테스트되지 않는다.** 데모/검증 시 반드시 chunk_size보다 긴 prompt를 써야 한다.
-3. Grafana가 아니라 `/metrics` 엔드포인트를 직접 까보는 것이 제일 확실한 디버깅 경로였다 — 대시보드가 없어도 `lmcache:` prefix 지표들을 curl 한 번으로 전부 볼 수 있다.
-4. Helm values에 값을 넣었다고 반영됐다고 믿으면 안 된다 — 차트가 그 필드를 실제로 템플릿에 쓰는지는 `kubectl get <리소스> -o jsonpath`로 직접 확인해야 한다. `strategy: Recreate`가 정확한 사례였다(5.8절).
+3. Grafana가 아니라 `/metrics` 엔드포인트를 직접 까보는 것이 제일 확실한 디버깅 경로였다. 대시보드가 없어도 `lmcache:` prefix 지표들을 curl 한 번으로 전부 볼 수 있다.
 
