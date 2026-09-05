@@ -66,7 +66,7 @@ $ cp env-vars.template env-vars
 | `TF_VAR_region`                  | `us-east-1`                | GPU 쿼터가 이미 열려있는 리전                                                  |
 | `TF_VAR_cluster_version`         | `1.36`                     | 최신 지원 버전, GPU AMI 확인됨                                               |
 | `TF_VAR_inference_hardware`      | `gpu`                      | GPU 노드풀 활성화                                                         |
-| `TF_VAR_gpu_node_instance_types` | `["g6.2xlarge"]`           | NVIDIA L4 24GB, 8 vCPU/32GiB (8 vCPU 쿼터에 정확히 맞춤)                     |
+| `TF_VAR_gpu_node_instance_types` | `["g6.2xlarge"]`           | NVIDIA L4 24GB, 8 vCPU/32GiB (8 vCPU 쿼터에 정확히 맞춤)                    |
 | `TF_VAR_gpu_vllm_helm_config`    | `gpu-qwen3-8b-ingress.tpl` | 새로 작성한 Qwen3-8B 템플릿                                                 |
 | `TF_VAR_enable_lb_ctl`           | `true`                     | vLLM ingress가 `className: alb`를 쓰므로 AWS Load Balancer Controller 필요 |
 | `TF_VAR_hf_token`                | `hf_...`                   | Hugging Face 토큰                                                     |
@@ -151,7 +151,7 @@ $ grep "g6.2xlarge\|ami_type" plan.log
 
 GPU 노드그룹이 `AL2023_x86_64_NVIDIA` AMI 타입으로 정확히 잡혔다. 앞서 SSM으로 확인한 k8s 1.36용 NVIDIA AMI가 그대로 쓰인다. `env-vars`로 넘긴 값들이 plan 출력에 전부 정확히 반영된 것도 확인했다.
 
-
+### 1.6 예상 비용
 
 ```termcast {title="~/production-stack/tutorials/terraform/eks" prompt="$ "}
 $ aws pricing get-products --service-code AmazonEC2 --region us-east-1 \
@@ -160,7 +160,7 @@ $ aws pricing get-products --service-code AmazonEC2 --region us-east-1 \
 $0.9776 per On Demand Linux g6.2xlarge Instance Hour
 ```
 
-GPU 노드(g6.2xlarge) 단독 시간당 **$0.98**. 여기에 CPU 노드 2대(t3a 계열, 저렴), EKS 컨트롤 플레인 고정비($0.10/h), NAT Gateway, ALB 비용이 소폭 추가된다. 대략 시간당 $1.2~1.3 수준으로 추산.
+GPU 노드(g6.2xlarge) 단독 시간당 **$0.98**. 여기에 CPU 노드 2대(t3a 계열, 저렴), EKS 컨트롤 플레인 고정비($0.10/h), NAT Gateway, ALB 비용이 소폭 추가된다. 대략 시간당$1.2~1.3 수준으로 추산.
 
 ### 1.7 terraform apply
 
@@ -296,9 +296,9 @@ $ kubectl exec -n vllm <pod> -c downloader -- python3 -c "
 import socket, time
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.settimeout(5)
-s.connect(('151.101.64.223', 443))
+s.connect(('151.10#4.223', 443))
 print('OK')"
-# 151.101.64.223:443 OK in 0.00s → TCP 3-way handshake는 즉시 성공
+# 151.10#4.223:443 OK in 0.00s → TCP 3-way handshake는 즉시 성공
 
 $ kubectl exec -n vllm <pod> -c downloader -- python3 -c "
 import socket, ssl, time
@@ -821,7 +821,7 @@ Reqid: ...-b0aefc6a, Total tokens 439, Inference Engine computed tokens: 432, LM
 
 ![](orca-paste-1788597148372-4ab03be6-b4bf-4075-9aaf-938720bbd66a.png)
 
-**`LMCache hit tokens: 256`** — 두 번째 요청에서 정확히 1 chunk를 LMCache의 CPU 오프로딩 계층에서 그대로 가져왔다. GPU 메모리가 아니라 CPU RAM(우리가 설정한 12GB 버퍼)에 저장돼 있던 KV 캐시가 재사용된 것을 수치로 확인했다.
+`**LMCache hit tokens: 256**` — 두 번째 요청에서 정확히 1 chunk를 LMCache의 CPU 오프로딩 계층에서 그대로 가져왔다. GPU 메모리가 아니라 CPU RAM(우리가 설정한 12GB 버퍼)에 저장돼 있던 KV 캐시가 재사용된 것을 수치로 확인했다.
 
 
 
