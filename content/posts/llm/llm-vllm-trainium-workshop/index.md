@@ -7,8 +7,96 @@ categories: ["LLM"]
 featuredImage: images/banners/llm-vllm-trainium-workshop-42d4b743.png
 ---
 
+# **AWS Workshop 아키텍처** : Amazon EKS 기반 vLLM을 활용한 엔터프라이즈 규모의 대규모 언어 모델(LLM) 배포  
+
+
+![](orca-paste-1789197359913-f18ad7b0-6972-4afd-a890-1960b6c31a9a.png)
+
+-  **인프라 레이어**: **t3.2xlarge** Ubuntu 22.04 EC2(개발 환경), VPC 10.0.0.0/16 + public subnet 10.0.1.0/24, SG(22/8000/8080), EKS/ECR/S3/CFN용 IAM Role
+- **EKS 클러스터**: **K8s 1.33**, VPC CNI + OIDC, managed node group `neuron-trn1-2x`(**trn1.2xlarge**, Neuron-optimized AMI, GP2 100GB, 멀티 AZ)
+- **Trainium 통합**: **Neuron device plugin**(daemonset), **Neuron scheduler extension**(`my-scheduler`), **칩당 NeuronCore-v2 2개**(380 INT8 TOPS), **HBM 32GB** @820GB/s
+- **vLLM 배포**: 컨테이너 이미지 `public.ecr.aws/neuron/pytorch-inference-vllm-neuronx:0.9.1-neuronx-py310-sdk2.25.0-ubuntu22.04`, **Init Container 패턴**으로 **모델 컴파일/캐싱**, 대상 모델 **TinyLlama-1.1B-Chat-v1.0**, **tensor-parallel-size=2**
+- **스토리지**: S3 버킷 `ai-infra-summit-vllm-models-cache-{ACCOUNT_ID}`(컴파일 아티팩트 캐시), S3 CSI Driver(Mountpoint) + PV/PVC(100Gi, ReadWriteMany)
+- **네트워크/Ingress**: Service(LoadBalancer, 8080), NGINX Ingress Controller(경로 기반 라우팅 `/`)
+- **최적화 기술**: Continuous batching, OpenAI 호환 API, Tensor/Pipeline Parallelism, Memory pooling, Speculative decoding
+- **모니터링**: K8s 리소스 모니터링, readiness/liveness probe, Prometheus/Grafana/CloudWatch(Lab 4)
 
 &nbsp;
+
+## 실습 환경에서 실제로 확인된 값
+
+위 구성도는 워크숍이 제시하는 목표 아키텍처다. Lab1~Lab5를 진행하며 실제로 측정한 값과 대조하면 다음과 같다.
+
+| 항목 | 구성도 | 실측 |
+| --- | --- | --- |
+| EC2 | t3.2xlarge, Ubuntu 22.04 | 일치 (`hostnamectl`) |
+| VPC / subnet | 10.0.0.0/16, public 10.0.1.0/24 | 일치. EC2는 10.0.1.x, 워커노드는 10.0.5.x |
+| EKS | K8s 1.33 | 일치 (`v1.33.13-eks-cb19647`) |
+| node volume | GP2 100GB | 일치 (`ephemeral-storage 104779756Ki`) |
+| Neuron | 칩당 NeuronCore 2개, HBM 32GB | 일치 (`neuron-ls`, allocatable `neuroncore: 2`) |
+| 컨테이너 이미지 | `...vllm-neuronx:0.9.1-...sdk2.25.0...` | 일치 (`ctr images ls`) |
+| tensor-parallel-size | 2 | 일치 (`tp_degree: 2`, `world_size: 2`) |
+| S3 캐시 | 컴파일 아티팩트 | 일치 (11개 객체, 약 10MB) |
+| PV / PVC | 100Gi, ReadWriteMany | 일치 (Bound, `s3.csi.aws.com`) |
+| Service / Ingress | LoadBalancer 8080, NGINX path `/` | 일치 (Classic ELB 2개 생성) |
+
+다섯 항목은 구성도와 실제가 달랐다.
+
+**OIDC는 활성화되어 있지 않다.** cluster에 OIDC issuer URL은 있지만 IAM에 identity provider가 등록되지 않아 IRSA를 쓸 수 없다.
+
+```bash
+$ aws iam list-open-id-connect-providers
+{
+    "OpenIDConnectProviderList": []
+}
+```
+
+그래서 Mountpoint S3 CSI driver가 ServiceAccount가 아니라 **node IAM role의 `AmazonS3FullAccess`로 bucket에 접근**한다. node group 정의에 S3 권한을 넣어둔 이유가 이것이다.
+
+**멀티 AZ는 subnet 수준에서만 성립한다.** node group은 us-west-2b와 us-west-2d 두 subnet에 걸쳐 있지만 `desiredCapacity: 1`이라 실제 노드는 us-west-2b 한 대뿐이다. AZ 장애 시 가용성은 없다.
+
+**Pipeline Parallelism은 쓰이지 않는다.** 적용된 것은 Tensor Parallelism(TP=2)뿐이고, 컴파일 결과의 `neuron_config`가 이를 보여준다.
+
+```json
+"tp_degree": 2,
+"pp_degree": 1,
+"cp_degree": 1,
+"ep_degree": 1
+```
+
+`trn1.2xlarge`는 Trainium chip이 1개(NeuronCore 2개)라 TP로 두 코어를 모두 쓰면 나눌 축이 더 없다. PP는 칩이 여러 개일 때 의미가 생긴다.
+
+**Speculative decoding도 쓰이지 않는다.** vLLM on Neuron이 지원하는 기능이지만 이번 배포에서는 꺼져 있다.
+
+```json
+"speculation_length": 0,
+"enable_fused_speculation": false,
+"enable_eagle_speculation": false,
+"num_medusa_heads": 0
+```
+
+**CloudWatch는 제외했다.** Lab4에서 Prometheus와 Grafana만 구성했다.
+
+한 가지 더, 구성도의 `SG(22/8000/8080)`는 **inbound 기준이다.** outbound는 53/80/443만 열려 있어서 workshop EC2에서 8080 포트의 ELB로 직접 호출하면 timeout이 난다. 워커노드로 SSH(22)가 안 되는 것도 같은 이유다. 자세한 내용은 Lab3과 Lab5에서 다룬다.
+
+
+# Lab0: 사전준비
+
+- 콘솔확인
+
+![](orca-paste-1789197288211-952eb0b8-e07b-4880-9d26-12048fd696bd.png)
+
+
+
+- 로컬 PC에 ssh 개인키 다운로드
+
+![](orca-paste-1789197205966-1a339eb6-e831-488c-937f-3d5fe6d6100c.png)
+
+
+
+&nbsp;
+
+- 로컬에서 EC2 접속
 
 ![](orca-paste-1789131596444-c21237a9-6f60-4ef7-bd81-b0c8ae47b33b.png)
 
@@ -37,8 +125,6 @@ workshop/
 cat workshop/.env
 HF_TOKEN="hf_****************************"
 ```
-
-
 
 # Lab1: EKS Cluster Setup
 
@@ -1347,9 +1433,9 @@ vllm-service   10.0.5.40:8080   34m
 이 시점에 Classic ELB가 두 개 떠 있다.
 
 
-| Service                                  | ELB           | 포트                      |
-| ---------------------------------------- | ------------- | ----------------------- |
-| `default/vllm-service`                   | `<VLLM-ELB>` | 8080 → 30732            |
+| Service                                  | ELB             | 포트                      |
+| ---------------------------------------- | --------------- | ----------------------- |
+| `default/vllm-service`                   | `<VLLM-ELB>`    | 8080 → 30732            |
 | `ingress-nginx/ingress-nginx-controller` | `<INGRESS-ELB>` | 80 → 30381, 443 → 32447 |
 
 
@@ -1969,8 +2055,6 @@ kubectl rollout status deploy/prometheus-server -n monitoring
 | 1 (×5) | `kubernetes-service-endpoints`                      |
 | 1      | `prometheus-pushgateway`                            |
 | 0      | `prometheus` (self-scrape, 앞서 설명한 route-prefix 부작용) |
-
-
 
 
 ## 1. 환경 변수
