@@ -20,18 +20,13 @@ runc는 위에서 containerd가 변환한 OCI Spec을 읽어서 실제로 격리
 
 
 
-```
-kubelet ──gRPC / unix socket──▶ containerd
-                                    │  파드(sandbox)마다 shim 하나 생성
-                                    ▼
-                         containerd-shim-runc-v2   ← 별도 프로세스
-                                    │  exec
-                                    ▼
-                              runc (OCI runtime)
-                                    │
-                                    ▼
-                              컨테이너 프로세스
-
+```mermaid
+flowchart TD
+    K["kubelet"] -->|"gRPC / unix socket"| C["containerd"]
+    C -->|"파드(sandbox)마다 shim 하나 생성"| S["containerd-shim-runc-v2<br/>(별도 프로세스 · containerd와 수명 분리)"]
+    S -->|"exec"| R["runc (OCI runtime)<br/>(설정 후 종료)"]
+    R --> P["컨테이너 프로세스"]
+    S -.->|"stdout/stderr 중계<br/>종료 코드 수집 · 좀비 수확"| P
 ```
 
 
