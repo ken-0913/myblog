@@ -4,6 +4,7 @@ date: 2026-09-11T10:00:00+09:00
 draft: false
 tags: ["LLM", "vLLM", "AWS", "Trainium", "Inferentia", "Model Serving"]
 categories: ["LLM"]
+featuredImage: images/banners/llm-vllm-trainium-workshop-42d4b743.png
 ---
 
 
