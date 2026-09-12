@@ -4,6 +4,7 @@ date: 2026-09-11T09:00:00+09:00
 draft: false
 tags: ["Kubernetes", "GPU", "NVIDIA", "CDI", "containerd", "kubelet", "device-plugin", "CRI"]
 categories: ["Kubernetes"]
+featuredImage: images/banners/gpu-container-runtime-vs-cdi-056613aa.png
 ---
 ## 일반적인 컨테이너 생성 흐름
 
