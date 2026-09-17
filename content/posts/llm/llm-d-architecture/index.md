@@ -4,6 +4,7 @@ date: 2026-09-16T21:00:00+09:00
 draft: false
 tags: ["LLM", "llm-d", "vLLM", "Kubernetes", "Gateway API", "Inference Gateway", "KV Cache", "Envoy", "Model Serving"]
 categories: ["LLM"]
+featuredImage: images/banners/llm-d-architecture-cdb19323.png
 ---
 성능관점에서 vLLM 파드 중 **"어느 파드로 보낼 것인가"** 가는 중요한 요소이다. llm-d는 이를 해결 하는  Kubernetes 네이티브 추론 서빙 스택이다. 
 
