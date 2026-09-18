@@ -4,6 +4,7 @@ date: 2026-09-18T00:30:00+09:00
 draft: false
 tags: ["LLM", "llm-d", "vLLM", "Kubernetes", "Flow Control", "EPP", "Multi-tenancy", "QoS", "Benchmark"]
 categories: ["LLM"]
+featuredImage: images/banners/llm-d-flow-control-lab-52da0947.png
 ---
 [개념편](../llm-d-architecture/)에서 EPP의 파이프라인을 정리하며 Flow Control을 문서 수준으로만 다뤘다. 이번에는 실제로 켜고 부하를 넣어 **큐가 어디에 쌓이는지** 를 눈으로 확인했다.
 

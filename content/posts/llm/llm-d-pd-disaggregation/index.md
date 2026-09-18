@@ -4,6 +4,7 @@ date: 2026-09-18T00:40:00+09:00
 draft: false
 tags: ["LLM", "llm-d", "vLLM", "Kubernetes", "PD Disaggregation", "NIXL", "KV Cache", "RDMA", "Model Serving"]
 categories: ["LLM"]
+featuredImage: images/banners/llm-d-pd-disaggregation-d97a078e.png
 ---
 LLM 추론은 성격이 전혀 다른 두 단계로 이루어진다. **이 둘을 같은 GPU에서 돌리면 서로를 방해한다.**
 

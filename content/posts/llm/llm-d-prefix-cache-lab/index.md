@@ -4,6 +4,7 @@ date: 2026-09-17T22:00:00+09:00
 draft: false
 tags: ["LLM", "llm-d", "vLLM", "Kubernetes", "kind", "Envoy", "EPP", "KV Cache", "GPU", "Benchmark"]
 categories: ["LLM"]
+featuredImage: images/banners/llm-d-prefix-cache-lab-45c468a0.png
 ---
 [개념편](../llm-d-architecture/)에서 llm-d가 요청마다 목적지를 다시 고른다는 구조를 정리했다. 그 구조에는 값이 붙는다. **매 요청마다 Envoy가 EPP에게 물어보고 답을 기다린다면, 그 대기는 몇 ms인가.**
 
