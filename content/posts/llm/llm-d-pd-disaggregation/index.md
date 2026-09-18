@@ -10,32 +10,30 @@ LLM 추론은 성격이 전혀 다른 두 단계로 이루어진다. **이 둘�
 
 P/D Disaggregation은 그 둘을 아예 다른 서버로 떼어놓는 방식이다. llm-d는 이 기능을 [개념편](../llm-d-architecture/)에서 정리한 EPP에 기본으로 내장하고 있다.
 
-이 글은 llm-d 공식 가이드와 저장소의 실제 매니페스트를 근거로 정리한 개념편이다. 가이드의 기준 구성이 **GPU 16장**이라 직접 돌려보지는 못했고, 그 이유는 마지막 절에 적었다.
+이 글은 llm-d 공식 가이드와 저장소의 실제 매니페스트를 근거로 구조를 정리한다. 가이드의 기준 구성은 **GPU 16장**이지만, 마지막 절에서는 **RTX 3050 6GB 한 장을 논리적으로 둘로 나눠 실제로 띄워본 결과**를 함께 싣는다.
 
-## 1. 먼저 용어 다섯 개
+## 1. 용어정리
 
-| 용어 | 쉬운 설명 |
-| --- | --- |
-| **Prefill** | 입력 프롬프트 전체를 **한 번에** 읽어서 이해하는 단계 |
-| **Decode** | 답변을 **한 글자씩** 만들어내는 단계 |
+
+| 용어            | 쉬운 설명                                                            |
+| ------------- | ---------------------------------------------------------------- |
+| **Prefill**   | 입력 프롬프트 전체를 **한 번에** 읽어서 이해하는 단계                                 |
+| **Decode**    | 답변을 **한 글자씩** 만들어내는 단계                                           |
 | **ISL / OSL** | Input/Output Sequence Length. 입력이 10,000 토큰, 출력이 1,000 토큰이면 10:1 |
-| **TTFT** | 첫 글자가 나오기까지 걸린 시간. 주로 **prefill**이 좌우한다 |
-| **ITL** | 글자와 글자 사이 간격. 주로 **decode**가 좌우한다 |
+| **TTFT**      | 첫 글자가 나오기까지 걸린 시간. 주로 **prefill**이 좌우한다                          |
+| **ITL**       | 글자와 글자 사이 간격. 주로 **decode**가 좌우한다                                |
 
-## 2. 두 단계는 병목이 다르다
 
-책에 비유하면 이해가 빠르다. prefill은 **두꺼운 자료를 한 번에 통독하는 일**이고, decode는 **그 내용을 바탕으로 한 글자씩 받아쓰는 일**이다.
+## 2. Prefill과 Decode비교
 
-통독은 눈과 머리를 쉴 새 없이 굴려야 한다. 받아쓰기는 머리보다 **자료를 계속 다시 들춰보는 손놀림**이 속도를 결정한다.
 
-GPU에서도 똑같다.
+|       | Prefill                         | Decode                                                               |
+| ----- | ------------------------------- | -------------------------------------------------------------------- |
+| 하는 일  | 프롬프트 전체를 한 번의 forward pass로 처리  | KV 캐시에서 토큰을 하나씩 생성                                                   |
+| 병목    | **연산(compute-bound)** GPU flops | **메모리 대역폭(memory-bandwidth-bound)** HBM에서 on-chip으로 데이터를 얼마나 빨리 옮기는가 |
+| 성격    | 짧고 폭발적                          | 길고 지속적                                                               |
+| 영향 지표 | TTFT                            | ITL                                                                  |
 
-| | Prefill | Decode |
-| --- | --- | --- |
-| 하는 일 | 프롬프트 전체를 한 번의 forward pass로 처리 | KV 캐시에서 토큰을 하나씩 생성 |
-| 병목 | **연산(compute-bound)** — GPU flops | **메모리 대역폭(memory-bandwidth-bound)** — HBM에서 on-chip으로 데이터를 얼마나 빨리 옮기는가 |
-| 성격 | 짧고 폭발적 | 길고 지속적 |
-| 영향 지표 | TTFT | ITL |
 
 **한 GPU에 섞어두면 문제가 생긴다.** 긴 프롬프트의 prefill이 들어오는 순간 GPU 연산이 거기에 묶이고, 이미 답변을 뱉고 있던 decode 요청들이 그동안 멈춘다.
 
@@ -45,18 +43,20 @@ GPU에서도 똑같다.
 
 **첫째, 간섭이 사라진다.** prefill 전용 서버와 decode 전용 서버가 나뉘므로, 긴 프롬프트가 들어와도 decode는 자기 속도를 유지한다. ITL이 안정되고 체감 품질이 올라간다.
 
-**둘째, 각자에게 맞는 모양으로 배치할 수 있다.** 이것이 핵심이다.
+**둘째, 각자에게 맞는 모양으로 배치할 수 있다.**
 
-| | 권장 배치 | 이유 |
-| --- | --- | --- |
+
+|         | 권장 배치                                | 이유                          |
+| ------- | ------------------------------------ | --------------------------- |
 | Prefill | **replica 많이, 병렬 적게** (예: TP=1 × 8개) | 짧고 폭발적인 작업이라 개수로 받아내는 편이 낫다 |
-| Decode | **replica 적게, 병렬 많이** (예: TP=4 × 2개) | 넓게 쪼갤수록 KV 캐시에 쓸 메모리가 늘어난다 |
+| Decode  | **replica 적게, 병렬 많이** (예: TP=4 × 2개) | 넓게 쪼갤수록 KV 캐시에 쓸 메모리가 늘어난다  |
+
 
 **셋째, 모델 사본 수가 준다.** decode를 넓은 병렬로 묶으면 같은 GPU 수에서 모델 복사본이 줄고, 그만큼 **KV 캐시에 돌릴 메모리가 늘어난다.**
 
-## 4. 반대로, 쓰지 말아야 할 때
+## 4. 쓰지 말아야 할 때는 언제인가
 
-공식 가이드는 **모든 워크로드의 정답이 아니라고 분명히 못 박는다.** 권장 조건은 세 가지다.
+공식 가이드는 모든 워크로드의 정답이 아니라고 분명히 말하고 있다**.** 권장 조건은 세 가지다.
 
 - **중대형 모델** (예: `gpt-oss-120b`)
 - **긴 입력** (예: 10k ISL / 1k OSL. 200 ISL / 200 OSL 같은 짧은 요청은 대상이 아니다)
@@ -64,7 +64,7 @@ GPU에서도 똑같다.
 
 짧은 프롬프트에 짧은 답변이라면 prefill 자체가 가벼워서 간섭이 문제되지 않는다. **오히려 KV를 네트워크로 옮기는 비용만 추가된다.**
 
-## 5. 요청 하나가 흐르는 길
+## 5. 요청 순서도
 
 ```mermaid
 sequenceDiagram
@@ -130,7 +130,7 @@ schedulingProfiles:
 
 **두 프로필이 보는 기준이 다르다는 점이 중요하다.** prefill 쪽은 프리픽스 캐시 적중과 토큰 부하를 보고, decode 쪽은 지금 처리 중인 요청 수를 본다.
 
-각 단계의 병목이 다르니 판단 기준도 달라야 한다. 그리고 **prefix-cache aware 라우팅이 그대로 얹힌다** — 분리했다고 캐시 최적화를 포기하지 않는다.
+각 단계의 병목이 다르니 판단 기준도 달라야 한다. 그리고 **prefix-cache aware 라우팅이 그대로 얹힌다**. 분리했다고 캐시 최적화를 포기하지 않는다.
 
 ## 7. 실제 매니페스트
 
@@ -194,31 +194,35 @@ spec:
 
 `VLLM_HTTP_TIMEOUT_KEEP_ALIVE: "120"` 도 실전에서 나온 값이다. vLLM 기본 keep-alive가 5초인데 사이드카의 idle timeout은 90초라, **연결을 재사용할 때 TCP RST가 발생**한다. 서버 쪽을 더 길게 잡아 막는다.
 
-## 8. KV를 옮기는 방법 — NIXL
+## 8. KV를 옮기는 방법 (NIXL)
 
 prefill이 만든 KV 블록은 어떻게든 decode로 가야 한다. llm-d는 두 가지 전송 방식을 지원한다.
 
-| 커넥터 | 전송 | 특징 |
-| --- | --- | --- |
-| **NixlConnector** (기본) | UCX (RDMA 또는 TCP) | prefill과 decode의 **TP가 달라도 된다** |
-| **MooncakeConnector** | Mooncake Transfer Engine (RDMA) | prefill과 decode의 **TP가 같아야 한다**. InfiniBand 환경용 |
+
+| 커넥터                    | 전송                              | 특징                                              |
+| ---------------------- | ------------------------------- | ----------------------------------------------- |
+| **NixlConnector** (기본) | UCX (RDMA 또는 TCP)               | prefill과 decode의 **TP가 달라도 된다**                 |
+| **MooncakeConnector**  | Mooncake Transfer Engine (RDMA) | prefill과 decode의 **TP가 같아야 한다**. InfiniBand 환경용 |
+
 
 **TCP로도 동작한다.** 다만 공식 문서는 프로덕션에서는 고대역폭 네트워크(IB, RoCE, EFA)를 강하게 권한다. KV 블록은 작지 않고, 매 요청마다 옮겨야 한다.
 
-주의할 점도 문서에 명시돼 있다. **NixlConnector는 TP 비율의 방향에 따른 제약이 있고, prefill 파드가 재시작되면 상대 정보가 오래된 채로 남는(stale agent) 문제**가 알려져 있다.
+주의할 점도 문서에 명시돼 있다. **NixlConnector는 TP 비율의 방향에 따른 제약이 있고 prefill 파드가 재시작되면 상대 정보가 오래된 채로 남는(stale agent) 문제**가 알려져 있다.
 
 네트워크 정책도 챙겨야 한다. HTTP 8000·8200 외에 **prefill ↔ decode 사이 TCP 5600(NIXL side channel)** 이 열려 있어야 한다.
 
-## 9. 운영에서 무엇을 보나 — 두 풀을 짝으로 본다
+## 9. 운영에서 무엇을 보나 (두 풀을 짝으로 본다)
 
 P/D는 두 풀이 **독립적으로 스케일되고 독립적으로 고장난다.** 그래서 지표를 하나로 합쳐 보면 원인을 못 찾는다.
 
-| 신호 | 왜 보나 |
-| --- | --- |
-| `vllm:num_requests_running{pod=~".*prefill.*"}` | prefill 포화 = 프롬프트가 decode 시작 전부터 밀린다 → TTFT 상승 |
-| `vllm:kv_cache_usage_perc{pod=~".*decode.*"}` | decode는 생성 내내 KV를 쥔다. **0.9를 넘으면 보통 여기가 진짜 병목** |
-| `llm_d_epp_pd_decision_total` | EPP가 실제로 P/D를 나누고 있는지. 0으로 수렴하면 통합 서빙으로 되돌아간 것 |
-| `vllm:time_to_first_token_seconds` vs `inter_token_latency_seconds` | TTFT가 나쁘면 prefill 또는 KV 전송, ITL이 나쁘면 decode |
+
+| 신호                                                                  | 왜 보나                                            |
+| ------------------------------------------------------------------- | ----------------------------------------------- |
+| `vllm:num_requests_running{pod=~".*prefill.*"}`                     | prefill 포화 = 프롬프트가 decode 시작 전부터 밀린다 → TTFT 상승  |
+| `vllm:kv_cache_usage_perc{pod=~".*decode.*"}`                       | decode는 생성 내내 KV를 쥔다. **0.9를 넘으면 보통 여기가 진짜 병목** |
+| `llm_d_epp_pd_decision_total`                                       | EPP가 실제로 P/D를 나누고 있는지. 0으로 수렴하면 통합 서빙으로 되돌아간 것  |
+| `vllm:time_to_first_token_seconds` vs `inter_token_latency_seconds` | TTFT가 나쁘면 prefill 또는 KV 전송, ITL이 나쁘면 decode     |
+
 
 실패 패턴은 세 가지로 요약된다.
 
@@ -228,15 +232,109 @@ P/D는 두 풀이 **독립적으로 스케일되고 독립적으로 고장난다
 
 **둘 다 한가한데 느리다** → 모델 서버가 아니라 라우팅 문제다. P/D 결정 비율과 EPP 스케줄러 지연을 먼저 본다.
 
-## 10. 이 환경에서 돌리지 못한 이유
+## 10. GPU 1장으로 흉내내보기
 
-정직하게 적는다. 앞선 실습에 쓴 장비는 **RTX 3050 6GB 한 장**이다.
+앞선 실습에 쓴 장비는 **RTX 3050 6GB 한 장**이다. 가이드 기준 구성은 prefill 8장 + decode 8장으로 **총 16장**이고 모델도 `gpt-oss-120b`라 그대로는 올라가지 않는다.
 
-가이드 기준 구성은 prefill 8장 + decode 8장으로 **총 16장**이다. 모델도 `gpt-oss-120b`라 6GB에는 올라가지 않는다.
+그래도 **메커니즘만이라도 돌려볼 수 있을까.** 결론부터 적으면 **떴다.** 다만 기대한 이점은 나오지 않았고, 그 이유가 이 절의 핵심이다.
 
-규모를 최소로 줄여도 **prefill 1개와 decode 1개가 각각 다른 GPU에 있어야** 하므로 최소 2장이 필요하다. 한 장을 나눠 쓰면 두 단계가 다시 같은 GPU에서 경쟁하게 되어 **분리의 의미 자체가 사라진다.**
+### 한 장을 논리적으로 두 장처럼 보이게 한다
 
-다만 문턱이 하나 낮아진 점은 기록해둘 만하다. **기능 검증에 RDMA는 필수가 아니다.** 문서는 TCP와 8000·8200·5600 포트만 열려 있으면 동작 확인이 가능하다고 적고 있다. GPU 2장만 확보되면 시도해볼 수 있다.
+prefill과 decode는 각각 `nvidia.com/gpu: 1`을 요구한다. 물리 GPU가 하나이므로 **Kubernetes에 GPU가 두 개인 것처럼 보이게** 해야 한다.
+
+NVIDIA device plugin의 **time-slicing**이 가장 간단하다. ConfigMap 하나로 끝나고 스케줄러를 건드리지 않는다.
+
+```yaml {title="nvidia-device-plugin config (발췌)"}
+version: v1
+flags:
+  migStrategy: none
+  nvidiaDriverRoot: "/"
+  plugin:
+    deviceListStrategy:
+      - cdi-cri
+sharing:
+  timeSlicing:
+    resources:
+      - name: nvidia.com/gpu
+        replicas: 2          # 물리 1장을 논리 2장으로 광고
+```
+
+```bash {title="적용 결과"}
+$ kubectl get node gpu-lab-control-plane -o jsonpath='{.status.allocatable.nvidia\.com/gpu}'
+2
+```
+
+HAMi로도 같은 일을 할 수 있고 **메모리 격리까지 얹어준다.** 다만 스케줄러를 교체해야 하고 CUDA 호출을 가로채는 계층이 NIXL과 어떻게 얽힐지 미지수라, 변수를 하나씩 넣는 쪽을 택했다.
+
+### 모델과 메모리를 조인다
+
+6GB 중 데스크톱이 273 MiB를 상주로 쓰므로 실제 가용은 약 **5,870 MiB**다. 둘로 나누면 한쪽에 약 2,900 MiB다.
+
+```yaml {title="lab-3050 오버레이 (prefill·decode 공통)"}
+args:
+  - "Qwen/Qwen3-0.6B"
+  - "--tensor-parallel-size=1"
+  - "--max-model-len=1024"           # 2048 → 1024 로 KV 요구량을 줄인다
+  - "--gpu-memory-utilization=0.30"  # 한 장을 둘이 나눠 쓴다
+  - "--enforce-eager"                # CUDA 그래프 캡처 메모리를 아낀다
+  - "--kv-transfer-config"
+  - '{"kv_connector":"NixlConnector","kv_role":"kv_both",
+      "kv_buffer_device":"cuda","kv_connector_extra_config":{"backends":["UCX"]}}'
+```
+
+실제 점유는 **프로세스당 2,636 MiB, 합계 5,272 MiB**로 예산 안에 들어왔다.
+
+**time-slicing에는 메모리 격리가 없다는 점이 중요하다.** 두 파드가 똑같이 6GB를 본다고 착각하므로, `--gpu-memory-utilization`을 손으로 잡지 않으면 한쪽이 다른 쪽을 OOM으로 밀어낸다.
+
+### 실제로 갈라졌는지 확인한다
+
+로그 세 줄이면 충분하다.
+
+```bash {title="prefill 파드 — 요청을 받았다"}
+INFO: 10.244.0.27:47198 - "POST /v1/completions HTTP/1.1" 200 OK
+```
+
+`10.244.0.27`은 **decode 파드의 사이드카**다. 클라이언트가 아니라 decode 쪽에서 prefill을 호출했다는 뜻이고, 5절의 순서도 그대로다.
+
+```bash {title="decode 파드 — NIXL 전송 경로가 맺어졌다"}
+NIXL compatibility check passed (hash: f0f99e93...)
+Transfer plan: TransferTopology(tp_ratio=1, num_kv_heads=8, local_tp=1,
+                                remote_tp=1, remote_block_len=65536)
+```
+
+`remote_tp=1`과 `remote_block_len`이 찍혔다는 것은 **원격 워커와의 KV 전송 계획이 실제로 수립됐다**는 뜻이다.
+
+```bash {title="사이드카 — 8000 을 받고 로컬 8200 으로 넘긴다"}
+Proxy configuration: {"Port":"8000","KVConnector":"nixlv2",
+                      "DecoderURL":"http://localhost:8200"}
+```
+
+7절에서 본 포트 배치가 그대로 확인된다.
+
+### 그런데 2배 느리다
+
+같은 프롬프트로 10회를 재고, 통합 서빙일 때의 값과 비교했다.
+
+| 구성 | TTFT mean | E2E mean |
+| --- | --- | --- |
+| 통합 서빙 (EPP 경유, 파드 1개) | **34.8 ms** | 930 ms |
+| **P/D 분리 (논리 2장)** | **68.9 ms** | 1,025 ms |
+
+**약 2배다.** 이유는 처음부터 예상된 것이다.
+
+time-slicing도 HAMi도 **SM을 공간적으로 쪼개지 않는다.** 두 파드는 같은 연산 유닛을 번갈아 쓴다. 물리적으로 SM을 분할하는 MIG는 A100·H100급 기능이고 3050에는 없다.
+
+즉 **P/D를 나누는 본래 이유인 "prefill이 decode를 막지 않게 한다"가 성립하지 않는다.** 간섭은 그대로인데 KV를 옮기는 단계와 홉만 늘었으니 느려지는 게 당연하다.
+
+**그래서 이 실험으로 확인되는 것은 효과가 아니라 메커니즘이다.** 라벨로 역할이 갈리고, EPP가 프로필 두 개를 돌리고, 요청이 사이드카를 거쳐 prefill을 먼저 들르고, KV가 NIXL로 넘어온다 — 여기까지는 GPU 한 장에서도 전부 관찰된다.
+
+### 부딪힌 것 두 가지
+
+**CPU가 먼저 바닥났다.** EPP 파드 하나가 CPU 8코어를 요청한다(Envoy `--concurrency 8`). 12코어 노드에서는 EPP 두 개가 공존하지 못해, 기존 릴리스를 내려야 했다.
+
+**DaemonSet을 패치할 때 배열을 통째로 바꾸면 안 된다.** time-slicing 설정을 붙이며 `volumes`와 `env`를 JSON 패치로 교체했다가, 이 클러스터가 쓰던 CDI 구성(`deviceListStrategy: cdi-cri`, 드라이버 라이브러리 경로, `LD_LIBRARY_PATH`)을 통째로 날려 GPU가 한동안 0으로 잡혔다.
+
+`kubectl rollout history --revision=N` 에 이전 파드 템플릿이 남아 있어 `rollout undo` 로 복구했다. 표준 설치가 아닌 클러스터일수록 **strategic merge로 추가만 하는 편이 안전하다.**
 
 ## 11. 정리
 
@@ -249,3 +347,5 @@ P/D는 두 풀이 **독립적으로 스케일되고 독립적으로 고장난다
 **llm-d에서는 라벨 두 개와 프로필 두 개로 표현된다.** `llm-d.ai/role`로 역할을 나누고, `disagg-profile-handler`가 prefill용·decode용 스코어링을 각각 돌린다. 여기에 prefix-cache aware 라우팅이 그대로 얹힌다.
 
 **운영은 두 풀을 짝으로 본다.** TTFT가 나쁘면 prefill과 KV 전송, ITL이 나쁘면 decode, 둘 다 한가한데 느리면 라우팅이다.
+
+**GPU 한 장으로도 구조는 확인된다. 다만 이점은 확인되지 않는다.** time-slicing으로 논리 2장을 만들면 라벨 분리부터 NIXL 전송까지 전부 동작하지만, SM을 공유하는 한 TTFT는 오히려 2배가 된다. **이점을 재려면 물리적으로 다른 GPU가 필요하다.**
