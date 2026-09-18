@@ -453,3 +453,8 @@ llm-d의 설계는 몇 가지 결정으로 요약된다.
 
 다만 **핫 리로드가 없다**는 제약은 운영에서 그대로 체감된다. 플러그인 설정을 바꿀 때마다 EPP 재시작이 필요하므로, HA 구성이 선택이 아니라 기본값에 가깝다.
 
+## 이어지는 글
+
+- [kind에 llm-d 올리기 — 배포부터 게이트웨이 오버헤드 실측까지](../llm-d-prefix-cache-lab/) — GPU 1장에 직접 올려 캐시 적중률과 라우팅 비용을 측정한 기록
+- [Flow Control 실측 — TTFT는 사라지지 않고 옮겨간다](../llm-d-flow-control-lab/) — 우선순위·공정성 큐를 켜고 부하를 넣어본 결과
+- [P/D Disaggregation — prefill과 decode를 떼어놓는 이유](../llm-d-pd-disaggregation/) — 두 단계를 분리하는 구조 정리
