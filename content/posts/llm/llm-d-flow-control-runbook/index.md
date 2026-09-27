@@ -4,6 +4,7 @@ date: 2026-09-27T14:00:00+09:00
 draft: false
 tags: ["LLM", "llm-d", "vLLM", "Kubernetes", "Flow Control", "EPP", "Runbook", "Benchmark"]
 categories: ["LLM"]
+featuredImage: images/banners/llm-d-flow-control-runbook-a8c79bc5.png
 ---
 [Flow Control 실측 글](../llm-d-flow-control-lab/)에서 얻은 결과를 **그대로 다시 만들기 위한 절차서**다. 분석과 해석은 그 글에 있고, 이 문서에는 명령과 스크립트만 순서대로 담는다.
 
