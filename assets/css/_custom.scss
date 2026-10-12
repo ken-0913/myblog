@@ -31,10 +31,84 @@
     font-size: 1.6rem;
 }
 
-// 메뉴 클릭(활성) 시 글자가 너무 두꺼워(900) 조금 얇은 볼드로 완화
-.menu a.active,
-.menu-item a.active {
-    font-weight: 600 !important;
+// ==============================
+// 상단 바(header) 개선
+//  1) 현재 위치/호버를 "밑줄 인디케이터"로 표시한다. 테마 기본값은 글자를
+//     900으로 굵게 + 색을 바꾸는 방식이라 항목 폭이 흔들렸다.
+//  2) 반투명 + 블러 배경과 연한 하단 경계선으로 본문과 분리한다.
+//     (테마 기본값은 마우스를 올릴 때만 그림자가 생겨 스크롤 중에는 경계가 없었다)
+//  3) 좌측 패딩 10%(창 폭에 비례) → 고정값. 브랜드 위치가 창 크기에 따라 움직이지 않게.
+// ==============================
+
+header {
+    // color-mix 미지원 브라우저는 이 불투명 배경으로 폴백한다.
+    background-color: var(--header-background-color);
+    background-color: color-mix(in srgb, var(--header-background-color) 84%, transparent);
+    -webkit-backdrop-filter: blur(10px) saturate(1.08);
+    backdrop-filter: blur(10px) saturate(1.08);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+
+    // 상시 경계선으로 대체하므로 hover 그림자는 끈다.
+    &:hover {
+        box-shadow: none;
+    }
+}
+
+html.dark header {
+    background-color: color-mix(in srgb, var(--header-background-color) 86%, transparent);
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+#header-desktop {
+    .header-wrapper {
+        padding-left: 2.5rem;
+    }
+
+    .menu a.menu-item {
+        // inline 상태로는 ::after 기준 상자가 글자 높이뿐이라 밑줄 위치가 틀어진다.
+        display: inline-block;
+        // 클릭 영역을 글자 폭보다 좌우로 넓힌다.
+        padding: 0 0.4rem;
+        font-weight: 500;
+
+        &::after {
+            content: "";
+            position: absolute;
+            // 가운데(50%/50%)에서 시작해 양쪽으로 펼쳐지도록 한다.
+            left: 50%;
+            right: 50%;
+            bottom: 0.95rem;
+            height: 2px;
+            border-radius: 1px;
+            // 배너·터미널 코드블록의 프롬프트 초록과 같은 계열
+            background-color: #228b3f;
+            opacity: 0;
+            transition: left 0.22s ease, right 0.22s ease, opacity 0.22s ease;
+        }
+
+        &:hover::after {
+            left: 0.4rem;
+            right: 0.4rem;
+            opacity: 0.5;
+        }
+
+        // 현재 위치는 밑줄만으로 표시한다. 굵기·색은 비활성과 동일하게 고정.
+        &.active {
+            font-weight: 500;
+            color: var(--global-link-color);
+
+            &::after {
+                left: 0.4rem;
+                right: 0.4rem;
+                opacity: 1;
+            }
+        }
+    }
+}
+
+html.dark #header-desktop .menu a.menu-item::after {
+    // 어두운 배경에서는 같은 초록이 가라앉아 한 단계 밝게 쓴다.
+    background-color: #4ec97a;
 }
 
 // 코드블록(Chroma Monokai)의 눈부신 형광색을 전반적으로 채도 낮은 톤으로 완화.
