@@ -27,7 +27,7 @@ featuredImage: images/banners/mlpe-03-platform-foundation-e8f0497e.png
 
 ## 2. 저장소 구조
 
-```
+```terminal {title="MLOps-study"}
 .
 ├── app/                          파이썬 앱, Docker 빌드 컨텍스트
 │   ├── main.py                   FastAPI + pyjokes
@@ -35,7 +35,7 @@ featuredImage: images/banners/mlpe-03-platform-foundation-e8f0497e.png
 │   ├── Dockerfile                python:3.10-slim, 8083
 │   └── entrypoint.sh
 ├── k8s/
-│   ├── argocd/hello-joker-app.yaml   홈랩 루트 Application이 polling 하는 하위 Application
+│   ├── argocd/hello-joker-app.yaml   하위 Application (루트가 polling)
 │   ├── hello-joker/                  Helm 차트
 │   ├── 05-argocd-repo-add.sh         repo 자격 증명 Secret (토큰은 프롬프트 입력)
 │   └── 06-dockerhub-pull-secret.sh   Docker Hub pull secret (토큰은 프롬프트 입력)
@@ -198,7 +198,7 @@ kubectl -n funny get svc,pods
 curl -s http://192.168.0.235:8083/ | jq
 ```
 
-```
+```terminal {title="kubectl 출력"}
 NAME               SYNC STATUS   HEALTH STATUS
 hello-joker        Synced        Healthy
 mlops-study-root   Synced        Healthy
@@ -237,35 +237,3 @@ unset GH_TOKEN
 ```
 
 pull secret이 없으면 파드가 `ImagePullBackOff`에 머문다. Secret을 만들면 별도 조치 없이 자동 복구된다.
-
-## 7. 자동화에 자동화를 더하면 검사가 필요해진다
-
-의존성을 손으로 올리지 않되, **깨질 위험이 낮은 patch만** 따라가게 했다.
-
-![Renovate patch PR이 pr-check.yml 게이트를 통과하면 자동 머지되어 build-push.yml이 실행되고, 로컬 커밋은 pre-commit 훅이 gitleaks로 검사하는 흐름](renovate-gate.svg)
-
-설정의 요점은 둘이다.
-
-
-| 대상              | 정책                                                              |
-| --------------- | --------------------------------------------------------------- |
-| 우리 이미지 태그       | **제외.** `hyeonjae0913/mlops-study`는 CI가 관리하므로 Renovate가 건드리면 충돌 |
-| `pr-check.yml`  | gitleaks 전체 이력 스캔 + 이미지 빌드 + 스모크 테스트. **이 체크가 자동 머지의 게이트다**     |
-
-
-로컬에도 같은 검사를 뒀다. `.githooks/pre-commit`이 staged 변경분을 gitleaks로 훑는다. 클론마다 `git config core.hooksPath .githooks` 한 번이 필요하다.
-
-private 저장소 Free 플랜이라 GitHub 네이티브 auto-merge를 쓸 수 없어 `platformAutomerge: false`로 두고 **Renovate가 직접 머지**하게 했다.
-
-## 1주차를 끝내며
-
-**책의 Ch3는 네 층을 쌓는 장이다.** 패키징, 오케스트레이션, 자동화, 관측. 뒤 단계가 앞 단계를 전제하므로 순서를 건너뛸 수 없다.
-
-직접 세워보니 **책 그대로 되는 부분이 생각보다 적었다.** 포트 하나가 probe를 전부 죽이고, 노드 아키텍처가 섞여 있고, 웹훅을 받을 주소가 없다. 그 대응이 결국 아키텍처가 됐다.
-
-결과적으로 **GitOps 루프가 닫혔다.** 이미지 빌드, 차트 범프 커밋, 최대 3분 뒤 홈랩 배포까지 `git push` 한 번으로 이어진다.
-
-가장 값진 결정은 **버전의 단일 진실 공급원을 Git에 둔 것**이다. 이미지 태그, 차트 version, appVersion이 한 값이라 "지금 무엇이 돌고 있는가"에 답할 수 있다. 모델·설정·데이터가 제각각 버전을 갖는 ML에서는 이 요구가 더 커진다.
-
-남은 숙제는 Ch3의 마지막 층인 **관측**이다. 홈랩에는 kube-prometheus-stack과 Grafana가 이미 있으므로, hello-joker의 지표를 여기에 붙이는 것부터 2주차에 이어서 한다.
-
