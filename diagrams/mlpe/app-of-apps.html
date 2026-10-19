@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>app-of-apps 구조와 polling</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper: #f5f5f5; --color-ink: #2d3142; --color-muted: #4f5d75;
+      --font-sans: 'Geist', system-ui, sans-serif; --font-serif: 'Instrument Serif', serif; --font-mono: 'Geist Mono', ui-monospace, monospace;
+    }
+    body { font-family: var(--font-sans); background: var(--color-paper); color: var(--color-ink); min-height: 100vh;
+      display: flex; align-items: center; justify-content: center; padding: 3rem 2rem; }
+    .frame { max-width: 1200px; width: 100%; }
+    .eyebrow { font-family: var(--font-mono); font-size: 0.66rem; font-weight: 500; letter-spacing: 0.18em;
+      text-transform: uppercase; color: var(--color-muted); margin-bottom: 0.5rem; }
+    h1 { font-family: var(--font-serif); font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem); font-weight: 400;
+      letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 1.5rem; }
+    svg { width: 100%; min-width: 980px; display: block; }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Architecture · MLPE</p>
+    <h1>app-of-apps 구조와 polling</h1>
+<svg viewBox="0 0 980 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="appofapps-title appofapps-desc">
+<title id="appofapps-title">app-of-apps 구조와 polling</title>
+<desc id="appofapps-desc">홈랩 루트 Application이 GitHub 저장소의 k8s/argocd를 polling 해 hello-joker Application을 만들고, 그 Application이 Helm 차트를 렌더링해 funny 네임스페이스에 배포하며 Docker Hub pull secret으로 이미지를 받는 구조.</desc>
+<defs>
+<marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+<marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker>
+</defs>
+<rect width="100%" height="100%" fill="#f5f5f5"/>
+<rect x="256" y="48" width="468" height="128" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.14)" stroke-width="0.8"/>
+<rect x="268" y="42" width="96" height="12" rx="2" fill="#f5f5f5"/>
+<text x="316" y="51" fill="rgba(45,49,66,0.50)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.14em">HOMELAB · NS ARGOCD</text>
+<line x1="200" y1="112" x2="280" y2="112" stroke="#4f5d75" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+<line x1="460" y1="112" x2="540" y2="112" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="700" y1="112" x2="780" y2="112" stroke="#4f5d75" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+<line x1="864" y1="232" x2="864" y2="144" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="202" y="92" width="76" height="12" rx="2" fill="#f5f5f5"/>
+<text x="240" y="101" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">poll 120s+60s</text>
+<rect x="488" y="92" width="24" height="12" rx="2" fill="#f5f5f5"/>
+<text x="500" y="101" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">생성</text>
+<rect x="714" y="92" width="52" height="12" rx="2" fill="#f5f5f5"/>
+<text x="740" y="101" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">helm 렌더</text>
+<rect x="872" y="182" width="84" height="12" rx="2" fill="#f5f5f5"/>
+<text x="914" y="191" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">funny/dockerhub</text>
+<rect x="40" y="80" width="160" height="64" rx="6" fill="#f5f5f5"/>
+<rect x="40" y="80" width="160" height="64" rx="6" fill="rgba(45,49,66,0.05)" stroke="#4f5d75" stroke-width="1"/>
+<rect x="48" y="86" width="32" height="12" rx="2" fill="transparent" stroke="rgba(79,93,117,0.40)" stroke-width="0.8"/>
+<text x="64" y="95" fill="#4f5d75" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">GIT</text>
+<text x="120" y="114" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">GitHub</text>
+<text x="120" y="130" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">MLOps-study · main</text>
+<rect x="280" y="80" width="180" height="64" rx="6" fill="#f5f5f5"/>
+<rect x="280" y="80" width="180" height="64" rx="6" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1"/>
+<rect x="288" y="86" width="36" height="12" rx="2" fill="transparent" stroke="rgba(235,108,54,0.50)" stroke-width="0.8"/>
+<text x="306" y="95" fill="#eb6c36" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">ROOT</text>
+<text x="370" y="114" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">mlops-study-root</text>
+<text x="370" y="130" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">path: k8s/argocd</text>
+<rect x="540" y="80" width="160" height="64" rx="6" fill="#f5f5f5"/>
+<rect x="540" y="80" width="160" height="64" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+<rect x="548" y="86" width="32" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+<text x="564" y="95" fill="#2d3142" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">APP</text>
+<text x="620" y="114" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">hello-joker</text>
+<text x="620" y="130" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">Application</text>
+<rect x="780" y="80" width="168" height="64" rx="6" fill="#f5f5f5"/>
+<rect x="780" y="80" width="168" height="64" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+<rect x="788" y="86" width="24" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+<text x="800" y="95" fill="#2d3142" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">NS</text>
+<text x="864" y="114" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">funny ns</text>
+<text x="864" y="130" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">파드 + LB 서비스</text>
+<rect x="780" y="232" width="168" height="64" rx="6" fill="#f5f5f5"/>
+<rect x="780" y="232" width="168" height="64" rx="6" fill="rgba(45,49,66,0.05)" stroke="#4f5d75" stroke-width="1"/>
+<rect x="788" y="238" width="32" height="12" rx="2" fill="transparent" stroke="rgba(79,93,117,0.40)" stroke-width="0.8"/>
+<text x="804" y="247" fill="#4f5d75" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">REG</text>
+<text x="864" y="266" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Docker Hub</text>
+<text x="864" y="282" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">private</text>
+<line x1="40" y1="324" x2="940" y2="324" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+<text x="40" y="340" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.18em">LEGEND</text>
+<line x1="40" y1="358" x2="60" y2="358" stroke="#4f5d75" stroke-width="1.2"/>
+<text x="64" y="361" fill="#4f5d75" font-size="9" font-family="'Geist', sans-serif">생성 · 자격 증명</text>
+<line x1="180" y1="358" x2="200" y2="358" stroke="#4f5d75" stroke-width="1.2" stroke-dasharray="5,4"/>
+<text x="204" y="361" fill="#4f5d75" font-size="9" font-family="'Geist', sans-serif">polling · 렌더</text>
+<rect x="316" y="352" width="16" height="12" rx="2" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1"/>
+<text x="340" y="361" fill="#4f5d75" font-size="9" font-family="'Geist', sans-serif">루트 Application</text>
+</svg>
+  </div>
+</body>
+</html>

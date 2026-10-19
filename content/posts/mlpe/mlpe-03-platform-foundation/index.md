@@ -12,17 +12,7 @@ featuredImage: images/banners/mlpe-03-platform-foundation-e8f0497e.png
 
 ## 1. 전체 흐름
 
-```mermaid {title="MLOps-study 저장소의 GitOps 파이프라인"}
-flowchart LR
-    Dev["개발자"] -->|"1) git push main"| GH[("GitHub저장소")]
-    GH -->|"2) app/** 변경 시"| GA["GitHub Actions<br/>(build-push.yml)"]
-    GA -->|"3) buildx 멀티아키"| Img["이미지<br/>amd64 + arm64"]
-    Img -->|"4) push 0.1.N, latest"| Hub[("Docker Hub<br/>private")]
-    GA -->|"5) values.yaml tag<br/>Chart.yaml version<br/>skip ci 커밋"| GH
-    GH -.->|"6) poll 2~3분"| Argo["홈랩 Argo CD<br/>mlops-study-root"]
-    Argo -.->|"7) helm 렌더 후 apply"| K8s["홈랩 클러스터<br/>funny ns"]
-    Hub -.->|"8) imagePullSecret"| K8s
-```
+![git push 한 번이 이미지 빌드, Docker Hub push, 차트 버전 범프 커밋으로 이어지고 홈랩 Argo CD가 polling 해 배포하는 8단계 GitOps 파이프라인](gitops-pipeline.svg)
 
 1. 개발자가 `main` 브랜치에 push 한다.
 2. `app/**` 이하의 파일이 바뀌면 GitHub Actions의 `build-push.yml`이 트리거된다.
@@ -60,29 +50,7 @@ flowchart LR
 
 책은 로컬 단일 노드 클러스터를 쓰지만, 실습은 이미 운영 중인 온프레미스 홈랩 클러스터에서 한다.
 
-```mermaid {title="홈랩 클러스터와 hello-joker 배치"}
-flowchart TB
-    subgraph LAN["홈 LAN 192.168.0.0/24"]
-        Mac["개발 PC<br/>macOS"]
-        subgraph Cluster["homelab 클러스터 (K8s v1.36.5, Cilium)"]
-            CP["rocky-linux<br/>control-plane amd64"]
-            W1["worker1-gpu<br/>amd64 + NVIDIA GPU"]
-            W2["worker2-arm64<br/>Raspberry Pi arm64"]
-            subgraph NSA["ns: argocd"]
-                Root["mlops-study-root"]
-                App["hello-joker Application"]
-            end
-            subgraph NSF["ns: funny"]
-                Dep["Deployment<br/>hello-joker x3"]
-                Svc["Service LoadBalancer<br/>192.168.0.235:8083"]
-            end
-        end
-    end
-    Mac -->|"ssh"| CP
-    Mac -->|"curl :8083"| Svc
-    Root --> App --> Dep
-    Svc --> Dep
-```
+![홈 LAN 안의 3노드 홈랩 클러스터에서 루트 Application이 funny 네임스페이스에 hello-joker를 배포하고 개발 PC가 192.168.0.235:8083으로 접근하는 구성](homelab-cluster.svg)
 
 
 | 항목         | 책        | 홈랩                                                                                    |
@@ -183,13 +151,7 @@ steps:
 
 홈랩 Argo CD는 홈랩 저장소가 helm으로 관리한다. 그래서 이 저장소의 Application을 직접 `kubectl apply` 하지 않고, **홈랩 저장소의 루트 Application이 이 저장소를 가리키게** 했다(app-of-apps).
 
-```mermaid {title="app-of-apps 구조와 polling"}
-flowchart LR
-    GH[("GitHub<br/>MLOps-study main")] -.->|"poll 120s + jitter 60s"| Root["mlops-study-root<br/>path: k8s/argocd"]
-    Root -->|"생성"| App["Application<br/>hello-joker"]
-    App -.->|"poll, helm 렌더"| NS["funny ns<br/>hello-joker 파드 + LB 서비스"]
-    Hub[("Docker Hub")] -->|"funny/dockerhub"| NS
-```
+![루트 Application이 k8s/argocd를 polling 해 hello-joker Application을 만들고, 그 Application이 funny 네임스페이스에 배포하는 app-of-apps 구조](app-of-apps.svg)
 
 1. 루트 `mlops-study-root`가 이 저장소 `main`의 `k8s/argocd` 디렉터리를 sync 한다.
 2. 그 안의 `hello-joker-app.yaml`이 하위 Application으로 생긴다.
@@ -280,15 +242,7 @@ pull secret이 없으면 파드가 `ImagePullBackOff`에 머문다. Secret을 �
 
 의존성을 손으로 올리지 않되, **깨질 위험이 낮은 patch만** 따라가게 했다.
 
-```mermaid {title="Renovate 자동 업데이트와 검사 게이트"}
-flowchart LR
-    R["Renovate App<br/>매일 09시 전 KST"] -->|"patch 만 묶어서"| PR["PR: daily patch updates"]
-    PR --> C{"pr-check.yml<br/>gitleaks + 빌드 + 스모크"}
-    C -->|"통과"| M["Renovate 가 main 에 머지"]
-    C -->|"실패"| X["PR 열린 채 대기"]
-    M -->|"app/** 변경"| B["build-push.yml<br/>이미지 0.1.N+1, 차트 범프"]
-    LOCAL["로컬 커밋"] -->|".githooks/pre-commit"| G["gitleaks staged 검사"]
-```
+![Renovate patch PR이 pr-check.yml 게이트를 통과하면 자동 머지되어 build-push.yml이 실행되고, 로컬 커밋은 pre-commit 훅이 gitleaks로 검사하는 흐름](renovate-gate.svg)
 
 설정의 요점은 둘이다.
 
