@@ -1,5 +1,5 @@
 ---
-title: "MLPE 스터디 1주차 - 책의 Ch3를 실제로 세워본 저장소 아키텍처"
+title: "MLPE 스터디 1주차 - Ch3. MLOps를 위한 k8s 기반 아키텍처"
 date: 2026-10-19T09:00:00+09:00
 draft: false
 tags: ["MLOps", "MLPE", "Kubernetes", "Helm", "GitOps", "Argo CD", "GitHub Actions", "Renovate", "Cilium", "Homelab"]
@@ -8,25 +8,32 @@ featuredImage: images/banners/mlpe-03-platform-foundation-e8f0497e.png
 ---
 `Machine Learning Platform Engineering` 3장은 Docker, Kubernetes, CI/CD, 모니터링만 다룹니다. [앞 글](../mlpe-02-what-is-mlops/)에서 MLOps를 루프로 바라보는 관점을 제시하였고 이번에는 그 루프가 올라갈 플랫폼에 대해서 학습합니다**.** 기존에 홈랩 환경이 구축되어 있어서 별도 kind를 사용하지는 않았습니다.
 
-저장소 :  [`ken-0913/MLOps-study`](https://github.com/ken-0913/MLOps-study) 
+
 
 ## 1. 전체 흐름
 
 ```mermaid {title="MLOps-study 저장소의 GitOps 파이프라인"}
 flowchart LR
-    Dev["개발자"] -->|"git push main"| GH[("GitHub<br/>MLOps-study")]
-    GH -->|"app/** 변경 시"| GA["GitHub Actions<br/>build-push.yml"]
-    GA -->|"buildx 멀티아키"| Img["이미지<br/>amd64 + arm64"]
-    Img -->|"push 0.1.N, latest"| Hub[("Docker Hub<br/>private")]
-    GA -->|"values.yaml tag<br/>Chart.yaml version<br/>skip ci 커밋"| GH
-    GH -.->|"poll 2~3분"| Argo["홈랩 Argo CD<br/>mlops-study-root"]
-    Argo -.->|"helm 렌더 후 apply"| K8s["홈랩 클러스터<br/>funny ns"]
-    Hub -.->|"imagePullSecret"| K8s
+    Dev["개발자"] -->|"1) git push main"| GH[("GitHub저장소")]
+    GH -->|"2) app/** 변경 시"| GA["GitHub Actions<br/>(build-push.yml)"]
+    GA -->|"3) buildx 멀티아키"| Img["이미지<br/>amd64 + arm64"]
+    Img -->|"4) push 0.1.N, latest"| Hub[("Docker Hub<br/>private")]
+    GA -->|"5) values.yaml tag<br/>Chart.yaml version<br/>skip ci 커밋"| GH
+    GH -.->|"6) poll 2~3분"| Argo["홈랩 Argo CD<br/>mlops-study-root"]
+    Argo -.->|"7) helm 렌더 후 apply"| K8s["홈랩 클러스터<br/>funny ns"]
+    Hub -.->|"8) imagePullSecret"| K8s
 ```
 
-점선은 **polling 구간**이다. 홈랩 Argo CD는 웹훅 없이 약 2~3분마다 `main`을 확인한다. 이유는 6장에서 적는다.
+1. 개발자가 `main` 브랜치에 push 한다.
+2. `app/**` 이하의 파일이 바뀌면 GitHub Actions의 `build-push.yml`이 트리거된다.
+3. buildx가 amd64와 arm64 이미지를 함께 빌드한다.
+4. 빌드한 이미지를 private Docker Hub에 `0.1.N`과 `latest` 태그로 push 한다.
+5. 같은 워크플로가 `values.yaml`의 이미지 태그와 `Chart.yaml`의 version을 올려 `[skip ci]` 커밋으로 저장소에 push 한다. 이 커밋은 `app/**` 밖이라 워크플로를 다시 트리거하지 않는다.
+6. 홈랩 Argo CD가 웹훅 없이 약 2~3분마다 저장소 `main`을 polling 해 변경을 감지한다.
+7. Argo CD가 Helm 차트를 렌더링해 홈랩 클러스터의 `funny` 네임스페이스에 apply 한다.
+8. 파드는 `imagePullSecret`으로 Docker Hub에서 새 이미지를 pull 한다.
 
-핵심은 **CI가 두 가지 일을 한다**는 점이다. 이미지를 레지스트리에 올리고, 같은 커밋에서 **Git의 차트 버전까지 올린다.** 그래서 Argo CD는 레지스트리를 볼 필요 없이 Git만 보면 된다.
+점선(6 ~ 8)은 클러스터 쪽에서 당겨 오는 구간이다. CI는 Git의 차트 버전까지 올리므로, Argo CD는 레지스트리를 볼 필요 없이 Git만 보면 된다.
 
 ## 2. 저장소 구조
 
@@ -88,31 +95,44 @@ flowchart TB
 | Helm       | v3       | v4.2.2                                                                                |
 
 
-책과 달라지는 점은 둘이다.
+
+
+책과의 차이점
 
 - **노드 아키텍처가 섞여 있다.** amd64 노드와 Raspberry Pi arm64 노드가 같이 있어 이미지를 반드시 멀티아키로 빌드해야 한다.
 - **`type: LoadBalancer`가 바로 동작한다.** Cilium LB-IPAM이 LAN 대역에서 IP를 할당하므로 NodePort 매핑이 필요 없다.
 
-## 4. 포트 하나가 파드를 전부 죽인 일
+### LoadBalancer IP가 LAN에서 닿는 이유
 
-가장 많이 배운 트러블슈팅이다. 책의 `values.yaml`은 `service.port: 8080`인데 **이미지의 uvicorn은 8083에서 뜬다.**
+`hello-joker` Service가 `192.168.0.235:8083`으로 바로 열리는 것은 Cilium의 두 기능이  때문이다. 클라우드처럼 외부 로드밸런서가 있는 것이 아니라, 클러스터 노드가 직접 그 IP를 대신 받아 준다.
 
-```bash {title="app/entrypoint.sh"}
-uvicorn main:app --host 0.0.0.0 --port 8083
+```yaml {title="CiliumLoadBalancerIPPool / CiliumL2AnnouncementPolicy (발췌)"}
+# 1) LB-IPAM: LoadBalancer Service에 줄 IP 풀
+spec:
+  blocks:
+    - start: 192.168.0.230
+      stop: 192.168.0.250
+---
+# 2) L2 announcement: 그 IP를 LAN에 ARP로 알릴 노드와 인터페이스
+spec:
+  loadBalancerIPs: true
+  interfaces: ["^eno1$", "^eth0$"]
+  nodeSelector:
+    matchExpressions:
+      - key: node-role.kubernetes.io/control-plane
+        operator: DoesNotExist        # worker 노드만 응답
 ```
 
-`helm create`로 만든 기본 차트는 **containerPort와 probe가 모두 `service.port`를 참조**한다. 그래서 8080으로 두면 readiness와 liveness가 전부 실패한다.
+1. `type: LoadBalancer` Service가 생기면 **LB-IPAM**이 `lan-pool`(`192.168.0.230 ~ 250`)에서 빈 IP 하나(`192.168.0.235`)를 골라 `EXTERNAL-IP`로 붙인다.
+2. **L2 announcement**가 worker 노드 중 하나를 리더로 정하고, 그 노드가 LAN에서 "`192.168.0.235`는 내 MAC 주소"라고 ARP에 응답한다.
+3. LAN의 다른 기기(개발 PC 등)는 이 ARP 응답을 보고 해당 노드로 패킷을 보낸다. 별도 라우팅 설정 없이 같은 서브넷 통신으로 끝난다.
+4. 패킷을 받은 노드에서 Cilium(eBPF, kube-proxy replacement)이 `hello-joker` 파드 3개 중 하나로 넘긴다.
 
-```
-파드 0/1 Running, Endpoints 비어 있음
-Liveness probe failed ... connection refused
-```
+이 방식이 성립하려면 **풀 대역이 공유기 DHCP와 겹치지 않아야 한다.** 공유기가 같은 IP를 다른 기기에 나눠 주면 ARP 응답이 충돌해 연결이 끊긴다. 그래서 `192.168.0.230 ~ 250`은 공유기 DHCP 할당 범위에서 빼 두고 클러스터 전용으로 쓴다.
 
-책에도 같은 출력이 실려 있다. 해결은 `service.port: 8083` 한 줄이다. 교훈은 **차트의 `service.port`가 단순히 서비스 포트가 아니라 probe 대상까지 결정한다**는 점이다.
+## 4. CI가 버전의 단일 진실 공급원을 쥔다
 
-## 5. CI가 버전의 단일 진실 공급원을 쥔다
-
-이 저장소에서 가장 공들인 부분이다. 이미지 태그를 사람이 `values.yaml`에 적는 방식은 누락되기 쉽다. 또한 GitOps로 가려면 어차피 CI가 이미지를 올려야 한다.
+이미지 태그를 사람이 `values.yaml`에 적는 방식은 누락되기 쉽다. 또한 GitOps로 가려면 어차피 CI가 이미지를 올려야 한다.
 
 그래서 **워크플로 하나가 이미지와 차트 버전을 동시에 올린다.**
 
@@ -147,21 +167,19 @@ steps:
     run: git commit -m "ci: bump hello-joker chart to $VERSION [skip ci]"
 ```
 
-### 버전 계산을 두 번 바꿨다
+### 버전 계산 방식
 
-처음에는 `github.run_number`를 썼다. 그런데 워크플로 파일명을 `ch03-build-push.yml`에서 `build-push.yml`로 바꾸자 **run_number가 1로 리셋됐다.** `0.1.3` 다음 빌드가 `0.1.1`로 나오면서 **Docker Hub의 기존 `0.1.1` 태그를 덮어썼다.**
+버전은 `Chart.yaml`의 `version`을 읽어 patch를 +1 한 값이다. 이 값 하나를 이미지 태그, 차트 `version`, `appVersion`에 똑같이 쓴다. 따라서 **이미지 태그 = 차트 version = appVersion**이다.
 
-지금은 **`Chart.yaml`의 `version`을 읽어 patch를 +1** 한다. 버전의 단일 진실 공급원이 Git에 있으니, 워크플로 이름이나 파일이 바뀌어도 단조 증가한다.
-
-결과적으로 **이미지 태그 = 차트 version = appVersion**으로 버전 체계가 하나로 모였다.
+버전의 단일 진실 공급원은 Git의 `Chart.yaml`이다. `github.run_number`는 워크플로 파일명이 바뀌면 1로 리셋되므로 쓰지 않는다. Git 기준이라 워크플로 이름이나 파일이 바뀌어도 버전은 단조 증가한다.
 
 ### 멀티아키가 필요한 이유
 
 `platforms: linux/amd64,linux/arm64`를 지정한다. 홈랩에는 **amd64 노드와 Raspberry Pi arm64 노드가 한 클러스터에 섞여 있다.** 한쪽만 빌드하면 다른 아키텍처 노드에 스케줄된 파드가 `exec format error`로 죽는다.
 
-## 6. Argo CD: app-of-apps와 polling
+## 5. Argo CD: app-of-apps와 polling
 
-### 6.1 루트 Application이 저장소를 감시한다
+### 5.1 루트 Application이 저장소를 감시한다
 
 홈랩 Argo CD는 홈랩 저장소가 helm으로 관리한다. 그래서 이 저장소의 Application을 직접 `kubectl apply` 하지 않고, **홈랩 저장소의 루트 Application이 이 저장소를 가리키게** 했다(app-of-apps).
 
@@ -200,7 +218,7 @@ spec:
 
 `prune`과 `selfHeal`이 Argo CD의 성격을 보여준다. 단순 배포 도구가 아니라 **Git과 클러스터를 계속 일치시킨다.** 사람이 클러스터를 직접 고쳐도 되돌린다.
 
-### 6.2 설계에서 정한 것들
+### 5.2 설계에서 정한 것들
 
 **웹훅 대신 polling을 쓴다.** 홈랩에는 GitHub 웹훅을 받을 공개 주소가 없다. `argocd-cm`의 `timeout.reconciliation` 기본값(120s)에 jitter(60s)가 붙어, push 후 반영까지 최대 약 3분이 걸린다.
 
@@ -210,7 +228,7 @@ spec:
 
 **`k8s/argocd/`에는 Application 매니페스트만 둔다.** 이 디렉터리의 매니페스트는 전부 argocd 네임스페이스에 적용되고 prune 된다. 대신 새 Application은 이 디렉터리에 파일을 추가해 push 하는 것만으로 생긴다.
 
-### 6.3 확인
+### 5.3 확인
 
 ```bash
 kubectl -n argocd get applications
@@ -230,7 +248,7 @@ service/hello-joker   LoadBalancer   10.107.192.170   192.168.0.235   8083:32144
 { "random_joke": "Why did the programmer quit his job? Because he didn't get arrays." }
 ```
 
-## 7. 클러스터에 넣는 토큰은 최소 권한으로
+## 6. 클러스터에 넣는 토큰은 최소 권한으로
 
 저장소와 이미지가 모두 private이라 자격 증명 두 개가 필요했다. 이때 **어떤 토큰을 넣을지**가 별도 결정이 됐다.
 
@@ -241,9 +259,9 @@ service/hello-joker   LoadBalancer   10.107.192.170   192.168.0.235   8083:32144
 | `funny/dockerhub`         | 파드가 private 이미지 pull       | Docker Hub Read-only Access Token                              |
 
 
-손에 가장 가까운 `gh auth token`은 쓰지 않았다. **계정 전체 쓰기 권한**이라 클러스터 Secret에 들어가면 노출 범위가 지나치게 넓다.
+ `gh auth token`은 쓰지 않는다. **계정 전체 쓰기 권한**이라 클러스터 Secret에 들어가면 노출 범위가 지나치게 넓다.
 
-토큰은 프롬프트로 받아 화면과 셸 기록에 남지 않게 했다. `05`, `06` 스크립트도 같은 방식으로 바꿨다.
+토큰은 아래와 같이 프롬프트로 받아 화면과 셸 기록에 남지 않게 한다. 
 
 ```bash {title="repo 자격 증명 Secret (zsh)"}
 read -rs "GH_TOKEN?GitHub token: "
@@ -258,7 +276,7 @@ unset GH_TOKEN
 
 pull secret이 없으면 파드가 `ImagePullBackOff`에 머문다. Secret을 만들면 별도 조치 없이 자동 복구된다.
 
-## 8. 자동화에 자동화를 더하면 검사가 필요해진다
+## 7. 자동화에 자동화를 더하면 검사가 필요해진다
 
 의존성을 손으로 올리지 않되, **깨질 위험이 낮은 patch만** 따라가게 했다.
 
@@ -272,12 +290,11 @@ flowchart LR
     LOCAL["로컬 커밋"] -->|".githooks/pre-commit"| G["gitleaks staged 검사"]
 ```
 
-설정의 요점은 셋이다.
+설정의 요점은 둘이다.
 
 
 | 대상              | 정책                                                              |
 | --------------- | --------------------------------------------------------------- |
-| `renovate.json` | Asia/Seoul `before 9am`, **major·minor 비활성**, patch는 PR 하나로 묶음  |
 | 우리 이미지 태그       | **제외.** `hyeonjae0913/mlops-study`는 CI가 관리하므로 Renovate가 건드리면 충돌 |
 | `pr-check.yml`  | gitleaks 전체 이력 스캔 + 이미지 빌드 + 스모크 테스트. **이 체크가 자동 머지의 게이트다**     |
 
@@ -285,16 +302,6 @@ flowchart LR
 로컬에도 같은 검사를 뒀다. `.githooks/pre-commit`이 staged 변경분을 gitleaks로 훑는다. 클론마다 `git config core.hooksPath .githooks` 한 번이 필요하다.
 
 private 저장소 Free 플랜이라 GitHub 네이티브 auto-merge를 쓸 수 없어 `platformAutomerge: false`로 두고 **Renovate가 직접 머지**하게 했다.
-
-## 9. 왜 ADR을 남겼나
-
-이 저장소에서 가장 쓸모 있었던 파일은 `ADR.md`다. 챕터별로 **무엇을 했고 왜 그렇게 결정했는지**를 `맥락 / 결정 / 결과` 형식으로 적었다.
-
-**첫째, 되돌릴 때 근거가 남는다.** 버전 계산을 `run_number`에서 Chart.yaml 기반으로 바꾼 ADR-008이 없으면, 나중에 "왜 이렇게 복잡하게 했지" 하고 다시 되돌릴 가능성이 높다.
-
-**둘째, 책과 다른 지점이 추적된다.** 포트 8083, 이미지 빌드 위치, 실습 클러스터가 전부 책과 다르다. 근거 없이 다르면 나중에 혼란이 된다.
-
-**셋째, 다른 저장소와의 경계가 남는다.** Argo CD 연결(ADR-010)은 홈랩 저장소의 ADR과 짝을 이룬다. 어느 쪽이 무엇을 관리하는지가 양쪽에 기록된다.
 
 ## 1주차를 끝내며
 
