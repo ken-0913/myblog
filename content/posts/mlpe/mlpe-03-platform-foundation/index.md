@@ -68,7 +68,7 @@ featuredImage: images/banners/mlpe-03-platform-foundation-e8f0497e.png
 #### 책과의 차이점
 
 - **노드 아키텍처가 섞여 있다.**
-  -  amd64 노드와 Raspberry Pi arm64 노드가 같이 있어 이미지를 반드시 멀티아키로 빌드해야 한다.
+  - amd64 노드와 Raspberry Pi arm64 노드가 같이 있어 이미지를 반드시 멀티아키로 빌드해야 한다.
 - **`type: LoadBalancer`가 바로 동작한다.** 
   - Cilium LB-IPAM이 LAN 대역에서 IP를 할당하므로 NodePort 매핑이 필요 없다.
 
@@ -251,6 +251,119 @@ pull secret이 없으면 파드가 `ImagePullBackOff`에 머문다. Secret을 �
 
 
 
-
 ![](orca-paste-1792499749642-17ef7410-093a-4df5-b9e7-b20db48f9fd3.png)
 
+## 7. Prometheus·Grafana로 hello-joker 관측하기
+
+홈랩에는 kube-prometheus-stack(Prometheus, Grafana)이 이미 설치되어 있다. 따라서 책처럼 모니터링 스택을 새로 설치하지 않고, **기존 스택에 hello-joker를 수집 대상으로 붙이는 것**만 한다.
+
+작업은 두 저장소에 나뉜다. 앱이 지표를 내보내는 일은 MLOps-study가, 그 지표를 수집하고 보여 주는 일은 홈랩 저장소(`~/k8s/observability`)가 맡는다.
+
+
+| 위치                                               | 변경             | 적용 방식                            |
+| ------------------------------------------------ | -------------- | -------------------------------- |
+| MLOps-study `app/`                               | `/metrics` 노출  | push → CI 빌드(0.1.5) → Argo CD 배포 |
+| 홈랩 `05-integrations/hello-joker-monitor.yaml`    | ServiceMonitor | `kubectl apply -f`               |
+| 홈랩 `05-integrations/dashboards/hello-joker.json` | Grafana 대시보드   | ConfigMap으로 적용                   |
+
+
+### 7.1 앱이 /metrics를 노출한다
+
+배포된 hello-joker에 `/metrics`를 요청하면 404가 돌아왔다. 수집할 지표가 없으면 cAdvisor가 주는 CPU·메모리 외에는 볼 것이 없다.
+
+`prometheus-fastapi-instrumentator`를 붙이면 한 줄로 요청 수, 지연, 상태 코드 지표가 생긴다.
+
+```python {title="app/main.py"}
+from fastapi import FastAPI
+from prometheus_fastapi_instrumentator import Instrumentator
+import pyjokes
+
+app = FastAPI()
+
+# /metrics 노출: 요청 수, 지연, 상태 코드 (ServiceMonitor 가 수집)
+Instrumentator().instrument(app).expose(app, include_in_schema=False)
+
+@app.get("/")
+async def root():
+    random_joke = pyjokes.get_joke("en","neutral")
+    return {"random_joke": random_joke}
+```
+
+`requirements.txt`에는 `prometheus-client==0.26.0`과 `prometheus-fastapi-instrumentator==6.1.0`을 추가한다. **7.x는 starlette 0.30 이상을 요구**해서, 현재 고정한 fastapi 0.95.2(starlette 0.27)와 맞지 않는다.
+
+### 7.2 ServiceMonitor로 수집 대상을 등록한다
+
+Prometheus Operator 환경에서는 Prometheus 설정 파일을 직접 고치지 않는다. **ServiceMonitor**라는 CRD를 만들면 Operator가 그 내용을 scrape 설정으로 바꿔 준다.
+
+```yaml {title="observability/05-integrations/hello-joker-monitor.yaml"}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: hello-joker
+  namespace: funny
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: hello-joker
+      app.kubernetes.io/instance: hello-joker
+  endpoints:
+    - port: http          # Service 포트 이름 (8083)
+      path: /metrics
+      interval: 15s
+```
+
+```bash {title="적용"}
+kubectl apply -f observability/05-integrations/hello-joker-monitor.yaml
+```
+
+`selector`는 차트가 만든 Service의 라벨을 가리키고, `port`는 포트 번호가 아니라 **Service 포트 이름**(`http`)이다. Prometheus는 이 Service의 Endpoints를 따라가 파드 3개를 각각 수집한다.
+
+별도 라벨 없이 수집되는 이유는 홈랩 Prometheus 설정에 있다. `serviceMonitorSelectorNilUsesHelmValues: false`와 `serviceMonitorNamespaceSelector: {}`로 **모든 네임스페이스의 ServiceMonitor를 선택**하도록 해 두었다. 기본값이면 `release: kube-prometheus-stack` 라벨이 없는 ServiceMonitor는 무시된다.
+
+### 7.3 ServiceMonitor를 홈랩 저장소에 둔 이유
+
+홈랩에서는 vLLM, Keycloak, istiod 같은 다른 수집 대상의 ServiceMonitor도 모두 `observability/` 아래에서 관리한다. 수집 설정을 모니터링 스택과 같은 곳에 모아 두면 무엇을 수집하는지 한 디렉터리에서 확인할 수 있다.
+
+그래서 **앱은 `/metrics`를 노출하기만 하고, 수집 설정은 홈랩 저장소가 갖는다.** Service 자체는 차트가 만들고 Argo CD가 관리하므로 홈랩 쪽에는 ServiceMonitor만 둔다.
+
+### 7.4 Grafana 대시보드를 ConfigMap으로 올린다
+
+Grafana 사이드카가 모든 네임스페이스에서 `grafana_dashboard=1` 라벨이 붙은 ConfigMap을 감시한다. 대시보드 JSON을 ConfigMap으로 만들면 Grafana UI를 거치지 않고 자동으로 로드된다.
+
+```bash {title="대시보드 적용"}
+f=observability/05-integrations/dashboards/hello-joker.json
+kubectl -n monitoring create configmap "dashboard-$(basename $f .json)" --from-file=$f \
+  --dry-run=client -o yaml \
+  | kubectl label --local -f - grafana_dashboard=1 -o yaml \
+  | kubectl apply --server-side -f -
+```
+
+대시보드(`/d/hello-joker`)의 패널과 쿼리는 아래와 같다.
+
+
+| 패널                 | PromQL                                                                                              |
+| ------------------ | --------------------------------------------------------------------------------------------------- |
+| 요청/s               | `sum(rate(http_requests_total{namespace="funny", service="hello-joker", handler!="/metrics"}[1m]))` |
+| 5xx 비율             | 5xx 요청률 ÷ 전체 요청률 (5분)                                                                               |
+| p50 / p95 / p99 지연 | `histogram_quantile(0.95, sum by (le) (rate(http_request_duration_highr_seconds_bucket{...}[5m])))` |
+| 수집 중인 파드           | `sum(up{namespace="funny", service="hello-joker"})`                                                 |
+| CPU · 메모리 · 재시작    | cAdvisor, kube-state-metrics (`container="hello-joker"`)                                            |
+
+
+지연에는 `http_request_duration_highr_seconds`를 쓴다. 라벨이 없는 대신 버킷이 촘촘해서 수십 ms 단위 응답의 분위수가 정확하게 나온다.
+
+
+
+![](orca-paste-1792501828004-e41a24e3-4050-48ce-896d-7f5ac3eb7fa5.png)
+
+### 7.5 확인
+
+배포가 끝난 뒤 Prometheus에서 수집 상태를 조회하면 새 파드 3개가 모두 `up=1`이고, 2xx 요청이 늘어나며 p95 지연은 약 10ms이다.
+
+```bash {title="Prometheus 조회"}
+kubectl -n monitoring port-forward svc/kube-prometheus-stack-prometheus 9090:9090 &
+curl -s --get localhost:9090/api/v1/query \
+  --data-urlencode 'query=up{namespace="funny"}'
+```
+
+liveness·readiness probe도 `/`를 호출하므로 요청 수에는 **probe 트래픽(파드당 10초에 2회)이 섞인다**. 실제 사용자 요청만 보려면 probe 경로를 `/healthz` 같은 별도 경로로 분리해야 한다.
