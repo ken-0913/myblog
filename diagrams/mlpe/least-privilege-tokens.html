@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>클러스터에 넣는 최소 권한 토큰</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper: #f5f5f5; --color-ink: #2d3142; --color-muted: #4f5d75;
+      --font-sans: 'Geist', system-ui, sans-serif; --font-serif: 'Instrument Serif', serif; --font-mono: 'Geist Mono', ui-monospace, monospace;
+    }
+    body { font-family: var(--font-sans); background: var(--color-paper); color: var(--color-ink); min-height: 100vh;
+      display: flex; align-items: center; justify-content: center; padding: 3rem 2rem; }
+    .frame { max-width: 1200px; width: 100%; }
+    .eyebrow { font-family: var(--font-mono); font-size: 0.66rem; font-weight: 500; letter-spacing: 0.18em;
+      text-transform: uppercase; color: var(--color-muted); margin-bottom: 0.5rem; }
+    h1 { font-family: var(--font-serif); font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem); font-weight: 400;
+      letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 1.5rem; }
+    svg { width: 100%; min-width: 980px; display: block; }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Security · MLPE</p>
+    <h1>클러스터에 넣는 최소 권한 토큰</h1>
+<svg viewBox="0 0 980 490" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="leastpriv-title leastpriv-desc">
+<title id="leastpriv-title">클러스터에 넣는 최소 권한 토큰</title>
+<desc id="leastpriv-desc">argocd 네임스페이스의 repo-mlops-study Secret은 MLOps-study 저장소 하나에 Contents Read-only 권한만 가진 fine-grained PAT로 Argo CD가 private 저장소를 clone 하게 하고, funny 네임스페이스의 dockerhub Secret은 Read-only Access Token으로 파드가 private 이미지를 pull 하게 한다. 토큰은 read -rs 프롬프트로 받아 Secret을 만든 뒤 unset 하며, 계정 전체 쓰기 권한인 gh auth token은 쓰지 않는다.</desc>
+<defs>
+<style>@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap');</style>
+<marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+<marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker>
+</defs>
+<rect width="100%" height="100%" fill="#f5f5f5"/>
+
+<!-- cluster container -->
+<rect x="40" y="48" width="560" height="248" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.14)" stroke-width="0.8"/>
+<rect x="52" y="42" width="104" height="12" rx="2" fill="#f5f5f5"/>
+<text x="104" y="51" fill="rgba(45,49,66,0.50)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.14em">HOMELAB CLUSTER</text>
+
+<!-- external container -->
+<rect x="716" y="48" width="240" height="248" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.14)" stroke-width="0.8" stroke-dasharray="4,3"/>
+<rect x="728" y="42" width="112" height="12" rx="2" fill="#f5f5f5"/>
+<text x="784" y="51" fill="rgba(45,49,66,0.50)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.14em">PRIVATE · EXTERNAL</text>
+
+<!-- arrows: secret -> consumer -->
+<line x1="284" y1="112" x2="360" y2="112" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+<line x1="284" y1="232" x2="360" y2="232" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+<rect x="302" y="92" width="40" height="12" rx="2" fill="#f5f5f5"/>
+<text x="322" y="101" fill="#eb6c36" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">자격 증명</text>
+<rect x="302" y="212" width="40" height="12" rx="2" fill="#f5f5f5"/>
+<text x="322" y="221" fill="#eb6c36" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">자격 증명</text>
+
+<!-- arrows: consumer -> external -->
+<line x1="576" y1="112" x2="736" y2="112" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="576" y1="232" x2="736" y2="232" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="656" y="90" fill="#2d3142" font-size="9" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">clone</text>
+<text x="656" y="103" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle">저장소 1개 · Read-only</text>
+<text x="656" y="210" fill="#2d3142" font-size="9" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">image pull</text>
+<text x="656" y="223" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle">Read-only</text>
+
+<!-- secret: repo -->
+<rect x="64" y="80" width="220" height="64" rx="6" fill="#f5f5f5"/>
+<rect x="64" y="80" width="220" height="64" rx="6" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1"/>
+<rect x="72" y="86" width="48" height="12" rx="2" fill="transparent" stroke="rgba(235,108,54,0.50)" stroke-width="0.8"/>
+<text x="96" y="95" fill="#eb6c36" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">SECRET</text>
+<text x="174" y="114" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">argocd/repo-mlops-study</text>
+<text x="174" y="130" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">fine-grained PAT</text>
+
+<!-- secret: dockerhub -->
+<rect x="64" y="200" width="220" height="64" rx="6" fill="#f5f5f5"/>
+<rect x="64" y="200" width="220" height="64" rx="6" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1"/>
+<rect x="72" y="206" width="48" height="12" rx="2" fill="transparent" stroke="rgba(235,108,54,0.50)" stroke-width="0.8"/>
+<text x="96" y="215" fill="#eb6c36" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">SECRET</text>
+<text x="174" y="234" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">funny/dockerhub</text>
+<text x="174" y="250" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">Read-only Access Token</text>
+
+<!-- consumer: argocd -->
+<rect x="364" y="80" width="212" height="64" rx="6" fill="#f5f5f5"/>
+<rect x="364" y="80" width="212" height="64" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+<rect x="372" y="86" width="56" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+<text x="400" y="95" fill="#2d3142" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">NS ARGOCD</text>
+<text x="470" y="114" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Argo CD</text>
+<text x="470" y="130" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">repo-server</text>
+
+<!-- consumer: pod -->
+<rect x="364" y="200" width="212" height="64" rx="6" fill="#f5f5f5"/>
+<rect x="364" y="200" width="212" height="64" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+<rect x="372" y="206" width="52" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
+<text x="398" y="215" fill="#2d3142" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">NS FUNNY</text>
+<text x="470" y="234" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">hello-joker 파드</text>
+<text x="470" y="250" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">imagePullSecrets</text>
+<text x="470" y="282" fill="#4f5d75" font-size="8" font-family="'Geist', sans-serif" text-anchor="middle">Secret 없음: ImagePullBackOff, 생성 후 자동 복구</text>
+
+<!-- external: github -->
+<rect x="740" y="80" width="192" height="64" rx="6" fill="#f5f5f5"/>
+<rect x="740" y="80" width="192" height="64" rx="6" fill="rgba(45,49,66,0.05)" stroke="#4f5d75" stroke-width="1"/>
+<rect x="748" y="86" width="32" height="12" rx="2" fill="transparent" stroke="rgba(79,93,117,0.40)" stroke-width="0.8"/>
+<text x="764" y="95" fill="#4f5d75" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">GIT</text>
+<text x="836" y="114" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">GitHub</text>
+<text x="836" y="130" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">MLOps-study (private)</text>
+
+<!-- external: docker hub -->
+<rect x="740" y="200" width="192" height="64" rx="6" fill="#f5f5f5"/>
+<rect x="740" y="200" width="192" height="64" rx="6" fill="rgba(45,49,66,0.05)" stroke="#4f5d75" stroke-width="1"/>
+<rect x="748" y="206" width="32" height="12" rx="2" fill="transparent" stroke="rgba(79,93,117,0.40)" stroke-width="0.8"/>
+<text x="764" y="215" fill="#4f5d75" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">REG</text>
+<text x="836" y="234" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Docker Hub</text>
+<text x="836" y="250" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">hello-joker (private)</text>
+
+<!-- token input pipeline -->
+<text x="40" y="332" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.18em">TOKEN INPUT · ZSH</text>
+<line x1="156" y1="370" x2="184" y2="370" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="304" y1="370" x2="332" y2="370" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="452" y1="370" x2="480" y2="370" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+<rect x="40" y="344" width="116" height="52" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+<text x="98" y="366" fill="#2d3142" font-size="11" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">read -rs</text>
+<text x="98" y="382" fill="#4f5d75" font-size="8.5" font-family="'Geist', sans-serif" text-anchor="middle">화면·기록에 안 남음</text>
+
+<rect x="188" y="344" width="116" height="52" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+<text x="246" y="366" fill="#2d3142" font-size="11" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">GH_TOKEN</text>
+<text x="246" y="382" fill="#4f5d75" font-size="8.5" font-family="'Geist', sans-serif" text-anchor="middle">셸 변수에만 보관</text>
+
+<rect x="336" y="344" width="116" height="52" rx="6" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1"/>
+<text x="394" y="366" fill="#2d3142" font-size="11" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">create secret</text>
+<text x="394" y="382" fill="#4f5d75" font-size="8.5" font-family="'Geist', sans-serif" text-anchor="middle">+ secret-type label</text>
+
+<rect x="484" y="344" width="116" height="52" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+<text x="542" y="366" fill="#2d3142" font-size="11" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">unset</text>
+<text x="542" y="382" fill="#4f5d75" font-size="8.5" font-family="'Geist', sans-serif" text-anchor="middle">변수 제거</text>
+
+<!-- rejected -->
+<text x="716" y="332" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.18em">NOT USED</text>
+<rect x="716" y="344" width="240" height="52" rx="6" fill="transparent" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4,3"/>
+<text x="836" y="366" fill="#4f5d75" font-size="11" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">gh auth token</text>
+<line x1="786" y1="362" x2="886" y2="362" stroke="#eb6c36" stroke-width="1.4"/>
+<text x="836" y="382" fill="#4f5d75" font-size="8.5" font-family="'Geist', sans-serif" text-anchor="middle">계정 전체 쓰기 권한, 노출 범위 과다</text>
+
+<!-- legend -->
+<line x1="40" y1="428" x2="940" y2="428" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+<text x="40" y="444" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.18em">LEGEND</text>
+<rect x="40" y="456" width="16" height="12" rx="2" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1"/>
+<text x="64" y="465" fill="#4f5d75" font-size="9" font-family="'Geist', sans-serif">클러스터 Secret (최소 권한 토큰)</text>
+<line x1="220" y1="462" x2="240" y2="462" stroke="#4f5d75" stroke-width="1.2"/>
+<text x="244" y="465" fill="#4f5d75" font-size="9" font-family="'Geist', sans-serif">접근 · 단계 진행</text>
+<rect x="340" y="456" width="16" height="12" rx="2" fill="transparent" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4,3"/>
+<text x="364" y="465" fill="#4f5d75" font-size="9" font-family="'Geist', sans-serif">외부 · 사용하지 않음</text>
+</svg>
+  </div>
+</body>
+</html>
