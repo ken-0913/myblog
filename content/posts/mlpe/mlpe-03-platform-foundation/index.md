@@ -29,21 +29,21 @@ featuredImage: images/banners/mlpe-03-platform-foundation-e8f0497e.png
 
 ```terminal {title="MLOps-study"}
 .
-├── app/                          파이썬 앱, Docker 빌드 컨텍스트
-│   ├── main.py                   FastAPI + pyjokes
-│   ├── requirements.txt          uv pip freeze 결과
-│   ├── Dockerfile                python:3.10-slim, 8083
+├── app/                          #파이썬 앱, Docker 빌드 컨텍스트
+│   ├── main.py                   #FastAPI + pyjokes
+│   ├── requirements.txt          #uv pip freeze 결과
+│   ├── Dockerfile                #python:3.10-slim, 8083
 │   └── entrypoint.sh
 ├── k8s/
-│   ├── argocd/hello-joker-app.yaml   하위 Application (루트가 polling)
-│   ├── hello-joker/                  Helm 차트
-│   ├── 05-argocd-repo-add.sh         repo 자격 증명 Secret (토큰은 프롬프트 입력)
-│   └── 06-dockerhub-pull-secret.sh   Docker Hub pull secret (토큰은 프롬프트 입력)
+│   ├── argocd/hello-joker-app.yaml   #하위 Application (루트가 polling)
+│   ├── hello-joker/                  #Helm 차트
+│   ├── 05-argocd-repo-add.sh         #repo 자격 증명 Secret (토큰은 프롬프트 입력)
+│   └── 06-dockerhub-pull-secret.sh   #Docker Hub pull secret (토큰은 프롬프트 입력)
 ├── .github/workflows/
-│   ├── build-push.yml            빌드·푸시·차트 범프
-│   └── pr-check.yml              gitleaks + 빌드 + 스모크
-├── ADR.md                        챕터별 결정 기록
-└── README.md                     설치 매뉴얼
+│   ├── build-push.yml            #빌드·푸시·차트 범프
+│   └── pr-check.yml              #gitleaks + 빌드 + 스모크
+├── ADR.md                        #챕터별 결정 기록
+└── README.md                     #설치 매뉴얼
 ```
 
 ## 3. 홈랩 클러스터
