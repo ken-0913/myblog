@@ -98,7 +98,7 @@ spec:
 3. LAN의 다른 기기(개발 PC 등)는 이 ARP 응답을 보고 해당 노드로 패킷을 보낸다. 별도 라우팅 설정 없이 같은 서브넷 통신으로 끝난다.
 4. 패킷을 받은 노드에서 Cilium(eBPF, kube-proxy replacement)이 `hello-joker` 파드 3개 중 하나로 넘긴다.
 
-**\***공유기가 같은 IP를 다른 기기에 나눠 주면 ARP 응답이 충돌해 연결이 끊기기 때문에`192.168.0.230 ~ 250`은 공유기 DHCP 할당 범위에서 빼 두고 클러스터 전용으로 쓰도록 하였습니다. (공유기 설정 페이지에서 설정)
+공유기가 같은 IP를 다른 기기에 나눠 주면 ARP 응답이 충돌해 연결이 끊기기 때문에`192.168.0.230 ~ 250`은 공유기 DHCP 할당 범위에서 빼 두고 클러스터 전용으로 쓰도록 하였습니다. (공유기 설정 페이지에서 설정)
 
 ## 4. CI로 버전관리하기
 
@@ -229,6 +229,7 @@ service/hello-joker   LoadBalancer   10.107.192.170   192.168.0.235   8083:32144
 | ------------------------- | -------------------------- | -------------------------------------------------------------- |
 | `argocd/repo-mlops-study` | Argo CD가 private 저장소 clone | fine-grained PAT. `MLOps-study` 저장소 하나만, `Contents: Read-only` |
 | `funny/dockerhub`         | 파드가 private 이미지 pull       | Docker Hub Read-only Access Token                              |
+|                           |                            |                                                                |
 
 
  `gh auth token`은 쓰지 않는다. **계정 전체 쓰기 권한**이라 클러스터 Secret에 들어가면 노출 범위가 지나치게 넓다.
