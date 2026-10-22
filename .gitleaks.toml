@@ -1,0 +1,17 @@
+# gitleaks 설정. 기본 규칙(useDefault)을 그대로 쓰고, 검사 대상이 아닌 경로만 뺀다.
+#   - 로컬 커밋: .githooks/pre-commit 이 staged 변경분을 검사한다.
+#   - push / PR: .github/workflows/gitleaks.yml 이 전체 이력을 검사한다.
+# 오탐(예시 코드 속 기본 계정 admin:admin 등)은 이 파일이 아니라 .gitleaksignore 에 지문으로 한 건씩 등록한다.
+title = "myblog gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "빌드 산출물, 서브모듈 테마, 커밋하지 않는 책 원문"
+paths = [
+  '''^public/''',
+  '''^resources/''',
+  '''^themes/''',
+  '''^docs/books/''',
+]

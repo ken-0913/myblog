@@ -1,12 +1,24 @@
 #!/bin/sh
-# 마크다운 포매터가 수식·shortcode를 깨뜨린 채 커밋되는 것을 막는다.
+# 커밋 전 검사 두 가지. 우회가 필요하면: git commit --no-verify
 #
-# 배경: 외부 마크다운 편집기가 파일을 AST로 재직렬화하면서
-#   - 인라인 수식 구분자 \( \) 를 제거하고
-#   - {{< shortcode >}} 를 {{&lt; ... &gt;}} 로 이스케이프한다.
-# 이 상태로 배포되면 본문에 raw LaTeX와 shortcode 원문이 그대로 노출된다.
+# 1) 시크릿 하드코딩 방지 (gitleaks)
+#    staged 변경분에서 토큰·비밀번호·키를 찾으면 커밋을 막는다.
+#    설정: .gitleaks.toml, 오탐 등록: .gitleaksignore
 #
-# 우회가 필요하면: git commit --no-verify
+# 2) 마크다운 손상 방지
+#    외부 마크다운 편집기가 파일을 AST로 재직렬화하면서
+#      - 인라인 수식 구분자 \( \) 를 제거하고
+#      - {{< shortcode >}} 를 {{&lt; ... &gt;}} 로 이스케이프한다.
+#    이 상태로 배포되면 본문에 raw LaTeX와 shortcode 원문이 그대로 노출된다.
+
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks git --pre-commit --staged --redact --no-banner --log-level warn || {
+    echo "gitleaks: 시크릿이 감지되어 커밋을 중단합니다. 오탐이면 .gitleaksignore 에 지문을 추가하세요." >&2
+    exit 1
+  }
+else
+  echo "gitleaks 미설치: brew install gitleaks (시크릿 검사 생략, push 후 CI 에서 다시 검사함)" >&2
+fi
 
 staged=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.md$' || true)
 [ -z "$staged" ] && exit 0

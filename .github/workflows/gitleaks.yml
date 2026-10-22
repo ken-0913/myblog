@@ -1,0 +1,23 @@
+name: gitleaks
+
+# 시크릿 하드코딩 검사. 로컬 pre-commit 훅을 건너뛴 커밋(--no-verify, 훅 미설정 clone)도 여기서 잡는다.
+# 설정은 .gitleaks.toml, 오탐은 .gitleaksignore.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # 전체 이력 스캔
+      - uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

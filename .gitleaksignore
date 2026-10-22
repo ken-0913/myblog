@@ -1,0 +1,10 @@
+# gitleaks 오탐 목록. 한 줄에 지문 하나. 지문은 `gitleaks git --redact` 출력의 Fingerprint 값이다.
+# 새로 추가할 때는 왜 오탐인지 주석을 단다.
+
+# Grafana 기본 계정(admin:admin)으로 kind 실습 클러스터를 조회하는 예시 명령
+ce5828e6c6da3e963d92eb68c985e091e26715cb:content/posts/llm/llm-ray-serving-result.md:curl-auth-user:829
+content/posts/llm/llm-ray-serving-result.md:curl-auth-user:821
+
+# 인증 없는 로컬 vLLM 엔드포인트에 SSE 요청을 보내는 예시 명령(-H 헤더를 인증으로 오인)
+7725a615a46452566e9eaa87f4b73a4641127b70:content/posts/llm/llm-serving-single-model-lab.md:curl-auth-user:356
+content/posts/llm/llm-serving-single-model-lab.md:curl-auth-user:432
