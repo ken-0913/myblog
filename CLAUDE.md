@@ -135,8 +135,9 @@ git의 정상본을 기준으로 3-way 병합하므로, 그 파일에 직접 한
 - 글·소개·목록 페이지는 연한 바탕 위의 흰 카드(`.page.single`, `.page.archive`)다. 홈 글 목록은 요약 하나가 카드 하나이고(`.home[data-posts] .summary`), 오른쪽 칸에 대표 이미지가 들어간다.
 - 글 페이지의 대표 이미지는 CSS `order: -1` 로 카드 맨 위에 배너처럼 올라간다. 마크업 순서는 테마 그대로다.
 - 웹폰트(Pretendard, JetBrains Mono)는 `layouts/_partials/head/link.html` 이 `<link>` 로 넣는다. 이 파일은 테마의 `head/link.html` 복사본 끝에 폰트 링크만 붙인 것이다. **테마를 업데이트하면 원본과 diff 해서 다시 맞춘다.** `_custom.scss` 의 `--font-sans` / `--font-mono` 와 한 쌍이다.
-- 배너(`scripts/gen_banners.py`)는 사이트와 같은 연한 회색 그라디언트에 진회색 제목을 왼쪽에 두고, 오른쪽에 Kubernetes 공식 로고(`assets/images/icons/kubernetes/logo/logo.png`)를 희미한 워터마크로 넣는다. 공식 아이콘 모음과 라이선스는 `assets/images/icons/kubernetes/README.md` 참고. 사이트 색을 바꾸면 배너 색 상수도 같이 맞춘다. 제목 영역 폭(`TITLE_MAX_W`)은 홈 카드가 배너의 **오른쪽 끝만 세로로 잘라 쓰는 것**(`layouts/summary.html` 의 `fill 400x500 Right`)과 겹치지 않게 맞춘 값이다. 한쪽을 바꾸면 다른 쪽도 확인한다.
+- 배너(`scripts/gen_banners.py`)는 사이트와 같은 연한 회색 그라디언트에 진회색 제목을 왼쪽에 두고, 오른쪽에 Kubernetes 공식 로고(`assets/images/icons/kubernetes/logo/logo.png`)를 희미한 워터마크로 넣는다. 공식 아이콘 모음과 라이선스는 `assets/images/icons/README.md` 참고(Kubernetes 리소스 아이콘, CNCF 프로젝트 로고, Grafana). 사이트 색을 바꾸면 배너 색 상수도 같이 맞춘다. 제목 영역 폭(`TITLE_MAX_W`)은 홈 카드가 배너의 **오른쪽 끝만 세로로 잘라 쓰는 것**(`layouts/summary.html` 의 `fill 400x500 Right`)과 겹치지 않게 맞춘 값이다. 한쪽을 바꾸면 다른 쪽도 확인한다.
 - 터미널 창(`.term`, `.term-code`, `.termcast`)과 손글씨 브랜드(Caveat)는 이 디자인과 별개로 유지한다.
+- 본문 이미지는 클릭하면 확대 보기(lightgallery)가 열린다. `hugo.yaml` 의 `params.page.lightgallery` 가 스위치이고, `layouts/_markup/render-image.html` 이 테마와 달리 제목 없는 이미지까지 모두 링크로 감싼다. 이미지 alt 텍스트가 확대 보기의 캡션으로 나오므로 alt 를 성의 있게 쓴다.
 
 ## 시크릿 하드코딩 방지 (gitleaks)
 
