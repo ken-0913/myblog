@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 960 480" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="kv-cache-tiered-storage-title kv-cache-tiered-storage-desc">
+      <title id="kv-cache-tiered-storage-title">KV 캐시는 한 계층에만 있지 않다</title>
+      <desc id="kv-cache-tiered-storage-desc">GPU 메모리에서 CPU 메모리, SSD, 네트워크 스토리지로 내려갈수록 용량은 커지고 속도는 느려지는 계층 구조를 보여준다.</desc>
+      <defs><style>@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap');</style>
+        <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+        <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker>
+        <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
+        <marker id="arrow-start" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto"><polygon points="8 0, 0 3, 8 6" fill="#4f5d75"/></marker>
+        <marker id="arrow-start-accent" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto"><polygon points="8 0, 0 3, 8 6" fill="#eb6c36"/></marker>
+      </defs>
+      <rect width="100%" height="100%" fill="#f5f5f5"/>
+      <text x="204" y="114" fill="#2d3142" font-size="11" font-weight="600" font-family="'Geist','Apple SD Gothic Neo','Noto Sans KR',sans-serif" text-anchor="end">GPU 메모리</text>
+      <rect x="220" y="96" width="95" height="28" fill="#f5f5f5"/>
+      <rect x="220" y="96" width="95" height="28" rx="3" fill="rgba(235,108,54,0.12)" stroke="#eb6c36" stroke-width="1"/>
+      <text x="325" y="115" fill="#eb6c36" font-size="10" font-weight="600" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace">가장 빠름 · 가장 작음</text>
+      <text x="204" y="198" fill="#2d3142" font-size="11" font-weight="600" font-family="'Geist','Apple SD Gothic Neo','Noto Sans KR',sans-serif" text-anchor="end">CPU 메모리</text>
+      <rect x="220" y="180" width="191" height="28" fill="#f5f5f5"/>
+      <rect x="220" y="180" width="191" height="28" rx="3" fill="rgba(79,93,117,0.15)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="421" y="199" fill="#4f5d75" font-size="10" font-weight="600" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace">약 3배 용량</text>
+      <text x="204" y="282" fill="#2d3142" font-size="11" font-weight="600" font-family="'Geist','Apple SD Gothic Neo','Noto Sans KR',sans-serif" text-anchor="end">SSD</text>
+      <rect x="220" y="264" width="540" height="28" fill="#f5f5f5"/>
+      <rect x="220" y="264" width="540" height="28" rx="3" fill="rgba(79,93,117,0.15)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="770" y="283" fill="#4f5d75" font-size="10" font-weight="600" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace">약 50배 용량</text>
+      <text x="204" y="366" fill="#2d3142" font-size="11" font-weight="600" font-family="'Geist','Apple SD Gothic Neo','Noto Sans KR',sans-serif" text-anchor="end">네트워크 스토리지</text>
+      <rect x="220" y="348" width="620" height="28" fill="#f5f5f5"/>
+      <rect x="220" y="348" width="620" height="28" rx="3" fill="rgba(79,93,117,0.15)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="850" y="367" fill="#4f5d75" font-size="10" font-weight="600" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace">가장 느림 · 가장 큼</text>
+      <text x="40" y="452" fill="#7a8399" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace">막대 길이는 로그 스케일 — 아래로 갈수록 용량은 커지고 속도는 느려진다</text>
+      <line x1="40" y1="484" x2="920" y2="484" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+      <text x="40" y="500" fill="#4f5d75" font-size="8" font-family="'Geist Mono',monospace" letter-spacing="0.14em">LEGEND</text>
+      <rect x="140" y="492" width="16" height="10" rx="2" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1"/>
+      <text x="164" y="500" fill="#4f5d75" font-size="8" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace">가장 빠른 계층</text>
+      <rect x="276" y="492" width="16" height="10" rx="2" fill="rgba(45,49,66,0.05)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="300" y="500" fill="#4f5d75" font-size="8" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace">오프로드 대상 계층</text>
+    </svg>

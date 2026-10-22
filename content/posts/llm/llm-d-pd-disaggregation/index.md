@@ -66,7 +66,7 @@ P/D Disaggregation은 그 둘을 아예 다른 서버로 떼어놓는 방식이�
 
 ## 5. 요청 순서도
 
-```mermaid
+```mermaid {title="P/D 분리 시 요청과 KV 전송 흐름"}
 sequenceDiagram
     participant C as 클라이언트
     participant P as Proxy

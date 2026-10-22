@@ -6,9 +6,9 @@ tags: ["LLM", "vLLM", "PagedAttention", "KV Cache", "Model Serving", "HuggingFac
 categories: ["LLM"]
 featuredImage: images/banners/llm-vllm-lab-1a4d0866.png
 ---
-[2주차 실습들](../llm-serving-single-model-lab/)은 서빙 시스템을 **어떻게 구성하는지**를 다뤘다. 이번에는 질문이 안쪽으로 향한다. **vLLM은 정확히 무엇 때문에 빠른가.**
+[2주차 실습들](../llm-serving-single-model-lab/)은 서빙 시스템을 어떻게 구성하는지를 다뤘다. 이번엔 vLLM은 정확히 무엇 때문에 빠른가에 대해 생각해보자. 
 
-CPU만 있는 4GB VM에서 SmolLM-135M을 8단계로 굴린다. HuggingFace 베이스라인을 재고, vLLM과 비교하고, KV 캐시가 낭비되는 과정을 숫자로 본 뒤 PagedAttention이 그것을 어떻게 되돌리는지 확인한다.
+CPU만 있는 4GB VM에서 SmolLM-135M을 8단계로 동작시킨다. HuggingFace 베이스라인을 재고, vLLM과 비교하고, KV 캐시가 낭비되는 과정을 숫자로 본 뒤 PagedAttention이 그것을 어떻게 되돌리는지 확인한다.
 
 **결론부터 말하면 단일 요청에서 vLLM은 1.1배밖에 빠르지 않다.** 진짜 차이는 동시 사용자가 붙을 때 나온다. 이 글의 8단계는 그 격차가 어디서 오는지를 따라가는 순서다.
 
@@ -17,15 +17,15 @@ CPU만 있는 4GB VM에서 SmolLM-135M을 8단계로 굴린다. HuggingFace 베�
 GPU가 없다. vLLM의 CPU 빌드를 쓰고, 4GB 메모리 제한 때문에 엔진을 in-process로 띄운다.
 
 
-| 항목 | 값 |
-| --- | --- |
-| 모델 | **HuggingFaceTB/SmolLM-135M** (135M 파라미터) |
-| vLLM | **0.27.1+cpu** (CPU 빌드) |
-| torch / transformers | 2.13.0+cpu / 5.15.0 |
-| gradio / aiohttp | 5.50.0 / 3.14.3 |
-| 실행 환경 | CPU 전용, **메모리 4GB 제한** |
-| `max_model_len` | **128** |
-| KV 캐시 | **128MB** (`kv_cache_memory_bytes=134217728`) |
+| 항목                   |     | 값                                             |
+| -------------------- | --- | --------------------------------------------- |
+| 모델                   |     | **HuggingFaceTB/SmolLM-135M** (135M 파라미터)     |
+| vLLM                 |     | **0.27.1+cpu** (CPU 빌드)                       |
+| torch / transformers |     | 2.13.0+cpu / 5.15.0                           |
+| gradio / aiohttp     |     | 5.50.0 / 3.14.3                               |
+| 실행 환경                |     | CPU 전용, **메모리 4GB 제한**                        |
+| `max_model_len`      |     | **128**                                       |
+| KV 캐시                |     | **128MB** (`kv_cache_memory_bytes=134217728`) |
 
 
 제약이 설정을 강제한다. 4GB VM에서 vLLM 기본값인 멀티프로세스 모드는 파이썬 프로세스를 2개 더 띄우고 각각 1GB를 넘게 쓴다. 그래서 in-process로 돌린다.
@@ -88,6 +88,32 @@ All checks passed! Your environment is ready.
 ## 2. Task 1 — HuggingFace 베이스라인
 
 비교 기준을 먼저 만든다. `transformers`로 모델을 올리고 50토큰을 생성하며 시간을 잰다.
+
+**측정 대상은 적재가 아니라 생성 루프다.** 타이머가 `generate()` 하나만 감싸므로, 모델을 RAM에 올리는 시간은 결과에 들어가지 않는다.
+
+```mermaid
+flowchart LR
+    REQ["요청<br/>python task_1_hf_baseline.py<br/>(HTTP 아님 · 로컬 실행)"] --> CPU
+
+    subgraph HW["이 랩의 하드웨어 — CPU 전용"]
+        CPU["CPU<br/>forward pass 51회<br/>prefill 1 + decode 50"]
+        RAM[("RAM<br/>모델 가중치 + KV 캐시")]
+        CPU <-->|"토큰마다 K/V 읽고 쓰기"| RAM
+    end
+
+    CPU --> OUT["50 토큰 / 4.77s<br/>10.5 tok/s"]
+
+    subgraph NONE["이 랩에 없는 것"]
+        GPU["GPU"]
+        VRAM[("VRAM")]
+    end
+
+    RAM -.->|"요청마다 통째로 잡는다<br/>→ Task 4에서 해결"| PA["PagedAttention"]
+```
+
+`generate()` 한 번의 호출 안에서 **forward pass가 51번 돈다.** 프롬프트 전체를 통과시켜 K/V를 채우는 prefill 1회, 그 뒤 직전 토큰 하나만 넣고 다음 토큰을 뽑는 decode 50회다. 4.77초를 50으로 나누면 **토큰당 약 95ms**이고, 이 값이 50번 순차적으로 쌓인 것이 전부다.
+
+**HuggingFace에도 KV 캐시는 있다.** `use_cache=True`가 기본이라 decode 스텝마다 전체 시퀀스를 다시 계산하지는 않는다. 뒤에서 다룰 문제는 캐시의 유무가 아니라 **캐시를 요청마다 최악 크기로 잡고 요청 간에 공유하지 않는다**는 점이다.
 
 ```python
 model = AutoModelForCausalLM.from_pretrained(model_name)
@@ -193,7 +219,7 @@ KEY INSIGHT:
 
 **1.1배다.** 엔진을 통째로 바꿨는데 단일 요청 속도는 거의 그대로다. vLLM을 "빠른 추론 엔진"으로만 이해하면 이 결과가 설명되지 않는다.
 
-기동 로그에 답의 실마리가 있다. `GPU KV cache size: 5,760 tokens`와 `Maximum concurrency for 128 tokens per request: 45.00x`다. **vLLM이 최적화하는 대상은 한 요청의 속도가 아니라 동시에 몇 개를 담을 수 있는가**이고, 그 용량은 KV 캐시가 정한다.
+로그를 보면 `GPU KV cache size: 5,760 tokens`와 `Maximum concurrency for 128 tokens per request: 45.00x`다. **vLLM이 최적화하는 대상은 한 요청의 속도가 아니라 동시에 몇 개를 담을 수 있는가**이고, 그 용량은 KV 캐시가 정한다.
 
 ## 4. Task 3 — KV 캐시는 어떻게 낭비되는가
 
@@ -324,7 +350,7 @@ KEY INSIGHT:
 
 ## 7. Task 6 — 동시 사용자를 붙인다
 
-앞의 여섯 단계가 이 지점을 향한다. 동시 요청 수를 1 → 5 → 10 → 20으로 올리며 처리량을 잰다.
+ 동시 요청 수를 1 → 5 → 10 → 20으로 올리며 처리량을 잰다.
 
 ```python
 async def send_request(session, url, model, prompt, max_tokens=50):
@@ -372,15 +398,15 @@ KEY INSIGHT:
 **동시성 20배에 처리량 12.6배다.** Task 2에서 1.1배였던 그 엔진이다.
 
 
-| 동시 사용자 | 처리량 | 평균 지연 | 사용자당 실효 |
-| --- | --- | --- | --- |
-| 1 | 13.0 tok/s | 3.85s | 13.0 |
-| 5 | 53.3 tok/s | 4.67s | 10.7 |
-| 10 | 96.2 tok/s | 5.18s | 9.6 |
-| 20 | **163.4 tok/s** | 6.11s | 8.2 |
+| 동시 사용자 | 처리량             | 평균 지연 | 사용자당 실효 |
+| ------ | --------------- | ----- | ------- |
+| 1      | 13.0 tok/s      | 3.85s | 13.0    |
+| 5      | 53.3 tok/s      | 4.67s | 10.7    |
+| 10     | 96.2 tok/s      | 5.18s | 9.6     |
+| 20     | **163.4 tok/s** | 6.11s | 8.2     |
 
 
-두 축이 반대로 움직인다. **처리량은 12.6배 늘지만 개인이 체감하는 지연은 3.85초에서 6.11초로 늘어난다.** 사용자당 실효 속도는 13.0에서 8.2로 떨어진다.
+**처리량은 12.6배 늘지만 개인이 체감하는 지연은 3.85초에서 6.11초로 늘어난다.** 사용자당 실효 속도는 13.0에서 8.2로 떨어진다.
 
 이것이 서빙에서의 트레이드오프다. 20명이 각자 순서를 기다리면 마지막 사람은 77초를 기다리지만, 함께 배치로 묶이면 6.11초에 끝난다. **개인 지연을 1.6배 희생해 전체를 12.6배 처리한다.**
 
@@ -451,16 +477,16 @@ Launching dashboard on port 7860...
 여덟 단계를 관통하는 숫자는 두 개다. **단일 요청 1.1배, 동시 요청 12.6배.**
 
 
-| 단계 | 확인한 것 | 수치 |
-| --- | --- | --- |
-| 1 | HuggingFace 베이스라인 | 10.5 tok/s |
-| 2 | vLLM 단일 요청 | 11.9 tok/s (**1.1x**) |
-| 3 | 연속 할당의 낭비 | 활용률 **20.3%** |
-| 4 | PagedAttention | 활용률 **95.4%**, 사용자 4.8x |
-| 5 | OpenAI 호환 서버 | `/v1/completions` |
-| 6 | 동시 20명 부하 | 163.4 tok/s (**12.6x**) |
-| 7 | 파라미터 튜닝 | `max_num_seqs` 8로 줄이자 절반 |
-| 8 | 대시보드 | tok/s · 지연 · KV 사용률 |
+| 단계  | 확인한 것             | 수치                       |
+| --- | ----------------- | ------------------------ |
+| 1   | HuggingFace 베이스라인 | 10.5 tok/s               |
+| 2   | vLLM 단일 요청        | 11.9 tok/s (**1.1x**)    |
+| 3   | 연속 할당의 낭비         | 활용률 **20.3%**            |
+| 4   | PagedAttention    | 활용률 **95.4%**, 사용자 4.8x  |
+| 5   | OpenAI 호환 서버      | `/v1/completions`        |
+| 6   | 동시 20명 부하         | 163.4 tok/s (**12.6x**)  |
+| 7   | 파라미터 튜닝           | `max_num_seqs` 8로 줄이자 절반 |
+| 8   | 대시보드              | tok/s · 지연 · KV 사용률      |
 
 
 **vLLM의 가치는 요청 하나를 빨리 처리하는 데 있지 않다.** 같은 메모리에 더 많은 요청을 담고, 담긴 것들을 한 배치로 묶어 흘리는 데 있다. Task 2에서 실망스러웠던 1.1배와 Task 6의 12.6배는 같은 엔진의 다른 얼굴이다.

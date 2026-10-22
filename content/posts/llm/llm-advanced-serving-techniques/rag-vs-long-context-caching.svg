@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 960 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="rag-vs-long-context-caching-title rag-vs-long-context-caching-desc">
+      <title id="rag-vs-long-context-caching-title">RAG 는 매번 새로 읽고, 장문 캐싱은 질문만 새로 읽는다</title>
+      <desc id="rag-vs-long-context-caching-desc">RAG 는 시스템 프롬프트와 검색된 청크와 질문을 합쳐 5,500 토큰을 매번 새로 계산하는 반면, 컨텍스트를 통째로 캐시해 두면 사용자 질문 500 토큰만 새로 계산하면 된다는 것을 보여준다.</desc>
+      <defs><style>@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap');</style>
+        <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+        <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker>
+        <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
+        <marker id="arrow-start" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto"><polygon points="8 0, 0 3, 8 6" fill="#4f5d75"/></marker>
+        <marker id="arrow-start-accent" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto"><polygon points="8 0, 0 3, 8 6" fill="#eb6c36"/></marker>
+      </defs>
+      <rect width="100%" height="100%" fill="#f5f5f5"/>
+      <rect x="240" y="80" width="200" height="240" fill="#f5f5f5"/>
+      <rect x="240" y="80" width="200" height="240" rx="2" fill="rgba(235,108,54,0.12)" stroke="#eb6c36" stroke-width="1"/>
+      <text x="340" y="72" fill="#eb6c36" font-size="9" font-weight="600" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">5,500 토큰</text>
+      <text x="340" y="342" fill="#2d3142" font-size="11" font-weight="600" font-family="'Geist','Apple SD Gothic Neo','Noto Sans KR',sans-serif" text-anchor="middle">RAG</text>
+      <rect x="560" y="298" width="200" height="22" fill="#f5f5f5"/>
+      <rect x="560" y="298" width="200" height="22" rx="2" fill="rgba(79,93,117,0.15)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="660" y="290" fill="#4f5d75" font-size="9" font-weight="600" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">500 토큰</text>
+      <text x="660" y="342" fill="#2d3142" font-size="11" font-weight="600" font-family="'Geist','Apple SD Gothic Neo','Noto Sans KR',sans-serif" text-anchor="middle">장문 컨텍스트 캐싱</text>
+      <text x="40" y="72" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist','Apple SD Gothic Neo','Noto Sans KR',sans-serif">재계산이 필요한 토큰 (= TTFT 를 좌우하는 양)</text>
+      <text x="40" y="110" fill="#7a8399" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace">예시: 시스템 프롬프트 500 + RAG 청크 10개(5,000) + 사용자 질문 500 = 5,500</text>
+      <text x="40" y="128" fill="#7a8399" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace">장문 캐싱은 컨텍스트 10만 토큰이 이미 캐시돼 있어 사용자 질문 500만 새로 계산한다</text>
+      <line x1="40" y1="376" x2="920" y2="376" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+      <text x="40" y="392" fill="#4f5d75" font-size="8" font-family="'Geist Mono',monospace" letter-spacing="0.14em">LEGEND</text>
+      <rect x="140" y="384" width="16" height="10" rx="2" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1"/>
+      <text x="164" y="392" fill="#4f5d75" font-size="8" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace">매 요청마다 새로 계산</text>
+      <rect x="308" y="384" width="16" height="10" rx="2" fill="rgba(45,49,66,0.05)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="332" y="392" fill="#4f5d75" font-size="8" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace">대부분 캐시에서 재사용</text>
+    </svg>

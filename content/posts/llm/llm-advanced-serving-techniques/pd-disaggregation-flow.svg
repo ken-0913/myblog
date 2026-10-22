@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 960 424" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="pd-disaggregation-flow-title pd-disaggregation-flow-desc">
+      <title id="pd-disaggregation-flow-title">prefill 과 decode 를 서로 다른 GPU 로 쪼갠다</title>
+      <desc id="pd-disaggregation-flow-desc">요청이 연산 최적화된 prefill 인스턴스로 먼저 가고, 그 결과인 KV 캐시가 대역폭 최적화된 decode 인스턴스로 전송되어 이어서 생성한다는 것을 보여준다.</desc>
+      <defs><style>@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap');</style>
+        <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+        <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker>
+        <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
+        <marker id="arrow-start" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto"><polygon points="8 0, 0 3, 8 6" fill="#4f5d75"/></marker>
+        <marker id="arrow-start-accent" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto"><polygon points="8 0, 0 3, 8 6" fill="#eb6c36"/></marker>
+      </defs>
+      <rect width="100%" height="100%" fill="#f5f5f5"/>
+      <rect x="40" y="168" width="140" height="64" rx="6" fill="#f5f5f5"/>
+      <rect x="40" y="168" width="140" height="64" rx="6" fill="rgba(79,93,117,0.10)" stroke="#7a8399" stroke-width="1"/>
+      <text x="110" y="198" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist','Apple SD Gothic Neo','Noto Sans KR',sans-serif" text-anchor="middle">요청</text>
+      <text x="110" y="214" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">가변 길이</text>
+      <rect x="240" y="88" width="220" height="64" rx="6" fill="#f5f5f5"/>
+      <rect x="240" y="88" width="220" height="64" rx="6" fill="rgba(45,49,66,0.05)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="350" y="118" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist','Apple SD Gothic Neo','Noto Sans KR',sans-serif" text-anchor="middle">prefill 인스턴스</text>
+      <text x="350" y="134" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">연산 최적화 GPU</text>
+      <rect x="240" y="232" width="220" height="64" rx="6" fill="#f5f5f5"/>
+      <rect x="240" y="232" width="220" height="64" rx="6" fill="rgba(45,49,66,0.05)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="350" y="262" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist','Apple SD Gothic Neo','Noto Sans KR',sans-serif" text-anchor="middle">prefill 인스턴스</text>
+      <text x="350" y="278" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">TP 로 여러 장 묶음</text>
+      <rect x="700" y="88" width="220" height="64" rx="6" fill="#f5f5f5"/>
+      <rect x="700" y="88" width="220" height="64" rx="6" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1"/>
+      <text x="810" y="118" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist','Apple SD Gothic Neo','Noto Sans KR',sans-serif" text-anchor="middle">decode 인스턴스</text>
+      <text x="810" y="134" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">대역폭 최적화 GPU</text>
+      <rect x="700" y="232" width="220" height="64" rx="6" fill="#f5f5f5"/>
+      <rect x="700" y="232" width="220" height="64" rx="6" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1"/>
+      <text x="810" y="262" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist','Apple SD Gothic Neo','Noto Sans KR',sans-serif" text-anchor="middle">decode 인스턴스</text>
+      <text x="810" y="278" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">배치를 크게</text>
+      <rect x="500" y="340" width="200" height="56" rx="6" fill="#f5f5f5"/>
+      <rect x="500" y="340" width="200" height="56" rx="6" fill="rgba(45,49,66,0.03)" stroke="rgba(45,49,66,0.30)" stroke-width="1"/>
+      <text x="600" y="366" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist','Apple SD Gothic Neo','Noto Sans KR',sans-serif" text-anchor="middle">KV 캐시 전송</text>
+      <text x="600" y="382" fill="#4f5d75" font-size="9" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace" text-anchor="middle">prefill 결과를 넘긴다</text>
+      <path d="M 180,192 V 120 H 240" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 180,200 V 264 H 240" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <path d="M 460,120 H 500 V 340" fill="none" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+      <path d="M 460,264 H 500" fill="none" stroke="#eb6c36" stroke-width="1.2"/>
+      <path d="M 560,340 V 128 Q 560,120 568,120 H 700" fill="none" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+      <path d="M 640,340 V 272 Q 640,264 648,264 H 700" fill="none" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+      <line x1="40" y1="432" x2="920" y2="432" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+      <text x="40" y="448" fill="#4f5d75" font-size="8" font-family="'Geist Mono',monospace" letter-spacing="0.14em">LEGEND</text>
+      <rect x="140" y="440" width="16" height="10" rx="2" fill="rgba(45,49,66,0.05)" stroke="#4f5d75" stroke-width="1"/>
+      <text x="164" y="448" fill="#4f5d75" font-size="8" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace">연산 위주 · 컴퓨트 최적화 GPU</text>
+      <rect x="364" y="440" width="16" height="10" rx="2" fill="rgba(235,108,54,0.08)" stroke="#eb6c36" stroke-width="1"/>
+      <text x="388" y="448" fill="#4f5d75" font-size="8" font-family="'Geist Mono','Noto Sans Mono CJK KR',monospace">대역폭 위주 · 메모리 최적화 GPU</text>
+    </svg>

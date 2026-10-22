@@ -71,7 +71,7 @@ Proxy는 검증된 L7 프록시를 그대로 쓴다. TLS 종료, 커넥션 관�
 
 ### 요청 한 건이 지나가는 경로
 
-```mermaid
+```mermaid {title="요청 한 건이 지나가는 경로"}
 sequenceDiagram
     participant C as 클라이언트
     participant E as Envoy (Proxy)
