@@ -15,12 +15,14 @@
     {{- with $image -}}
         <div class="featured-image-preview">
             <a href="{{ $.RelPermalink }}" aria-label={{ $.Title }}>
+                {{- /* 카드 오른쪽 칸(240px, 세로형)에 맞춰 배너의 오른쪽 끝(장식 영역)만 잘라 쓴다.
+                       scripts/gen_banners.py 가 제목을 왼쪽에만 두는 것과 한 쌍이다. */ -}}
                 {{ $optim := slice
-                    (dict "Process" "fill 800x240 Center webp q75" "descriptor" "800w")
-                    (dict "Process" "fill 1200x360 Center webp q75" "descriptor" "1200w")
-                    (dict "Process" "fill 1600x480 Center webp q75" "descriptor" "1600w")
+                    (dict "Process" "fill 400x500 Right webp q75" "descriptor" "400w")
+                    (dict "Process" "fill 600x750 Right webp q75" "descriptor" "600w")
+                    (dict "Process" "fill 800x1000 Right webp q75" "descriptor" "800w")
                 }}
-                {{- dict "Src" . "Title" $.Title "Resources" $.Resources "Loading" "eager" "Width" "800" "Height" "240" "Sizes" "(max-width: 680px) 100vw, (max-width: 1000px) 80vw, (max-width: 1440px) 56vw, 800px" "OptimConfig" $optim "Alt" (printf "Featured image for %v" $.Title) | partial "plugin/image.html" -}}
+                {{- dict "Src" . "Title" $.Title "Resources" $.Resources "Loading" "eager" "Width" "400" "Height" "500" "Sizes" "(max-width: 680px) 100vw, 240px" "OptimConfig" $optim "Optimise" true "Alt" (printf "Featured image for %v" $.Title) | partial "plugin/image.html" -}}
             </a>
         </div>
     {{- end -}}

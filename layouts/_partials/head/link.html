@@ -1,0 +1,70 @@
+{{- /*
+    사이트 오버라이드 (원본: themes/DoIt/layouts/_partials/head/link.html, 끝에 웹폰트 링크만 추가).
+    폰트는 assets/css/_custom.scss 의 Pretendard / JetBrains Mono 지정과 한 쌍이다. 한쪽만 지우지 말 것.
+    테마를 업데이트하면 원본과 diff 해서 이 파일을 다시 맞춘다.
+*/ -}}
+{{- $cdn := .Scratch.Get "cdn" | default dict -}}
+{{- $fingerprint := .Scratch.Get "fingerprint" -}}
+
+{{- if not .Site.Params.app.noFavicon -}}
+    {{- with .Site.Params.app.svgFavicon -}}
+        <link rel="icon" href="{{ . }}">
+    {{- else -}}
+        <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" >
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    {{- end -}}
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    {{- with .Site.Params.app.iconColor -}}
+        <link rel="mask-icon" href="/safari-pinned-tab.svg" color="{{ . }}">
+    {{- end -}}
+    {{- if eq .Site.Params.enablePWA true -}}
+        <link rel="manifest" href="/site.webmanifest">
+    {{- end -}}
+{{- end -}}
+
+{{ $canonicalURL := .Permalink }}
+{{ with .Scratch.Get "paginatorPager"  }}
+  {{ $canonicalURL = .URL | absLangURL }}
+{{ end }}
+<link rel="canonical" href="{{ $canonicalURL }}" >
+{{- if .PrevInSection -}}
+    <link rel="prev" href="{{ .PrevInSection.Permalink }}" >
+{{- end -}}
+{{- if .NextInSection -}}
+    <link rel="next" href="{{ .NextInSection.Permalink }}" >
+{{- end -}}
+
+{{- with .OutputFormats.Get "RSS" -}}
+    <link rel="alternate" href="{{ .RelPermalink }}" type="application/rss+xml" title="{{ $.Site.Title }}">
+    <link rel="feed" href="{{ .RelPermalink }}" type="application/rss+xml" title="{{ $.Site.Title }}">
+{{- end -}}
+
+{{- with .OutputFormats.Get "JsonFeed" -}}
+    <link rel="alternate" type="application/feed+json" href="{{ .RelPermalink }}" title="{{ $.Site.Title }}" >
+{{- end -}}
+
+{{/*  tailwind.css  */}}
+{{ $style := dict "Source" "css/main.css" "Minify" true "Fingerprint" $fingerprint }}
+{{- partial "plugin/style.html" $style -}}
+
+{{- /* style.min.css */ -}}
+{{- $style := dict "Source" "css/style.scss" "Fingerprint" $fingerprint -}}
+{{- $options := dict "targetPath" "css/style.min.css" "enableSourceMap" true -}}
+{{- $style = dict "Context" . "ToCSS" $options | merge $style -}}
+{{- partial "plugin/style.html" $style -}}
+
+{{- if .Site.Params.enablePWA | and hugo.IsProduction -}}
+    {{ $options := dict }}
+    {{ $options = dict "targetPath" "sw.min.js" | merge $options }}
+    {{ $options = dict "minify" true | merge $options }}
+    {{ $js := resources.Get "js/sw.js" | js.Build $options }}
+    {{ $_ := $js.RelPermalink }}
+{{- end -}}
+
+{{- /* 웹폰트: 본문 Pretendard(가변, 동적 서브셋), 코드 JetBrains Mono */ -}}
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap">

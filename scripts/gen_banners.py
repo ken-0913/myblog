@@ -29,13 +29,20 @@ BANNER_DIR = ROOT / "assets" / "images" / "banners"
 BANNER_URL_PREFIX = "images/banners"
 
 W, H = 1200, 630
-# 연한 회색 배경 + 검은색 글자 (라이트 톤)
-BG_TOP = (244, 245, 247)       # #f4f5f7
-BG_BOTTOM = (231, 234, 238)    # #e7eaee
-GREEN = (34, 139, 63)          # #228b3f 프롬프트(라이트 배경 대비 확보한 초록)
-TITLE_COLOR = (24, 24, 27)     # #18181b 제목(검은색)
-MUTED = (100, 108, 120)        # #646c78 보조 텍스트
-ACCENT_BAR = (34, 139, 63)
+# 사이트 색 체계(assets/css/_custom.scss 의 --sat: 0, 무채색)와 같은 연한 회색 대각 그라디언트 + 진회색 글자.
+# 왼쪽 ~60% 에 제목을 두고 오른쪽에 Kubernetes 공식 로고(조타륜)를 희미하게 넣는다.
+# 홈 목록 카드는 배너의 오른쪽(장식 영역)만 잘라 쓴다(layouts/summary.html 의 "fill ... Right").
+BG_FROM = (243, 244, 246)      # #f3f4f6 왼쪽 위(아주 연한 회색)
+BG_TO = (219, 222, 228)        # #dbdee4 오른쪽 아래(조금 진한 회색)
+TITLE_COLOR = (38, 41, 48)     # #262930 제목(진회색)
+PROMPT = (84, 90, 102)         # 프롬프트 모티프(중간 회색)
+MUTED = (110, 116, 128)        # 보조 텍스트
+DOT = (38, 41, 48, 14)         # 점 무늬(진회색 5%)
+INK = (38, 41, 48)             # 로고 먹색(진회색). 투명도는 LOGO_ALPHA
+LOGO_ALPHA = 0.14              # 로고 최대 불투명도
+LOGO_PATH = ROOT / "assets" / "images" / "icons" / "kubernetes" / "logo" / "logo.png"
+LOGO_SIZE = 440                # 로고 한 변(px). 오른쪽 장식 영역(x >= 700) 안에 들어간다
+TITLE_MAX_W = 600              # 제목 영역 폭(오른쪽 장식 영역을 남긴다. summary.html 의 세로 크롭과 겹치지 않게)
 
 FONT_CANDIDATES = [
     os.environ.get("FONT_PATH", ""),
@@ -118,31 +125,56 @@ def wrap_text(draw, text, font, max_width):
     return out
 
 
+def gradient_background() -> Image.Image:
+    """왼쪽 위 → 오른쪽 아래 대각 그라디언트. 작은 이미지를 만들어 키우면 픽셀 루프 없이 빠르다."""
+    small_w, small_h = 120, 63
+    small = Image.new("RGB", (small_w, small_h))
+    px = small.load()
+    for y in range(small_h):
+        for x in range(small_w):
+            t = (x / small_w * 0.65) + (y / small_h * 0.35)
+            px[x, y] = tuple(int(BG_FROM[i] + (BG_TO[i] - BG_FROM[i]) * t) for i in range(3))
+    return small.resize((W, H), Image.BICUBIC)
+
+
 def render_banner(title: str, out_path: Path, font_path: str):
-    img = Image.new("RGB", (W, H), BG_TOP)
+    img = gradient_background().convert("RGBA")
+
+    # 점 무늬는 반투명 레이어에 그려서 합성한다.
+    overlay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    od = ImageDraw.Draw(overlay)
+    step = 28
+    for y in range(step // 2, H, step):
+        for x in range(step // 2, W, step):
+            od.ellipse([x - 1, y - 1, x + 1, y + 1], fill=DOT)
+
+    # Kubernetes 로고: 파란 면은 먹색으로, 흰 조타륜 살은 투명하게 바꿔 단색 워터마크로 만든다.
+    if LOGO_PATH.exists():
+        logo = Image.open(LOGO_PATH).convert("RGBA").resize((LOGO_SIZE, LOGO_SIZE), Image.LANCZOS)
+        lum = logo.convert("L")                                   # 흰색 255, 파랑 약 100
+        ink_mask = Image.eval(lum, lambda v: 255 - v)            # 파랑 → 진하게, 흰색 → 0
+        alpha = logo.getchannel("A")
+        from PIL import ImageChops
+        mask = ImageChops.multiply(ink_mask, alpha).point(lambda v: int(v * LOGO_ALPHA))
+        tinted = Image.new("RGBA", logo.size, INK + (0,))
+        tinted.putalpha(mask)
+        lx = W - LOGO_SIZE - 60
+        ly = (H - LOGO_SIZE) // 2
+        overlay.alpha_composite(tinted, (lx, ly))
+
+    img = Image.alpha_composite(img, overlay)
     draw = ImageDraw.Draw(img)
 
-    # 세로 그라디언트 배경
-    for y in range(H):
-        t = y / H
-        r = int(BG_TOP[0] + (BG_BOTTOM[0] - BG_TOP[0]) * t)
-        g = int(BG_TOP[1] + (BG_BOTTOM[1] - BG_TOP[1]) * t)
-        b = int(BG_TOP[2] + (BG_BOTTOM[2] - BG_TOP[2]) * t)
-        draw.line([(0, y), (W, y)], fill=(r, g, b))
-
     pad = 90
-    # 왼쪽 초록 액센트 바
-    draw.rectangle([pad - 24, pad, pad - 14, H - pad], fill=ACCENT_BAR)
-
     # 상단 프롬프트 모티프 (브랜드 일관성)
     mono = ImageFont.truetype(font_path, 30)
-    draw.text((pad, pad - 6), "ken@blog:~$ ", font=mono, fill=GREEN)
+    draw.text((pad, pad - 6), "ken@blog:~$ ", font=mono, fill=PROMPT)
     pw = draw.textlength("ken@blog:~$ ", font=mono)
     draw.text((pad + pw, pad - 6), "cat post.md", font=mono, fill=MUTED)
 
-    # 제목 (길이에 따라 폰트 크기 자동 조정)
-    max_w = W - pad * 2
-    for size in (74, 66, 58, 50, 44):
+    # 제목 (길이에 따라 폰트 크기 자동 조정). 오른쪽 장식 영역을 남기기 위해 폭을 제한한다.
+    max_w = TITLE_MAX_W
+    for size in (70, 62, 54, 48, 42):
         title_font = ImageFont.truetype(font_path, size)
         lines = wrap_text(draw, title, title_font, max_w)
         line_h = int(size * 1.28)
@@ -160,7 +192,7 @@ def render_banner(title: str, out_path: Path, font_path: str):
     draw.text((pad, H - pad - 8), "ken's blog", font=foot, fill=MUTED)
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    img.save(out_path, "PNG")
+    img.convert("RGB").save(out_path, "PNG")
 
 
 def iter_posts():

@@ -109,6 +109,9 @@ git의 정상본을 기준으로 3-way 병합하므로, 그 파일에 직접 한
 - 기술 용어 표기: 영어 원문 유지(Pod, Deployment)
 - 이모지 / 강조:   굵게 강조 허용
 - 피해야 할 표현: 과장 광고체 금지, "~것 같다" 같은 애매한 표현 지양
+- **em dash(—) 절대 사용 금지.** 쉼표, 마침표, 콜론(:), 괄호로 바꿔 쓴다.
+  - `A — B` → `A. B` 또는 `A, B` 또는 `A(B)`
+  - en dash(–), 물결표를 제외한 다른 대시류도 쓰지 않는다. 숫자 범위는 `246 ~ 266` 형태로 적는다
 - 원하는 톤 예시 문장: "Pod는 Kubernetes에서 배포 가능한 가장 작은 단위이다. 하나의 Pod 안에서 여러 container가 함께 실행되며, 동일한 network namespace와 storage를 공유한다."
 
 ## 하지 말아야 할 것
@@ -125,3 +128,20 @@ git의 정상본을 기준으로 3-way 병합하므로, 그 파일에 직접 한
 
 - 
 
+
+## 사이트 디자인 (색 체계 · 카드 · 배너)
+
+- 디자인은 색상(hue) 하나를 oklch 로 밝기만 바꿔 쓰는 방식이다. `assets/css/_custom.scss` 맨 위 `:root { --hue: 265; --sat: 0 }` 가 기준이다. `--sat` 는 채도 배율로, 0 이면 지금처럼 연한 회색 무채색이고 1 이면 파랑·보라가 된다. `--primary` / `--surface` / `--line` 같은 사이트 토큰과 DoIt 의 `--global-*` 변수가 여기서 정해진다. 다크 모드는 `html.dark` 블록이 같은 hue 로 다시 매긴다. **색을 바꿀 때는 이 변수만 바꾼다.** 개별 선택자에 색상 코드를 직접 쓰지 않는다.
+- 글·소개·목록 페이지는 연한 바탕 위의 흰 카드(`.page.single`, `.page.archive`)다. 홈 글 목록은 요약 하나가 카드 하나이고(`.home[data-posts] .summary`), 오른쪽 칸에 대표 이미지가 들어간다.
+- 글 페이지의 대표 이미지는 CSS `order: -1` 로 카드 맨 위에 배너처럼 올라간다. 마크업 순서는 테마 그대로다.
+- 웹폰트(Pretendard, JetBrains Mono)는 `layouts/_partials/head/link.html` 이 `<link>` 로 넣는다. 이 파일은 테마의 `head/link.html` 복사본 끝에 폰트 링크만 붙인 것이다. **테마를 업데이트하면 원본과 diff 해서 다시 맞춘다.** `_custom.scss` 의 `--font-sans` / `--font-mono` 와 한 쌍이다.
+- 배너(`scripts/gen_banners.py`)는 사이트와 같은 연한 회색 그라디언트에 진회색 제목을 왼쪽에 두고, 오른쪽에 Kubernetes 공식 로고(`assets/images/icons/kubernetes/logo/logo.png`)를 희미한 워터마크로 넣는다. 공식 아이콘 모음과 라이선스는 `assets/images/icons/kubernetes/README.md` 참고. 사이트 색을 바꾸면 배너 색 상수도 같이 맞춘다. 제목 영역 폭(`TITLE_MAX_W`)은 홈 카드가 배너의 **오른쪽 끝만 세로로 잘라 쓰는 것**(`layouts/summary.html` 의 `fill 400x500 Right`)과 겹치지 않게 맞춘 값이다. 한쪽을 바꾸면 다른 쪽도 확인한다.
+- 터미널 창(`.term`, `.term-code`, `.termcast`)과 손글씨 브랜드(Caveat)는 이 디자인과 별개로 유지한다.
+
+## 시크릿 하드코딩 방지 (gitleaks)
+
+- 토큰·비밀번호·키를 글이나 설정에 직접 쓰지 않는다. 예시 명령에는 `<TOKEN>`, `${GH_TOKEN}` 같은 자리표시자를 쓴다.
+- 검사는 두 단계다. 로컬은 `.githooks/pre-commit` 이 커밋 전에 staged 변경분을, CI 는 `.github/workflows/gitleaks.yml` 이 push·PR 마다 전체 이력을 검사한다. 훅은 `git config core.hooksPath .githooks` 로 켠다(위 "편집기가 수식을 깨뜨렸을 때" 절과 같은 훅).
+- 설정은 `.gitleaks.toml`(기본 규칙 + `public/`, `resources/`, `themes/`, `docs/books/` 제외).
+- 오탐은 `.gitleaksignore` 에 지문을 한 줄씩, 왜 오탐인지 주석과 함께 넣는다. 규칙을 끄거나 경로를 통째로 빼서 해결하지 않는다.
+- 진짜 시크릿이 걸렸으면 커밋에서 빼는 것으로 끝내지 않는다. 이미 push 했다면 그 키를 먼저 폐기·재발급한다.
