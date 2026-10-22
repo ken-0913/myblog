@@ -1,0 +1,25 @@
+{{- /*
+    이미지 렌더 훅 (테마 themes/DoIt/layouts/_markup/render-image.html 덮어쓰기).
+
+    변경점: 테마는 제목이 있는 이미지(`![alt](src "제목")`)만 lightgallery 링크로 감싼다.
+    이 블로그 글은 제목 없이 쓰므로, 모든 본문 이미지를 링크로 감싸 클릭하면 확대 보기가 열리게 한다.
+    켜고 끄는 스위치는 hugo.yaml 의 params.page.lightgallery (글별로는 front matter `lightgallery: false`).
+    대표 이미지(featuredImage)는 이 훅을 거치지 않는다.
+*/ -}}
+{{- $lightgallery := .Page.Params.lightgallery | default site.Params.Page.lightgallery | default false -}}
+{{- $optim := slice
+    (dict "Process" "resize 800x webp q75" "descriptor" "800w")
+    (dict "Process" "resize 1200x webp q75" "descriptor" "1200w")
+    (dict "Process" "resize 1600x webp q75" "descriptor" "1600w")
+-}}
+
+{{- if .Title -}}
+<figure>
+    {{- dict "Src" .Destination "Title" .Text "Caption" .Title "Linked" $lightgallery "Loading" "lazy" "Resources" .Page.Resources "OptimConfig" $optim | partial "plugin/image.html" -}}
+    <figcaption class="image-caption">
+        {{- .Title | safeHTML -}}
+    </figcaption>
+</figure>
+{{- else -}}
+    {{- dict "Src" .Destination "Class" "tw:inline" "Title" .Text "Alt" .Text "Linked" $lightgallery "Loading" "lazy" "Resources" .Page.Resources "OptimConfig" $optim | partial "plugin/image.html" -}}
+{{- end -}}

@@ -91,6 +91,12 @@ params:
       enable: true
       paginate: 6
 
+  # 글 페이지 설정
+  page:
+    # 본문 이미지를 누르면 확대 보기(lightgallery: 줌, 썸네일, 키보드 이동).
+    # 테마 기본 훅은 제목이 있는 이미지만 링크하므로 layouts/_markup/render-image.html 이 모든 이미지를 링크한다.
+    lightgallery: true
+
   # 소셜 링크
   social:
     GitHub: "ken-0913"

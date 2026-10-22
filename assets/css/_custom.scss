@@ -786,3 +786,23 @@ html.dark .diagram {
         padding: 0.8rem 0.6rem;
     }
 }
+
+// ==============================
+// 본문 이미지 확대 보기 (lightgallery)
+//  - layouts/_markup/render-image.html 이 모든 본문 이미지를 a.lightgallery 로 감싼다.
+//  - 누를 수 있다는 것을 커서로 알려 주고, 링크 밑줄·색이 이미지에 묻지 않게 한다.
+// ==============================
+.single .content a.lightgallery {
+    display: inline-block;
+    cursor: zoom-in;
+    text-decoration: none;
+    border: 0;
+
+    img {
+        transition: opacity 0.15s ease;
+    }
+
+    &:hover img {
+        opacity: 0.92;
+    }
+}
