@@ -21,6 +21,7 @@ featuredImage: images/banners/cnpa-01-platform-engineering-fundamentals-ca73458d
 | 재실행 | 중복 생성 위험                    | 멱등성(idempotency)               |
 | 예시  | `kubectl create deployment` | Kubernetes YAML, Terraform HCL |
 | 장점  | 직접 제어, 빠른 실험                | 버전 관리, 반복 가능, 감사 가능            |
+|     |                             |                                |
 
 
 Imperative가 여전히 유효한 경우는 **디버깅, 긴급 핫픽스(emergency hotfix), 긴급 스케일링, 실험** 정도다.
