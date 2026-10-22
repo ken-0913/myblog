@@ -1,0 +1,111 @@
+{{- /*
+  mermaid 코드블록 렌더 훅 (테마 기본값 덮어쓰기).
+
+  테마 기본 동작의 문제 셋을 고친다.
+    1) svg 에 max-width:100% 가 걸려 넓은 시퀀스 다이어그램이 본문 폭에 맞춰 축소됐다.
+       -> useMaxWidth:false 로 원래 크기를 유지하고, 넘치면 컨테이너가 가로 스크롤한다.
+    2) 테마를 라이브러리 기본값(default/dark)으로 쓰면 블로그 색과 맞지 않았다.
+       -> themeVariables 로 본문 팔레트와 터미널 초록(#228b3f)에 맞춘다.
+    3) 라이트/다크 토글 후 다이어그램 색이 그대로였다(초기화 시 한 번만 읽음).
+       -> html.dark 변화를 감시해 재렌더한다.
+
+  사용법:
+      ```mermaid {title="요청 한 건이 지나가는 경로"}
+  title 을 주면 코드블록처럼 상단 바에 제목이 붙는다.
+
+  주의: 이 훅은 테마의 enableMermaid 스크래치를 설정하지 않는다.
+  테마가 mermaid@10 을 따로 불러와 이중 렌더되는 것을 막기 위함이다.
+*/ -}}
+{{- $title := .Attributes.title -}}
+<figure class="diagram{{ if $title }} diagram--titled{{ end }}">
+    {{- with $title }}
+    <figcaption class="diagram__bar">
+        <span class="diagram__dot"></span>
+        <span class="diagram__title">{{ . }}</span>
+    </figcaption>
+    {{- end }}
+    <div class="diagram__body">
+        <pre class="mermaid">{{- .Inner | safeHTML }}</pre>
+    </div>
+</figure>
+{{- if not (.Page.Store.Get "diagramAssets") -}}
+{{- .Page.Store.Set "diagramAssets" true -}}
+<script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+
+    // 공통 설정. useMaxWidth:false 가 핵심이다.
+    // true 면 라이브러리가 svg 를 부모 폭에 맞춰 줄여버려 글자가 읽히지 않는다.
+    const base = {
+        startOnLoad: false,
+        fontFamily: 'inherit',
+        flowchart: { useMaxWidth: false, htmlLabels: true, curve: 'basis',
+                     padding: 14, nodeSpacing: 46, rankSpacing: 56 },
+        sequence:  { useMaxWidth: false, actorMargin: 64, boxMargin: 10,
+                     mirrorActors: false, wrap: true, width: 170, messageFontWeight: 500 },
+    };
+
+    const light = {
+        background: 'transparent',
+        primaryColor: '#edf4ee', primaryBorderColor: '#228b3f', primaryTextColor: '#18181b',
+        secondaryColor: '#f1f3f5', secondaryBorderColor: '#c9ced6',
+        tertiaryColor: '#f8f9fa', tertiaryBorderColor: '#dde1e6',
+        lineColor: '#737b86', textColor: '#24272c', fontSize: '14px',
+        clusterBkg: '#f7f8f9', clusterBorder: '#d8dde3',
+        actorBkg: '#edf4ee', actorBorder: '#228b3f', actorTextColor: '#18181b',
+        signalColor: '#4a5159', signalTextColor: '#24272c',
+        labelBoxBkgColor: '#edf4ee', labelBoxBorderColor: '#228b3f',
+        noteBkgColor: '#fff6d9', noteBorderColor: '#d9c184',
+    };
+
+    const dark = {
+        background: 'transparent',
+        primaryColor: '#14281b', primaryBorderColor: '#4ec97a', primaryTextColor: '#e6edf3',
+        secondaryColor: '#1b2027', secondaryBorderColor: '#39414b',
+        tertiaryColor: '#161b22', tertiaryBorderColor: '#30363d',
+        lineColor: '#8b949e', textColor: '#d7dee6', fontSize: '14px',
+        clusterBkg: '#12171e', clusterBorder: '#30363d',
+        actorBkg: '#14281b', actorBorder: '#4ec97a', actorTextColor: '#e6edf3',
+        signalColor: '#9aa4af', signalTextColor: '#d7dee6',
+        labelBoxBkgColor: '#14281b', labelBoxBorderColor: '#4ec97a',
+        noteBkgColor: '#2b2a1d', noteBorderColor: '#6b6340',
+    };
+
+    const nodes = Array.from(document.querySelectorAll('pre.mermaid'));
+    // mermaid 가 textContent 를 svg 로 치환하므로 원본을 먼저 보관해둔다(재렌더용).
+    nodes.forEach((el) => { el.dataset.src = el.textContent; });
+
+    const isDark = () => document.documentElement.classList.contains('dark');
+
+    async function render() {
+        nodes.forEach((el) => {
+            el.textContent = el.dataset.src;
+            el.removeAttribute('data-processed');
+        });
+        mermaid.initialize(Object.assign({}, base, {
+            theme: 'base',
+            themeVariables: isDark() ? dark : light,
+        }));
+        try {
+            await mermaid.run({ nodes });
+        } catch (e) {
+            console.error('[diagram] mermaid 렌더 실패', e);
+        }
+        // 폭이 컨테이너보다 작으면 가운데로, 넘치면 왼쪽 정렬 후 스크롤한다.
+        nodes.forEach((el) => {
+            const body = el.closest('.diagram__body');
+            const svg = el.querySelector('svg');
+            if (body && svg) {
+                body.classList.toggle('is-overflowing', svg.getBoundingClientRect().width > body.clientWidth);
+            }
+        });
+    }
+
+    render();
+
+    // 테마 토글 감지. DoIt 은 html 에 dark 클래스를 붙인다.
+    let last = isDark();
+    new MutationObserver(() => {
+        if (isDark() !== last) { last = isDark(); render(); }
+    }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+</script>
+{{- end -}}
