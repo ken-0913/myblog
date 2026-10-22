@@ -4,6 +4,7 @@ date: 2026-10-21T21:00:00+09:00
 draft: false
 tags: ["RAG", "GraphRAG", "LLM Wiki", "Data Contract", "Pydantic", "Chunking", "Docling", "Hybrid Search"]
 categories: ["LLM"]
+featuredImage: images/banners/rag-part2-source-layer-2c2b0dd5.png
 ---
 원본 데이터가 흔들리면 그 위의 벡터 RAG와 지식 그래프가 모두 흔들린다. Part 2는 이 문제를 소스 레이어에서 막는다. **원문을 LLM 위키로 정리하고, 데이터 컨트랙트로 규격을 강제하고, 섹션 단위 청크 파일로 내보내는** 흐름 전체를 강의 2개와 실습 4개로 만든다.
 
