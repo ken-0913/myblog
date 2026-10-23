@@ -4,6 +4,7 @@ date: 2026-10-19T09:00:00+09:00
 draft: false
 tags: ["MLOps", "MLPE", "Kubernetes", "Helm", "GitOps", "Argo CD", "GitHub Actions", "Renovate", "Cilium", "Homelab"]
 categories: ["MLOps"]
+series: ["MLPE 1주차"]
 featuredImage: images/banners/mlpe-03-platform-foundation-e8f0497e.png
 ---
 `Machine Learning Platform Engineering` 3장은 Docker, Kubernetes, CI/CD, 모니터링만 다룹니다. [앞 글](../mlpe-02-what-is-mlops/)에서 MLOps를 루프로 바라보는 관점을 제시하였고 이번에는 그 루프가 올라갈 플랫폼에 대해서 학습합니다. 기존에 홈랩 환경이 구축되어 있어서 별도 kind를 사용하지는 않았습니다.

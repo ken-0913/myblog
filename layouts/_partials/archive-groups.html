@@ -1,0 +1,44 @@
+{{- /*
+    목록 페이지(카테고리·태그·/posts/)의 연도 그룹 안에서 글을 series 로 한 번 더 묶는다.
+    - 입력: dict "Groups" .Paginator.PageGroups "DateFormat" "01-02"
+    - series(front matter `series: ["MLPE 1주차"]`)가 있는 글은 연도 아래 series 소제목(시리즈 페이지 링크) 밑에,
+      없는 글은 연도 바로 아래에 둔다. series 순서는 연도 안에서 처음 나오는 순서(= 최신 글 순)다.
+    - 테마의 term.html / section.html 을 덮어쓴 layouts/term.html, layouts/section.html 이 호출한다.
+    - 소제목 스타일은 assets/css/_custom.scss 의 .archive .group-subtitle, .archive-series
+*/ -}}
+{{- $fmt := .DateFormat -}}
+{{- range .Groups -}}
+    <h3 class="group-title">{{ .Key }}</h3>
+    {{- $pages := .Pages -}}
+    {{- $names := slice -}}
+    {{- range $pages -}}
+        {{- with .Params.series -}}
+            {{- $s := index . 0 -}}
+            {{- if not (in $names $s) -}}{{- $names = $names | append $s -}}{{- end -}}
+        {{- end -}}
+    {{- end -}}
+    {{- range $s := $names -}}
+        {{- $seriesPage := partialCached "function/path.html" $s $s | printf "/series/%v" | site.GetPage -}}
+        <div class="archive-series">
+            <h4 class="group-subtitle">
+                {{- with $seriesPage -}}<a href="{{ .RelPermalink }}">{{ $s }}</a>{{- else -}}{{ $s }}{{- end -}}
+            </h4>
+            {{- range $pages -}}
+                {{- if and .Params.series (eq (index .Params.series 0) $s) -}}
+                    <div class="archive-item">
+                        <a href="{{ .RelPermalink }}" class="archive-item-link">{{- .Title -}}</a>
+                        <span class="archive-item-date">{{- .Date.Format $fmt -}}</span>
+                    </div>
+                {{- end -}}
+            {{- end -}}
+        </div>
+    {{- end -}}
+    {{- range $pages -}}
+        {{- if not .Params.series -}}
+            <div class="archive-item">
+                <a href="{{ .RelPermalink }}" class="archive-item-link">{{- .Title -}}</a>
+                <span class="archive-item-date">{{- .Date.Format $fmt -}}</span>
+            </div>
+        {{- end -}}
+    {{- end -}}
+{{- end -}}

@@ -39,6 +39,12 @@ markup:
           inline:
             - ["\\(", "\\)"]
 
+# 분류 체계. series 는 스터디 주차 묶음(front matter `series: ["MLPE 1주차"]`)으로, 목록 페이지에서 연도 아래 소분류가 되고 /series/<이름>/ 페이지가 생긴다.
+taxonomies:
+  category: categories
+  tag: tags
+  series: series
+
 # 상단 네비게이션 메뉴
 menu:
   main:
@@ -96,6 +102,8 @@ params:
     # 본문 이미지를 누르면 확대 보기(lightgallery: 줌, 썸네일, 키보드 이동).
     # 테마 기본 훅은 제목이 있는 이미지만 링크하므로 layouts/_markup/render-image.html 이 모든 이미지를 링크한다.
     lightgallery: true
+    # 같은 series 글 사이의 이전·다음 내비게이션을 글 아래에 표시
+    seriesNavigation: true
 
   # 소셜 링크
   social:

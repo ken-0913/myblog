@@ -4,6 +4,7 @@ date: 2026-10-18T19:00:00+09:00
 draft: false
 tags: ["MLOps", "MLPE", "Machine Learning", "ML Lifecycle", "Feature Store", "Model Registry", "Kubeflow"]
 categories: ["MLOps"]
+series: ["MLPE 1주차"]
 featuredImage: images/banners/mlpe-01-ml-lifecycle-04755093.png
 ---
 `Machine Learning Platform Engineering` 1장을 읽고 정리한 글이다.

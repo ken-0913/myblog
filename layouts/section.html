@@ -1,0 +1,30 @@
+{{- /*
+    사이트 오버라이드 (원본: themes/DoIt/layouts/section.html).
+    변경점: 연도 그룹 안을 series 로 한 번 더 나눈다 → layouts/_partials/archive-groups.html.
+    테마를 업데이트하면 원본과 diff 해서 다시 맞춘다.
+*/ -}}
+{{- define "title" }}
+    {{- if (gt .Paginator.PageNumber 1) -}}
+        {{ $pageNumber := printf "%v %v %v" (T "prefixPageNumber" ) .Paginator.PageNumber (T "suffixPageNumber" ) }}
+        {{- .Params.Title | default (T .Section) | default .Section | dict "Some" | T "allSome" }} {{ $pageNumber }} - {{ .Site.Title -}}
+    {{- else -}}
+         {{- .Params.Title | default (T .Section) | default .Section | dict "Some" | T "allSome" }} - {{ .Site.Title -}}
+    {{- end -}}
+{{- end -}}
+
+{{- define "content" -}}
+    <div class="page archive">
+        {{- /* Title */ -}}
+        <h2 class="single-title">
+            {{- .Params.Title | default (T .Section) | default .Section | dict "Some" | T "allSome" -}}
+        </h2>
+
+        {{- /* Paginate */ -}}
+        {{- /* Paginate is first call on baseof.html */ -}}
+        {{- if .Pages -}}
+            {{- partial "recentlyUpdated.html" . -}}
+            {{- partial "archive-groups.html" (dict "Groups" .Paginator.PageGroups "DateFormat" ($.Site.Params.section.dateFormat | default "01-02")) -}}
+            {{- partial "paginator.html" . -}}
+        {{- end -}}
+    </div>
+{{- end -}}

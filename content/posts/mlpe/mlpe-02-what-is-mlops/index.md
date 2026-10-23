@@ -4,6 +4,7 @@ date: 2026-10-18T19:20:00+09:00
 draft: false
 tags: ["MLOps", "MLPE", "DevOps", "Continuous Training", "Data Drift", "Data Lineage", "Model Registry", "Maturity Model"]
 categories: ["MLOps"]
+series: ["MLPE 1주차"]
 featuredImage: images/banners/mlpe-02-what-is-mlops-8b413644.png
 ---
 `Machine Learning Platform Engineering` 의 2장은 MLOps가 왜 루프여야만 하는지 다룬다.

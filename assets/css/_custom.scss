@@ -841,3 +841,28 @@ html.dark .diagram {
 .termcast__actions .term-copy {
     margin-left: 0;
 }
+
+// ==============================
+// 목록 페이지: 연도 아래 series 소분류 (layouts/_partials/archive-groups.html 과 한 쌍)
+// ==============================
+.archive {
+    .archive-series {
+        margin: 0.6rem 0 0.9rem;
+        padding-left: 0.9rem;
+        border-left: 2px solid var(--line);
+    }
+
+    .group-subtitle {
+        margin: 0 0 0.35rem;
+        font-size: 1rem;
+        font-weight: 600;
+
+        a {
+            color: var(--global-font-color);
+
+            &:hover {
+                color: var(--primary);
+            }
+        }
+    }
+}
