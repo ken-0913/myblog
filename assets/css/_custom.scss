@@ -793,7 +793,9 @@ html.dark .diagram {
 //  - 누를 수 있다는 것을 커서로 알려 주고, 링크 밑줄·색이 이미지에 묻지 않게 한다.
 // ==============================
 .single .content a.lightgallery {
-    display: inline-block;
+    // block 이어야 한다. viewBox 만 있고 width 가 없는 SVG 는 담고 있는 블록 너비로 크기를 정하는데,
+    // inline-block(shrink-to-fit) 안에서는 그 기준이 없어 기본 크기(아주 작게)로 줄어든다.
+    display: block;
     cursor: zoom-in;
     text-decoration: none;
     border: 0;
