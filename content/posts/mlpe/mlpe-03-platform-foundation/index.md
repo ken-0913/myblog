@@ -106,6 +106,8 @@ spec:
 
 그래서 깃헙액션 **워크플로 하나가 이미지와 차트 버전을 동시에 올린다.**
 
+![app/ 변경이 push 되면 GitHub Actions 가 Chart.yaml 의 patch +1 로 버전을 계산하고, 그 값으로 멀티아키 이미지를 Docker Hub 에 push 한 뒤 values.yaml 과 Chart.yaml 을 같은 버전으로 올려 skip ci 커밋으로 되돌리는 흐름. github.run_number 는 쓰지 않는다](ci-versioning.svg)
+
 ```yaml {title=".github/workflows/build-push.yml (발췌)"}
 on:
   push:
