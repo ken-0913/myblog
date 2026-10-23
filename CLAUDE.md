@@ -44,7 +44,7 @@
 ### 코드블록 렌더 규칙 (중요)
 
 - **`json` / `yaml` / `bash` / `python` 코드블록은 "터미널 창" 디자인으로 자동 렌더된다.** 코드를 넣을 때 언어를 이 넷 중 하나로 지정하면(``` ```json ```/``` ```yaml ```/``` ```bash ```/``` ```python ```), 빨강·노랑·초록 점이 있는 다크 터미널 창 + 구문 강조로 표시된다.
-- 이 동작은 render hook이 담당한다: `layouts/_markup/render-codeblock-{bash,yaml,json,python}.html` → 공용 `layouts/_partials/term-codeblock.html`. 창 스타일은 `assets/css/_custom.scss`의 `.term-code`가 담당한다. **이 파일들을 지우거나 덮어쓰지 말 것.**
+- 이 동작은 render hook이 담당한다: `layouts/_markup/render-codeblock-{bash,yaml,json,python}.html` → 공용 `layouts/_partials/term-codeblock.html`. 창 스타일은 `assets/css/_custom.scss`의 `.term-code`가 담당한다. 상단 바의 "복사" 버튼은 `layouts/_partials/term-copy.html`(버튼 + 페이지당 한 번 넣는 스크립트)이고 `terminal`·`termcast` 창에도 같이 들어간다. terminal/termcast 는 `$ ` 명령어 줄만 복사한다. **이 파일들을 지우거나 덮어쓰지 말 것.**
 - 다른 언어를 추가하려면 `layouts/_markup/render-codeblock-<lang>.html` 파일을 만들고 한 줄만 넣으면 된다: `{{- partial "term-codeblock.html" . -}}`
 - 창 제목은 언어명이 기본이며, `{title="..."}` 속성으로 바꿀 수 있다(예: ``` ```bash {title="deploy.sh"} ```).
 - **셸 명령 위주**로 `$ 프롬프트` 형태를 강조하고 싶을 때만 별도의 `terminal` 펜스(``` ```terminal ```)를 쓴다. 그 외 일반 코드는 위 세 언어를 쓴다.

@@ -39,6 +39,7 @@
         <span class="term__dot term__dot--yellow"></span>
         <span class="term__dot term__dot--green"></span>
         <span class="term__title">{{ $title }}</span>
+        {{- partial "term-copy.html" . -}}
     </div>
     <div class="term__body">{{ delimit $out "\n" | safeHTML }}</div>
 </div>

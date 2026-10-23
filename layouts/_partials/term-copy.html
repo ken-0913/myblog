@@ -1,0 +1,48 @@
+{{- /*
+  터미널 창(.term-code / .term / .termcast) 상단 바의 "복사" 버튼.
+  term-codeblock.html, render-codeblock-terminal.html, render-codeblock-termcast.html 이 바 안에서 호출한다.
+  스크립트는 페이지당 한 번만 넣는다(Page.Store).
+  복사 범위:
+    - 구문 강조 코드블록(.term-code): 코드 전체
+    - terminal / termcast: "$ " 명령어 줄만(프롬프트·출력·주석 제외). 명령어 줄이 없으면 전체
+  스타일은 assets/css/_custom.scss 의 .term-copy
+*/ -}}
+<button type="button" class="term-copy" data-term-copy aria-label="코드 복사" title="클립보드에 복사">복사</button>
+{{- if not (.Page.Store.Get "termCopyAssets") -}}
+{{- .Page.Store.Set "termCopyAssets" true -}}
+<script>
+(function () {
+    function textOf(root) {
+        var cmds = root.querySelectorAll(".term__cmd, .termcast__cmd");
+        if (cmds.length) {
+            return Array.prototype.map.call(cmds, function (c) { return c.textContent; }).join("\n");
+        }
+        var body = root.querySelector(".term-code__body, .term__body, .termcast__body");
+        var code = body && (body.querySelector("code") || body);
+        return code ? code.textContent.replace(/\n$/, "") : "";
+    }
+    function write(text) {
+        if (navigator.clipboard && window.isSecureContext) { return navigator.clipboard.writeText(text); }
+        return new Promise(function (resolve, reject) {
+            var ta = document.createElement("textarea");
+            ta.value = text; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+            document.body.appendChild(ta); ta.select();
+            try { document.execCommand("copy") ? resolve() : reject(); } catch (e) { reject(e); }
+            document.body.removeChild(ta);
+        });
+    }
+    document.addEventListener("click", function (ev) {
+        var btn = ev.target.closest("[data-term-copy]");
+        if (!btn) { return; }
+        var root = btn.closest(".term-code, .term, .termcast");
+        if (!root) { return; }
+        write(textOf(root)).then(function () {
+            btn.textContent = "복사됨"; btn.classList.add("is-done");
+        }, function () {
+            btn.textContent = "실패";
+        });
+        setTimeout(function () { btn.textContent = "복사"; btn.classList.remove("is-done"); }, 1500);
+    });
+})();
+</script>
+{{- end -}}

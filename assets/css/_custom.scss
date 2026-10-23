@@ -808,3 +808,36 @@ html.dark .diagram {
         opacity: 0.92;
     }
 }
+
+// ==============================
+// 터미널 창 "복사" 버튼 (layouts/_partials/term-copy.html 과 한 쌍)
+//  - .term-code / .term 의 바에서는 오른쪽 끝에 붙는다. .termcast 는 기존 __actions 안에 들어간다.
+// ==============================
+.term-copy {
+    appearance: none;
+    cursor: pointer;
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    color: #8b949e;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    line-height: 1;
+    padding: 0.28rem 0.5rem;
+    transition: color 0.15s ease, border-color 0.15s ease;
+
+    &:hover {
+        color: #c9d1d9;
+        border-color: #4b5563;
+    }
+
+    &.is-done {
+        color: #27c93f;
+        border-color: #27c93f;
+    }
+}
+
+.termcast__actions .term-copy {
+    margin-left: 0;
+}
