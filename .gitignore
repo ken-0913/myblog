@@ -12,3 +12,5 @@ __pycache__/
 # Notion export (개인 참고용 — 발행하지 않음)
 *.zip
 ExportBlock-*/
+
+docs/books
