@@ -6,7 +6,7 @@ tags: ["MLOps", "MLPE", "Kubernetes", "Helm", "GitOps", "Argo CD", "GitHub Actio
 categories: ["MLOps"]
 featuredImage: images/banners/mlpe-03-platform-foundation-e8f0497e.png
 ---
-`Machine Learning Platform Engineering` 3장은 Docker, Kubernetes, CI/CD, 모니터링만 다룹니다. [앞 글](../mlpe-02-what-is-mlops/)에서 MLOps를 루프로 바라보는 관점을 제시하였고 이번에는 그 루프가 올라갈 플랫폼에 대해서 학습합니다. 기존에 홈랩 환경이 구축되어 있어서 별도 kind를 사용하지는 않았습니다.
+`Machine Learning Platform Engineering` 3장은 Docker, Kubernetes, CI/CD, 모니터링만 다룹니다. [앞 글](../mlpe-02-what-is-mlops/)에서 MLOps를 루프로 바라보는 관점을 제시하였고 이번에는 그 루프가 올라갈 플랫폼에 대해서 학습합니다. 기존에 홈랩 환경이 구축되어 있어서 별도 kind를 사용하지는 않았습니다.
 
 
 
@@ -23,7 +23,7 @@ featuredImage: images/banners/mlpe-03-platform-foundation-e8f0497e.png
 7. Argo CD가 Helm 차트를 렌더링해 홈랩 클러스터의 `funny` 네임스페이스에 apply 한다.
 8. 파드는 `imagePullSecret`으로 Docker Hub에서 새 이미지를 pull 한다.
 
-점선(6 ~ 8)은 클러스터 쪽에서 당겨 오는 구간이다. CI는 Git의 차트 버전까지 올리므로, Argo CD는 레지스트리를 볼 필요 없이 Git만 보면 된다.
+점선(6 ~ 8)은 클러스터 쪽에서 당겨 오는 구간이다. CI는 Git의 차트 버전까지 올리므로 Argo CD는 레지스트리를 볼 필요 없이 Git만 보면 된다.
 
 ## 2. 저장소 구조
 
@@ -48,7 +48,7 @@ featuredImage: images/banners/mlpe-03-platform-foundation-e8f0497e.png
 
 ## 3. 홈랩 클러스터
 
-책은 로컬 단일 노드 클러스터를 쓰지만, 실습은 이미 운영 중인 온프레미스 홈랩 클러스터에서 한다.
+책은 로컬 단일 노드 클러스터를 쓰지만 실습은 이미 운영 중인 온프레미스 홈랩 클러스터에서 한다.
 
 ![홈 LAN 안의 3노드 홈랩 클러스터에서 루트 Application이 funny 네임스페이스에 hello-joker를 배포하고 개발 PC가 192.168.0.235:8083으로 접근하는 구성](homelab-cluster.svg)
 
@@ -69,12 +69,12 @@ featuredImage: images/banners/mlpe-03-platform-foundation-e8f0497e.png
 
 - **노드 아키텍처가 섞여 있다.**
   - amd64 노드와 Raspberry Pi arm64 노드가 같이 있어 이미지를 반드시 멀티아키로 빌드해야 한다.
-- **`type: LoadBalancer`가 바로 동작한다.** 
+- **`type: LoadBalancer`가 바로 동작한다.**
   - Cilium LB-IPAM이 LAN 대역에서 IP를 할당하므로 NodePort 매핑이 필요 없다.
 
-### LoadBalancer IP사용 가능한 이유 (참고)
+### LoadBalancer IP 사용 가능한 이유 (참고)
 
-- `hello-joker` Service가 `192.168.0.235:8083`으로 접속 가능한 것은  현재 홈랩에 Cilium을 설치해 두었기 때문이다. 클라우드처럼 외부 로드밸런서가 있는 것이 아니고  클러스터 노드가 직접 그 IP를 대신 받아 준다.
+- `hello-joker` Service가 `192.168.0.235:8083`으로 접속 가능한 것은 현재 홈랩에 Cilium을 설치해 두었기 때문이다. 클라우드처럼 외부 로드밸런서를 두지 않고 클러스터 노드가 직접 그 IP를 대신 받아 준다.
 
 ```yaml {title="CiliumLoadBalancerIPPool / CiliumL2AnnouncementPolicy (발췌)"}
 # 1) LB-IPAM: LoadBalancer Service에 줄 IP 풀
@@ -94,17 +94,17 @@ spec:
 ```
 
 1. `type: LoadBalancer` Service가 생기면 **LB-IPAM**이 `lan-pool`(`192.168.0.230 ~ 250`)에서 빈 IP 하나(`192.168.0.235`)를 골라 `EXTERNAL-IP`로 붙인다.
-2. **L2 announcement**가 worker 노드 중 하나를 리더로 정하고, 그 노드가 LAN에서 "`192.168.0.235`는 내 MAC 주소"라고 ARP에 응답한다.
+2. **L2 announcement**가 worker 노드 중 하나를 리더로 정하고 그 노드가 LAN에서 "`192.168.0.235`는 내 MAC 주소"라고 ARP에 응답한다.
 3. LAN의 다른 기기(개발 PC 등)는 이 ARP 응답을 보고 해당 노드로 패킷을 보낸다. 별도 라우팅 설정 없이 같은 서브넷 통신으로 끝난다.
 4. 패킷을 받은 노드에서 Cilium(eBPF, kube-proxy replacement)이 `hello-joker` 파드 3개 중 하나로 넘긴다.
 
-공유기가 같은 IP를 다른 기기에 나눠 주면 ARP 응답이 충돌해 연결이 끊기기 때문에`192.168.0.230 ~ 250`은 공유기 DHCP 할당 범위에서 빼 두고 클러스터 전용으로 쓰도록 하였습니다. (공유기 설정 페이지에서 설정)
+공유기가 같은 IP를 다른 기기에 나눠 주면 ARP 응답이 충돌해 연결이 끊기기 때문에 `192.168.0.230 ~ 250`은 공유기 DHCP 할당 범위에서 빼 두고 클러스터 전용으로 쓴다. (공유기 설정 페이지에서 설정)
 
 ## 4. CI로 버전관리하기
 
 이미지 태그를 사람이 `values.yaml`에 적는 방식은 누락되기 쉽다. 또한 GitOps로 가려면 어차피 CI가 이미지를 올려야 한다.
 
-그래서 깃헙액션 **워크플로 하나가 이미지와 차트 버전을 동시에 올린다.**
+그래서 깃헙액션 **워크플로 하나가 이미지와 차트 버전을 동시에 올린다.**
 
 ```yaml {title=".github/workflows/build-push.yml (발췌)"}
 on:
@@ -139,21 +139,21 @@ steps:
 
 ### 버전 계산 방식
 
-버전은 `Chart.yaml`의 `version`을 읽어 patch를 +1 한 값이다. 이 값 하나를 이미지 태그, 차트 `version`, `appVersion`에 똑같이 쓴다. 따라서 **이미지 태그 = 차트 version = appVersion**이다.
+버전은 `Chart.yaml`의 `version`을 읽어 patch를 +1 한 값이다. 이 값 하나를 이미지 태그, 차트 `version`, `appVersion`에 똑같이 써서 **이미지 태그 = 차트 version = appVersion**이 된다.
 
 버전의 단일 진실 공급원은 Git의 `Chart.yaml`이다. `github.run_number`는 워크플로 파일명이 바뀌면 1로 리셋되므로 쓰지 않는다. Git 기준이라 워크플로 이름이나 파일이 바뀌어도 버전은 단조 증가한다.
 
 ### 멀티아키가 필요한 이유
 
-홈랩에는 **amd64 노드와 Raspberry Pi arm64 노드가 한 클러스터에 섞여있기 때문입니다.** 따라서`platforms: linux/amd64,linux/arm64`를 지정한다.  한쪽만 빌드하면 다른 아키텍처 노드에 스케줄된 파드가 `exec format error`로 죽는다.
+홈랩에는 amd64 노드와 Raspberry Pi arm64 노드가 한 클러스터에 섞여 있어서 `platforms: linux/amd64,linux/arm64`를 지정한다. 한쪽만 빌드하면 다른 아키텍처 노드에 스케줄된 파드가 `exec format error`로 죽는다.
 
 ## 5. Argo CD: app-of-apps와 polling
 
 ### 5.1 루트 Application이 저장소를 감시한다
 
-이미 홈랩 Argo CD가 설치되어 있었습니다. 이 저장소의 Application을 직접 `kubectl apply` 하지 않고 별도로 관리하는 홈랩 저장소의 루트 Application이 현재 실습을 진행중인 저장소를 가리키게 했다(app-of-apps).
+이미 홈랩 Argo CD가 설치되어 있었다. 이 저장소의 Application을 직접 `kubectl apply` 하지 않고 별도로 관리하는 홈랩 저장소의 루트 Application이 현재 실습을 진행 중인 저장소를 가리키게 했다(app-of-apps).
 
-![루트 Application이 k8s/argocd를 polling 해 hello-joker Application을 만들고, 그 Application이 funny 네임스페이스에 배포하는 app-of-apps 구조](app-of-apps.svg)
+![루트 Application이 k8s/argocd를 polling 해 hello-joker Application을 만들고 그 Application이 funny 네임스페이스에 배포하는 app-of-apps 구조](app-of-apps.svg)
 
 1. 루트 `mlops-study-root`가(별도 홈랩 저장소) 이 저장소 `main`의 `k8s/argocd` 디렉터리를 sync 한다.
 2. 그 안의 `hello-joker-app.yaml`이 하위 Application으로 생긴다.
@@ -184,13 +184,13 @@ spec:
 
 ### 5.2 설계에서 정한 것들
 
-**웹훅 대신 polling을 쓴다.** 
+**웹훅 대신 polling을 쓴다.**
 
 - 홈랩에는 GitHub 웹훅을 받을 공개 주소가 없다. `argocd-cm`의 `timeout.reconciliation` 기본값(120s)에 jitter(60s)가 붙어, push 후 반영까지 최대 약 3분이 걸린다.
 
-**차트 기본값은 건드리지 않는다.** 
+**차트 기본값은 건드리지 않는다.**
 
-- 차트의 `service.type`은 `NodePort`로 두고, Application의 `helm.valuesObject`로 `LoadBalancer`를 덮어쓴다. 환경별 차이는 차트가 아니라 Application에 둔다.
+- 차트의 `service.type`은 `NodePort`로 두고 Application의 `helm.valuesObject`로 `LoadBalancer`를 덮어쓴다. 환경별 차이는 Application에만 둔다.
 
 **루트에는 cascade finalizer를 달지 않는다.**
 
@@ -218,11 +218,11 @@ service/hello-joker   LoadBalancer   10.107.192.170   192.168.0.235   8083:32144
 { "random_joke": "Why did the programmer quit his job? Because he didn't get arrays." }
 ```
 
-## 6. 클러스터에 넣는 토큰은 최소 권한으로한다.
+## 6. 클러스터에 넣는 토큰은 최소 권한으로 한다.
 
 저장소와 이미지가 모두 private이라 자격 증명 두 개가 필요했다. 이때 **어떤 토큰을 넣을지**가 별도 결정이 됐다.
 
-![argocd/repo-mlops-study Secret은 저장소 하나에 Read-only인 fine-grained PAT로 Argo CD의 clone을, funny/dockerhub Secret은 Read-only Access Token으로 파드의 image pull을 허용하고, 토큰은 read -rs로 받아 Secret 생성 후 unset 하며 gh auth token은 쓰지 않는 구조](least-privilege-tokens.svg)
+![argocd/repo-mlops-study Secret은 저장소 하나에 Read-only인 fine-grained PAT로 Argo CD의 clone을, funny/dockerhub Secret은 Read-only Access Token으로 파드의 image pull을 허용하고 토큰은 read -rs로 받아 Secret 생성 후 unset 하며 gh auth token은 쓰지 않는 구조](least-privilege-tokens.svg)
 
 
 | Secret                    | 용도                         | 토큰                                                             |
@@ -234,7 +234,7 @@ service/hello-joker   LoadBalancer   10.107.192.170   192.168.0.235   8083:32144
 
  `gh auth token`은 쓰지 않는다. **계정 전체 쓰기 권한**이라 클러스터 Secret에 들어가면 노출 범위가 지나치게 넓다.
 
-토큰은 아래와 같이 프롬프트로 받아 화면과 셸 기록에 남지 않게 한다. 
+토큰은 아래와 같이 프롬프트로 받아 화면과 셸 기록에 남지 않게 한다.
 
 ```bash {title="repo 자격 증명 Secret (zsh)"}
 read -rs "GH_TOKEN?GitHub token: "
@@ -255,7 +255,7 @@ pull secret이 없으면 파드가 `ImagePullBackOff`에 머문다. Secret을 �
 
 ## 7. Prometheus·Grafana로 hello-joker 관측하기
 
-홈랩에는 kube-prometheus-stack(Prometheus, Grafana)이 이미 설치되어 있다. 따라서 책처럼 모니터링 스택을 새로 설치하지 않고, **기존 스택에 hello-joker를 수집 대상으로 붙이는 것**만 한다.
+홈랩에는 kube-prometheus-stack(Prometheus, Grafana)이 이미 설치되어 있다. 책처럼 모니터링 스택을 새로 설치하지 않고 **기존 스택에 hello-joker를 수집 대상으로 붙이는 것**만 한다.
 
 작업은 두 저장소에 나뉜다. 앱이 지표를 내보내는 일은 MLOps-study가, 그 지표를 수집하고 보여 주는 일은 홈랩 저장소(`~/k8s/observability`)가 맡는다.
 
@@ -289,7 +289,7 @@ async def root():
     return {"random_joke": random_joke}
 ```
 
-`requirements.txt`에는 `prometheus-client==0.26.0`과 `prometheus-fastapi-instrumentator==6.1.0`을 추가한다. **7.x는 starlette 0.30 이상을 요구**해서, 현재 고정한 fastapi 0.95.2(starlette 0.27)와 맞지 않는다.
+`requirements.txt`에는 `prometheus-client==0.26.0`과 `prometheus-fastapi-instrumentator==6.1.0`을 추가한다. **7.x는 starlette 0.30 이상을 요구**해서 현재 고정한 fastapi 0.95.2(starlette 0.27)와 맞지 않는다.
 
 ### 7.2 ServiceMonitor로 수집 대상을 등록한다
 
@@ -316,7 +316,7 @@ spec:
 kubectl apply -f observability/05-integrations/hello-joker-monitor.yaml
 ```
 
-`selector`는 차트가 만든 Service의 라벨을 가리키고, `port`는 포트 번호가 아니라 **Service 포트 이름**(`http`)이다. Prometheus는 이 Service의 Endpoints를 따라가 파드 3개를 각각 수집한다.
+`selector`는 차트가 만든 Service의 라벨을 가리키고 `port`는 포트 번호가 아니라 **Service 포트 이름**(`http`)이다. Prometheus는 이 Service의 Endpoints를 따라가 파드 3개를 각각 수집한다.
 
 별도 라벨 없이 수집되는 이유는 홈랩 Prometheus 설정에 있다. `serviceMonitorSelectorNilUsesHelmValues: false`와 `serviceMonitorNamespaceSelector: {}`로 **모든 네임스페이스의 ServiceMonitor를 선택**하도록 해 두었다. 기본값이면 `release: kube-prometheus-stack` 라벨이 없는 ServiceMonitor는 무시된다.
 
@@ -324,7 +324,7 @@ kubectl apply -f observability/05-integrations/hello-joker-monitor.yaml
 
 홈랩에서는 vLLM, Keycloak, istiod 같은 다른 수집 대상의 ServiceMonitor도 모두 `observability/` 아래에서 관리한다. 수집 설정을 모니터링 스택과 같은 곳에 모아 두면 무엇을 수집하는지 한 디렉터리에서 확인할 수 있다.
 
-그래서 **앱은 `/metrics`를 노출하기만 하고, 수집 설정은 홈랩 저장소가 갖는다.** Service 자체는 차트가 만들고 Argo CD가 관리하므로 홈랩 쪽에는 ServiceMonitor만 둔다.
+**앱은 `/metrics`를 노출하기만 하고 수집 설정은 홈랩 저장소가 갖는다.** Service 자체는 차트가 만들고 Argo CD가 관리하므로 홈랩 쪽에는 ServiceMonitor만 둔다.
 
 ### 7.4 Grafana 대시보드를 ConfigMap으로 올린다
 
@@ -358,7 +358,7 @@ kubectl -n monitoring create configmap "dashboard-$(basename $f .json)" --from-f
 
 ### 7.5 확인
 
-배포가 끝난 뒤 Prometheus에서 수집 상태를 조회하면 새 파드 3개가 모두 `up=1`이고, 2xx 요청이 늘어나며 p95 지연은 약 10ms이다.
+배포가 끝난 뒤 Prometheus에서 수집 상태를 조회하면 새 파드 3개가 모두 `up=1`이고 2xx 요청이 늘어나며 p95 지연은 약 10ms이다.
 
 ```bash {title="Prometheus 조회"}
 kubectl -n monitoring port-forward svc/kube-prometheus-stack-prometheus 9090:9090 &
