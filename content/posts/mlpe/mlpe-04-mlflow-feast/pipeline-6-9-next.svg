@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="920" viewBox="0 0 960 920" font-family="'Pretendard','Noto Sans KR','Apple SD Gothic Neo',sans-serif" role="img" aria-labelledby="pipeline-6-9-next-title pipeline-6-9-next-desc">
+  <title id="pipeline-6-9-next-title">6.9 다음 단계: 아직 손으로 하거나 비어 있는 곳</title>
+  <desc id="pipeline-6-9-next-desc">4.1절에서 다루지 않은 피처 스토어는 4.2절 Feast 에서, 점선 오케스트레이션 상자의 자동화와 모델 배포는 5장 Kubeflow Pipelines 에서, 모델 API 와 모니터링은 뒷장에서 다룬다.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#C9C8C2" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="arrow-run" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#0F6E56" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="arrow-store" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#EB6C36" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="arrow-next" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#534AB7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  </defs>
+  <rect width="960" height="920" fill="#FFFFFF"/>
+  <rect x="230" y="220" width="240" height="392" rx="12" fill="#EEEDFE" fill-opacity="0.35" stroke="#534AB7" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <text x="350" y="240" text-anchor="middle" font-size="12" font-weight="600" fill="#534AB7">파이프라인 오케스트레이션</text>
+  <g stroke="#C9C8C2" stroke-width="1.2" fill="none">
+    <path d="M350 84 L350 118" marker-end="url(#arrow)"/>
+    <path d="M450 146 L484 146" marker-end="url(#arrow)"/>
+    <path d="M565 168 L565 282 L456 282" marker-end="url(#arrow)"/>
+    <path d="M350 168 L350 254" marker-end="url(#arrow)"/>
+    <path d="M120 180 L120 254" marker-end="url(#arrow)"/>
+    <path d="M200 282 L244 282" marker-end="url(#arrow)"/>
+    <path d="M150 316 L150 378 L244 378" marker-end="url(#arrow)"/>
+    <path d="M90 316 L90 708 L244 708" marker-end="url(#arrow)"/>
+    <path d="M350 304 L350 350" marker-end="url(#arrow)"/>
+    <path d="M350 400 L350 446" marker-end="url(#arrow)"/>
+    <path d="M350 496 L350 542" marker-end="url(#arrow)"/>
+    <path d="M450 378 L484 378" marker-end="url(#arrow)"/>
+    <path d="M450 474 L484 474" marker-end="url(#arrow)"/>
+    <path d="M565 508 L565 570 L456 570" marker-end="url(#arrow)"/>
+    <path d="M350 592 L350 674" marker-end="url(#arrow)"/>
+    <path d="M450 708 L484 708" marker-end="url(#arrow)"/>
+    <path d="M330 736 L330 794" marker-end="url(#arrow)"/>
+    <path d="M370 800 L370 742" marker-end="url(#arrow)"/>
+  </g>
+  <rect x="250" y="40" width="200" height="44" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="350" y="62" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="600" fill="#9C9B95">비즈니스 요구사항</text>
+  <rect x="250" y="124" width="200" height="44" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="350" y="146" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="600" fill="#9C9B95">문제 정의·설계</text>
+  <rect x="490" y="124" width="150" height="44" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="565" y="146" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="600" fill="#9C9B95">모델 설계</text>
+  <rect x="40" y="124" width="160" height="56" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="120" y="142" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="600" fill="#9C9B95">데이터 웨어하우스</text>
+  <text x="120" y="160" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#B4B3AD">배치·스트리밍</text>
+  <rect x="32" y="252" width="176" height="72" rx="12" fill="none" stroke="#534AB7" stroke-opacity="0.22" stroke-width="6"/>
+  <rect x="40" y="260" width="160" height="56" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="2" stroke-dasharray="5 3"/>
+  <text x="120" y="278" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="700" fill="#3C3489">피처 스토어</text>
+  <text x="120" y="296" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#534AB7">4.2절 Feast</text>
+  <rect x="250" y="260" width="200" height="44" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="350" y="282" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="600" fill="#9C9B95">데이터 수집·준비</text>
+  <rect x="250" y="356" width="200" height="44" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="350" y="378" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="600" fill="#9C9B95">모델 학습</text>
+  <rect x="250" y="452" width="200" height="44" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="350" y="474" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="600" fill="#9C9B95">모델 평가·검증</text>
+  <rect x="242" y="540" width="216" height="60" rx="12" fill="none" stroke="#534AB7" stroke-opacity="0.22" stroke-width="6"/>
+  <rect x="250" y="548" width="200" height="44" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="2" stroke-dasharray="5 3"/>
+  <text x="350" y="566" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="700" fill="#3C3489">모델 배포</text>
+  <text x="350" y="584" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#534AB7">5장 배치 추론</text>
+  <rect x="490" y="356" width="150" height="56" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="565" y="374" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="600" fill="#9C9B95">실험 추적</text>
+  <text x="565" y="392" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#B4B3AD">파라미터·메트릭</text>
+  <rect x="490" y="452" width="150" height="56" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="565" y="470" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="600" fill="#9C9B95">모델 레지스트리</text>
+  <text x="565" y="488" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#B4B3AD">버전 관리</text>
+  <rect x="242" y="672" width="216" height="72" rx="12" fill="none" stroke="#534AB7" stroke-opacity="0.22" stroke-width="6"/>
+  <rect x="250" y="680" width="200" height="56" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="2" stroke-dasharray="5 3"/>
+  <text x="350" y="698" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="700" fill="#3C3489">모델 API</text>
+  <text x="350" y="716" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#534AB7">뒷장</text>
+  <rect x="482" y="672" width="166" height="72" rx="12" fill="none" stroke="#534AB7" stroke-opacity="0.22" stroke-width="6"/>
+  <rect x="490" y="680" width="150" height="56" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="2" stroke-dasharray="5 3"/>
+  <text x="565" y="698" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="700" fill="#3C3489">모델 모니터링</text>
+  <text x="565" y="716" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#534AB7">뒷장</text>
+  <rect x="250" y="800" width="200" height="44" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="350" y="822" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="600" fill="#9C9B95">사용자</text>
+  <text x="565" y="760" text-anchor="middle" font-size="12" fill="#B4B3AD">↻ 재학습 트리거</text>
+  <rect x="684" y="240" width="256" height="164" rx="10" fill="#FFFFFF" stroke="#534AB7" stroke-width="1.2"/>
+  <text x="700" y="264" font-size="11" font-weight="700" fill="#534AB7" letter-spacing="0.06em">6.9 다음 단계</text>
+  <text x="700" y="288" font-size="13" font-weight="700" fill="#2C2C2A">4.1절 다음에 채울 곳</text>
+  <text x="700" y="310" font-size="12" fill="#444441">· 피처 스토어: 4.2절 Feast + Redis</text>
+  <text x="700" y="330" font-size="12" fill="#444441">· 점선 상자 자동화: 5장 Kubeflow</text>
+  <text x="700" y="350" font-size="12" fill="#444441">· 모델 배포: 5장, models:/…@champion</text>
+  <text x="700" y="370" font-size="12" fill="#444441">· 모델 API · 모니터링: 뒷장</text>
+  <text x="700" y="390" font-size="11" fill="#9C9B95">지금은 사람이 셀을 눌러 점선 상자를 대신 돌렸다</text>
+  <rect x="40" y="874" width="14" height="12" rx="3" fill="#EEEDFE" stroke="#534AB7" stroke-width="1.5" stroke-dasharray="5 3"/>
+  <text x="62" y="884" font-size="12" fill="#5F5E5A">다음 절·장에서 할 단계</text>
+  <rect x="235" y="874" width="14" height="12" rx="3" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="257" y="884" font-size="12" fill="#5F5E5A">이 절과 무관한 단계</text>
+  <!-- icons: Simple Icons (CC0) MLflow, Jupyter -->
+</svg>

@@ -1,0 +1,22 @@
+{{- /*
+    같은 페이지 번들 안의 마크다운 파일을 이 글의 본문으로 끼워 넣는다.
+    사용: {{% include "homelab-practice-4-1.md" %}}  (반드시 % 표기)
+
+    leaf bundle(index.md)의 다른 .md 는 Hugo 가 별도 페이지로 발행하지 않고 리소스로만 둔다.
+    이 숏코드는 그 파일을 직접 읽어 맨 앞 front matter(--- 블록)를 걷어낸 마크다운을 돌려주고, % 표기라 Hugo 가 그것을
+    index.md 의 일부로 파싱한다. 코드블록 터미널 창, 이미지 lightgallery 같은 render hook 과 목차(TOC)가
+    index.md 에 직접 쓴 것과 똑같이 적용된다. < > 표기로 부르면 마크다운이 그대로 노출되므로 쓰지 않는다.
+
+    .RawContent 를 쓰지 않는 이유: front matter 에 한글이 길게 들어가면 그 끝부분이 본문으로 새어 나와
+    바로 뒤의 --- 와 함께 제목(setext heading)으로 렌더됐다(2026-10-26, Hugo 0.163.3).
+    safeHTML 이 없으면 따옴표가 &#34; 로 이스케이프돼 코드블록 {title="..."} 속성이 깨진다.
+*/ -}}
+{{- $name := .Get 0 -}}
+{{- $path := path.Join "content" .Page.File.Dir $name -}}
+{{- if fileExists $path -}}
+  {{- $raw := readFile $path -}}
+  {{- $body := replaceRE `(?s)\A---\r?\n.*?\r?\n---\r?\n` "" $raw 1 -}}
+  {{- $body | safeHTML -}}
+{{- else -}}
+  {{- errorf "include: %q 를 찾지 못했다 (%s)" $name $path -}}
+{{- end -}}

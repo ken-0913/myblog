@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="920" viewBox="0 0 960 920" font-family="'Pretendard','Noto Sans KR','Apple SD Gothic Neo',sans-serif" role="img" aria-labelledby="pipeline-6-7-eval-title pipeline-6-7-eval-desc">
+  <title id="pipeline-6-7-eval-title">6.7 결과 비교: 실험 추적에서 지표를 꺼내 평가한다</title>
+  <desc id="pipeline-6-7-eval-desc">모델 평가·검증 단계에서 실험 추적에 쌓인 run 세 개의 test AUC 와 정확도를 비교했다. 랜덤 포레스트가 AUC 0.8608 로 1등이다.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#C9C8C2" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="arrow-run" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#0F6E56" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="arrow-store" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#EB6C36" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="arrow-next" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#534AB7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  </defs>
+  <rect width="960" height="920" fill="#FFFFFF"/>
+  <rect x="230" y="220" width="240" height="392" rx="12" fill="none" fill-opacity="1" stroke="#C9C8C2" stroke-width="0.75" stroke-dasharray="4 4"/>
+  <text x="350" y="240" text-anchor="middle" font-size="12" font-weight="400" fill="#B4B3AD">파이프라인 오케스트레이션</text>
+  <g stroke="#C9C8C2" stroke-width="1.2" fill="none">
+    <path d="M350 84 L350 118" marker-end="url(#arrow)"/>
+    <path d="M450 146 L484 146" marker-end="url(#arrow)"/>
+    <path d="M565 168 L565 282 L456 282" marker-end="url(#arrow)"/>
+    <path d="M350 168 L350 254" marker-end="url(#arrow)"/>
+    <path d="M120 180 L120 254" marker-end="url(#arrow)"/>
+    <path d="M200 282 L244 282" marker-end="url(#arrow)"/>
+    <path d="M150 316 L150 378 L244 378" marker-end="url(#arrow)"/>
+    <path d="M90 316 L90 708 L244 708" marker-end="url(#arrow)"/>
+    <path d="M350 304 L350 350" marker-end="url(#arrow)"/>
+    <path d="M350 400 L350 446" marker-end="url(#arrow)"/>
+    <path d="M350 496 L350 542" marker-end="url(#arrow)"/>
+    <path d="M450 378 L484 378" marker-end="url(#arrow)"/>
+    <path d="M450 474 L484 474" marker-end="url(#arrow)"/>
+    <path d="M565 508 L565 570 L456 570" marker-end="url(#arrow)"/>
+    <path d="M350 592 L350 674" marker-end="url(#arrow)"/>
+    <path d="M450 708 L484 708" marker-end="url(#arrow)"/>
+    <path d="M330 736 L330 794" marker-end="url(#arrow)"/>
+    <path d="M370 800 L370 742" marker-end="url(#arrow)"/>
+  </g>
+  <rect x="250" y="40" width="200" height="44" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="350" y="62" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="600" fill="#9C9B95">비즈니스 요구사항</text>
+  <rect x="250" y="124" width="200" height="44" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="350" y="146" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="600" fill="#9C9B95">문제 정의·설계</text>
+  <rect x="490" y="124" width="150" height="44" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="565" y="146" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="600" fill="#9C9B95">모델 설계</text>
+  <rect x="40" y="124" width="160" height="56" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="120" y="142" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="600" fill="#9C9B95">데이터 웨어하우스</text>
+  <text x="120" y="160" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#B4B3AD">배치·스트리밍</text>
+  <rect x="40" y="260" width="160" height="56" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="120" y="278" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="600" fill="#9C9B95">피처 스토어</text>
+  <text x="120" y="296" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#B4B3AD">공유 피처 저장소</text>
+  <rect x="250" y="260" width="200" height="44" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="350" y="282" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="600" fill="#9C9B95">데이터 수집·준비</text>
+  <rect x="250" y="356" width="200" height="44" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="350" y="378" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="600" fill="#9C9B95">모델 학습</text>
+  <rect x="242" y="444" width="216" height="60" rx="12" fill="none" stroke="#0F6E56" stroke-opacity="0.22" stroke-width="6"/>
+  <rect x="250" y="452" width="200" height="44" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="2"/>
+  <text x="350" y="470" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="700" fill="#085041">모델 평가·검증</text>
+  <text x="350" y="488" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#0F6E56">AUC · 정확도 비교</text>
+  <svg x="431" y="457" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path fill="#F37626" d="M7.157 22.201A1.784 1.799 0 0 1 5.374 24a1.784 1.799 0 0 1-1.784-1.799 1.784 1.799 0 0 1 1.784-1.799 1.784 1.799 0 0 1 1.783 1.799zM20.582 1.427a1.415 1.427 0 0 1-1.415 1.428 1.415 1.427 0 0 1-1.416-1.428A1.415 1.427 0 0 1 19.167 0a1.415 1.427 0 0 1 1.415 1.427zM4.992 3.336A1.047 1.056 0 0 1 3.946 4.39a1.047 1.056 0 0 1-1.047-1.055A1.047 1.056 0 0 1 3.946 2.28a1.047 1.056 0 0 1 1.046 1.056zm7.336 1.517c3.769 0 7.06 1.38 8.768 3.424a9.363 9.363 0 0 0-3.393-4.547 9.238 9.238 0 0 0-5.377-1.728A9.238 9.238 0 0 0 6.95 3.73a9.363 9.363 0 0 0-3.394 4.547c1.713-2.04 5.004-3.424 8.772-3.424zm.001 13.295c-3.768 0-7.06-1.381-8.768-3.425a9.363 9.363 0 0 0 3.394 4.547A9.238 9.238 0 0 0 12.33 21a9.238 9.238 0 0 0 5.377-1.729 9.363 9.363 0 0 0 3.393-4.547c-1.712 2.044-5.003 3.425-8.772 3.425Z"/></svg>
+  <rect x="250" y="548" width="200" height="44" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="350" y="570" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="600" fill="#9C9B95">모델 배포</text>
+  <rect x="482" y="348" width="166" height="72" rx="12" fill="none" stroke="#EB6C36" stroke-opacity="0.22" stroke-width="6"/>
+  <rect x="490" y="356" width="150" height="56" rx="8" fill="#FDEEE6" stroke="#EB6C36" stroke-width="2"/>
+  <text x="565" y="374" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="700" fill="#7A2E0C">실험 추적</text>
+  <text x="565" y="392" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#EB6C36">파라미터·메트릭</text>
+  <svg x="621" y="361" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path fill="#0194E2" d="M11.883.002a12.044 12.044 0 0 0-9.326 19.463l3.668-2.694A7.573 7.573 0 0 1 12.043 4.45v2.867l6.908-5.14A12.012 12.012 0 0 0 11.883.002zm9.562 4.533L17.777 7.23a7.573 7.573 0 0 1-5.818 12.322v-2.867l-6.908 5.14a12.046 12.046 0 0 0 16.394-17.29z"/></svg>
+  <rect x="490" y="452" width="150" height="56" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="565" y="470" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="600" fill="#9C9B95">모델 레지스트리</text>
+  <text x="565" y="488" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#B4B3AD">버전 관리</text>
+  <rect x="250" y="680" width="200" height="56" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="350" y="698" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="600" fill="#9C9B95">모델 API</text>
+  <text x="350" y="716" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#B4B3AD">예측 서빙</text>
+  <rect x="490" y="680" width="150" height="56" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="565" y="698" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="600" fill="#9C9B95">모델 모니터링</text>
+  <text x="565" y="716" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#B4B3AD">드리프트 감지</text>
+  <rect x="250" y="800" width="200" height="44" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="350" y="822" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="600" fill="#9C9B95">사용자</text>
+  <text x="565" y="760" text-anchor="middle" font-size="12" fill="#B4B3AD">↻ 재학습 트리거</text>
+  <path d="M490 404 L478 404 L478 462 L456 462" fill="none" stroke="#EB6C36" stroke-width="2" marker-end="url(#arrow-store)"/>
+  <text x="482" y="432" text-anchor="start" font-size="10" font-weight="600" fill="#EB6C36">search</text>
+  <rect x="684" y="300" width="256" height="164" rx="10" fill="#FFFFFF" stroke="#0F6E56" stroke-width="1.2"/>
+  <text x="700" y="324" font-size="11" font-weight="700" fill="#0F6E56" letter-spacing="0.06em">6.7 결과 비교</text>
+  <text x="700" y="348" font-size="13" font-weight="700" fill="#2C2C2A">test AUC 기준 1등: 랜덤 포레스트</text>
+  <text x="700" y="370" font-size="12" fill="#444441">· 랜덤 포레스트 0.8608</text>
+  <text x="700" y="390" font-size="12" fill="#444441">· 결정 트리 0.8187</text>
+  <text x="700" y="410" font-size="12" fill="#444441">· XGBoost (hinge 지표) 0.7320</text>
+  <text x="700" y="430" font-size="12" fill="#444441">· 정확도는 셋 다 0.81 ~ 0.83</text>
+  <text x="700" y="450" font-size="11" fill="#9C9B95">UI 검색: metrics.roc_auc_score_test &gt; 0.8</text>
+  <rect x="40" y="874" width="14" height="12" rx="3" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1.5"/>
+  <text x="62" y="884" font-size="12" fill="#5F5E5A">Jupyter 에서 직접 실행</text>
+  <rect x="268" y="874" width="14" height="12" rx="3" fill="#FDEEE6" stroke="#EB6C36" stroke-width="1.5"/>
+  <text x="290" y="884" font-size="12" fill="#5F5E5A">MLflow 에 기록·등록</text>
+  <rect x="474" y="874" width="14" height="12" rx="3" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="496" y="884" font-size="12" fill="#5F5E5A">이 절과 무관한 단계</text>
+  <!-- icons: Simple Icons (CC0) MLflow, Jupyter -->
+</svg>

@@ -41,6 +41,7 @@
 - 새 글 위치: `content/posts/` 아래에 마크다운(`.md`) 파일로 작성.
 - front matter의 `date`는 **작성 시점보다 과거**로 둔다(미래 날짜는 Hugo가 빌드에서 제외 → 발행 누락).
 - 스터디 글은 front matter에 `series: ["MLPE 1주차"]`처럼 **주차 시리즈**를 넣는다. 카테고리·섹션 목록 페이지가 연도 아래 이 이름으로 묶어 보여 주고(`layouts/_partials/archive-groups.html`), `/series/<이름>/` 페이지와 글 하단 이전·다음 내비게이션이 생긴다. 이름 형식은 `<스터디 약칭> N주차`로 통일한다.
+- 글 번들(`index.md` 가 있는 디렉터리) 안에 보조 마크다운 파일을 두고 본문에서 `{{% include "파일.md" %}}` 로 끌어다 쓸 수 있다(`layouts/_shortcodes/include.html`). 예: `mlpe-04-mlflow-feast/homelab-practice-4-1.md`. 보조 파일은 별도 페이지로 발행되지 않고, 포함된 소제목은 글의 목차에 들어간다. **반드시 `%` 표기**로 부른다. `<` 표기로 부르면 마크다운이 그대로 노출된다.
 
 ### 코드블록 렌더 규칙 (중요)
 
