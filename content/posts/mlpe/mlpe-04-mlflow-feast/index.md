@@ -11,6 +11,10 @@ featuredImage: images/banners/mlpe-04-mlflow-feast-36a0caef.png
 
 이 글은 홈랩 Kubernetes 클러스터에 Feast를 올리고 4.2절 실습을 따라 한 기록이다. MLflow, RustFS, JupyterLab은 [앞 글](../mlpe-04-mlflow-install/)에서 설치한 것을 그대로 쓴다.
 
+4.1절 실습 글의 MLOps 파이프라인 그림에서 비어 있던 피처 스토어 자리를 이번에 Feast로 채운다. 학습 쪽(모델 학습)과 서빙 쪽(모델 API)이 같은 피처 정의에서 값을 꺼내 가는 구조다.
+
+![4.1절 MLOps 파이프라인 그림에서 피처 스토어만 강조한 그림. 데이터 웨어하우스 자리의 parquet 3개를 RustFS 오프라인 스토어에 두고, 모델 학습은 get_historical_features 로 시점 기준 피처를, 모델 API 는 materialize 로 Redis 에 옮긴 최신 피처를 get_online_features 와 피처 서버(:6566)로 가져간다. 오른쪽 카드에 오프라인 스토어, 레지스트리, materialize 30,162키, 학습·추론 조회 메서드를 정리했다](feast-pipeline-overview.svg)
+
 ## 1. 구성
 
 Feast는 별도 네임스페이스 `feast`에 올렸다. 오프라인 스토어와 레지스트리는 새로 만들지 않고 MLflow용으로 설치한 RustFS를 같이 쓴다.
@@ -59,7 +63,7 @@ Feast 공식 이미지(`quay.io/feastdev/feature-server:0.67.0`)는 amd64 전용
 
 정의 파일 3개는 ConfigMap `feast-repo`로 Jupyter의 `/opt/feast-repo`에 마운트돼 있다. 책 코드에서 바꾼 곳은 주소와 암호뿐이다.
 
-```terminal {title="kubectl -n mlflow describe pod (Jupyter, 요지)"}
+```terminal {title="개발 PC (kubectl): Jupyter Pod describe 요지"}
 $ kubectl -n mlflow describe pod -l app=jupyter
 ...
     Environment:
@@ -136,11 +140,11 @@ Redis 암호는 파일에 쓰지 않는다. Feast가 `feature_store.yaml`을 읽
 
 ![JupyterLab 메뉴에서 File → New → Terminal 을 고르는 화면. New 하위 메뉴에 Console, Notebook, Terminal, Text File, Markdown File, Python File 이 있다](jupyter-new-terminal.png)
 
-![JupyterLab 터미널에서 실습을 실행한 화면. hostname 이 jupyter-5455bf946d-mkr4l 로 Jupyter Pod 이름을 찍고, 프롬프트 (chapter-4) jovyan@jupyter-… 에서 정의 파일 3개를 ~/feast-repo 로 복사한 뒤 feast apply 가 Applying changes for project my_feature_repo 와 Deploying infrastructure 3줄을 출력한다](jupyter-terminal-feast-apply.png)
+![새로 연 JupyterLab 터미널에서 2.3절을 실행한 화면. hostname 이 Jupyter Pod 이름 jupyter-5455bf946d-mkr4l 을 찍고, source 로 chapter-4 venv 를 켜자 프롬프트 앞에 (chapter-4) 가 붙는다. 정의 파일 3개를 ~/feast-repo 로 복사한 뒤 feast apply 가 Deploying infrastructure 3줄을, feast feature-views list 가 피처 뷰 3개를 AVAILABLE_ONLINE 으로 보여 준다](jupyter-terminal-feast-apply.png)
 
-`hostname`이 `jupyter-5455bf946d-mkr4l`, 즉 Jupyter Pod 이름을 찍는다. 프롬프트 앞의 `(chapter-4)`는 venv가 이미 켜져 있다는 표시다.
+`hostname`이 `jupyter-5455bf946d-mkr4l`, 즉 Jupyter Pod 이름을 찍는다. **새로 연 터미널은 venv가 꺼져 있다.** `source ~/.venvs/chapter-4/bin/activate`를 빼먹으면 `bash: feast: command not found`가 나고, 켜면 프롬프트 앞에 `(chapter-4)`가 붙는다.
 
-```terminal
+```terminal {title="JupyterLab 터미널"}
 $ source ~/.venvs/chapter-4/bin/activate
 $ mkdir ~/feast-repo && cp /opt/feast-repo/*.py /opt/feast-repo/*.yaml ~/feast-repo/ && cd ~/feast-repo
 $ feast apply
@@ -168,19 +172,35 @@ UI의 Entities가 2개인 것은 Feast가 엔티티 없는 피처 뷰용으로 �
 
 ![Feast 구성도에서 feast materialize Job, RustFS, Redis 만 강조한 그림. materialize 가 RustFS 의 parquet 를 읽어 Redis 에 해시 키 30,162개를 쓴다](feast-2-4-materialize.svg)
 
-온라인 조회 전에 오프라인 스토어(RustFS parquet)의 값을 온라인 스토어(Redis)로 옮긴다. 시작·끝 시각은 책과 같고 parquet의 `feature_timestamp` 범위를 모두 덮는다.
+온라인 조회 전에 오프라인 스토어(RustFS parquet)의 값을 온라인 스토어(Redis)로 옮긴다. 시작·끝 시각은 책과 같고 parquet의 `feature_timestamp` 범위를 모두 덮는다. 2.3과 같은 **JupyterLab 터미널**의 `~/feast-repo`에서 실행한다.
 
-```terminal
+```terminal {title="JupyterLab 터미널 (~/feast-repo)"}
 $ feast materialize 2022-09-16T00:00:00 2023-09-17T00:00:00
 Materializing 3 feature views from 2022-09-16 00:00:00+00:00 to 2023-09-17 00:00:00+00:00 into the redis online store.
 demographic:
 occupation:
 relationship:
+```
+
+Redis에 들어갔는지는 두 곳에서 볼 수 있다. Jupyter Pod에는 `kubectl`과 `redis-cli`가 없으므로 같은 터미널에서는 Feast와 함께 설치된 Python `redis` 패키지로 센다. 암호는 Pod 환경변수 `REDIS_PASSWORD`에 들어 있다.
+
+```terminal {title="JupyterLab 터미널"}
+$ python -c "import os, redis; r = redis.Redis(host='redis.feast.svc', password=os.environ['REDIS_PASSWORD']); print(r.dbsize(), r.info('memory')['used_memory_human'])"
+30162 12.58M
+```
+
+`kubectl`이 있는 곳(개발 PC나 클러스터 노드)에서는 Redis Pod 안의 `redis-cli`를 쓴다. Pod에 `REDISCLI_AUTH`가 들어 있어 암호를 따로 주지 않는다.
+
+```terminal {title="개발 PC (kubectl)"}
 $ kubectl -n feast exec redis-0 -- redis-cli DBSIZE
 30162
 $ kubectl -n feast exec redis-0 -- redis-cli INFO memory | grep used_memory_human
 used_memory_human:12.58M
 ```
+
+![JupyterLab 터미널에서 2.4절을 실행한 화면. source 로 venv 를 켜고 ~/feast-repo 로 이동한 뒤 feast materialize 가 3 feature views 를 2022-09-16 ~ 2023-09-17 구간으로 redis online store 에 materialize 한다고 찍고, Python redis 패키지로 센 키 수와 메모리가 30162 12.58M 으로 나온다](jupyter-terminal-materialize.png)
+
+위는 JupyterLab 터미널에서 실제로 실행한 화면이다. 2.3에 이어 같은 터미널을 쓰면 `source`와 `cd`는 다시 할 필요가 없다.
 
 뷰가 3개인데 키는 90,486개가 아니라 30,162개다. Feast Redis 스토어는 사용자 한 명당 해시 키 하나에 세 뷰의 피처 값과 `_ts:<뷰 이름>` 타임스탬프 필드를 같이 넣는다. 그래서 키 수가 사용자 수와 같고, 여러 뷰를 한 번에 조회해도 사용자당 Redis 조회는 한 번이다.
 
@@ -190,9 +210,9 @@ Feast 공식 이미지에는 s3fs가 없어서 클러스터의 materialize Job�
 
 ![Feast 구성도에서 개발 PC, JupyterLab, RustFS, Redis 만 강조한 그림. Feast SDK 의 historical 조회는 RustFS parquet 에서, online 조회는 Redis 에서 읽는다](feast-2-5-retrieve.svg)
 
-책의 조회 스크립트 두 개는 `FeatureStore(repo_path=".")`라 정의 파일이 있는 `~/feast-repo`에서 실행한다.
+책의 조회 스크립트 두 개는 `FeatureStore(repo_path=".")`라 정의 파일이 있는 `~/feast-repo`에서 실행한다. 이것도 JupyterLab 터미널(venv 켠 상태)에서 한다.
 
-```terminal
+```terminal {title="JupyterLab 터미널 (~/feast-repo)"}
 $ python ~/practical-mlops/chapter-4/feast_retrieval/retrieve_features.py
 ----- Example features -----
 
@@ -204,6 +224,8 @@ $ python ~/practical-mlops/chapter-4/feast_retrieval/retrieve_online_features.py
                                 user_id    Sex
 0  74b0638a-5742-4d1a-a03f-483794d7aa7c   Male
 ```
+
+![JupyterLab 터미널에서 2.5절을 실행한 화면. (chapter-4) venv 의 ~/feast-repo 에서 retrieve_features.py 가 9f2ac416… 사용자의 2023-01-30 10:59:42 시점 Sex = Male 을, retrieve_online_features.py 가 74b0638a… 사용자의 Sex = Male 을 출력한다. 온라인 결과에는 event_timestamp 열이 없다](jupyter-terminal-retrieve.png)
 
 오프라인 조회(Listing 4.12)는 "2023-01-30 10:59:42 시점에 이 사용자의 Sex는?"이라는 질문이다. parquet에 이 사용자의 기록은 2023-01-24 06:52:20 하나뿐이고 조회 시점보다 앞이며 TTL(365일) 안이라 그 값 Male이 나온다.
 
