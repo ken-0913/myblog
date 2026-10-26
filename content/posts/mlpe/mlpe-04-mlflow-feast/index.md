@@ -386,6 +386,6 @@ Jupyter 토큰은 화면에 출력되니 필요할 때만 꺼낸다.
 kubectl -n mlflow get secret jupyter-token -o jsonpath='{.data.token}' | base64 -d; echo
 ```
 
-MLflow UI와 RustFS 콘솔에는 인증이 없거나 루트 계정 하나뿐이다. LAN 안에서만 쓰고 Keycloak 연동은 과제로 남긴다. 4.2절의 Feast에 필요한 Redis와 버킷은 다음 단계다. 이렇게 올린 환경에서 책의 4.1절 노트북을 실제로 돌린 기록이 아래 "4.1절 실습하기"다.
+MLflow UI와 RustFS 콘솔에는 인증이 없거나 루트 계정 하나뿐이다. LAN 안에서만 쓰고 Keycloak 연동은 과제로 남긴다. 4.2절의 Feast에 필요한 Redis와 버킷은 다음 단계다.
 
-{{% include "homelab-practice-4-1.md" %}}
+이렇게 올린 환경에서 책의 4.1절 노트북을 실제로 돌린 기록은 다음 글 [홈랩 MLflow로 실험 추적과 모델 레지스트리 실습하기](../mlpe-04-1-mlflow-practice/)에 있다.

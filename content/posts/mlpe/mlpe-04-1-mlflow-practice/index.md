@@ -1,19 +1,22 @@
 ---
-title: "홈랩에서 4.1절 실습하기 (MLflow 실험 추적·모델 레지스트리)"
-description: "mlpe-04 글의 마지막 절(4.1절 실습하기). index.md(Kubernetes 에 MLflow 설치) 끝에서 include 숏코드로 끌어다 쓴다(별도 페이지로 발행되지 않는다). 책 4.1절 노트북을 홈랩 MLflow(RustFS, Postgres, 클러스터 안 JupyterLab)에서 실제로 돌린 기록."
-featuredImage: images/banners/homelab-practice-4-1-c5fd7b27.png
+title: "MLPE 스터디 2주차 - Ch4.1 홈랩 MLflow로 실험 추적과 모델 레지스트리 실습하기"
+date: 2026-10-25T20:00:00+09:00
+draft: false
+tags: ["MLOps", "MLPE", "MLflow", "Experiment Tracking", "Model Registry", "JupyterLab", "RustFS", "XGBoost", "scikit-learn"]
+categories: ["MLOps"]
+series: ["MLPE 2주차"]
 ---
-## 4.1절 실습하기
+책 4.1절(실험 추적과 모델 레지스트리) 노트북을 홈랩 MLflow에서 돌린 기록이다. 실습 환경(MLflow, Postgres, RustFS, JupyterLab)을 Kubernetes에 올린 과정은 [앞 글](../mlpe-04-mlflow-feast/)에 있다.
 
-책 4.1절(실험 추적과 모델 레지스트리) 노트북을 홈랩 MLflow에서 돌린 기록이다. 책은 로컬 `mlflow ui`와 Kubeflow에 딸린 MinIO를 쓰지만 여기서는 Kubernetes 위의 MLflow, Postgres, RustFS를 썼다. RustFS는 홈랩에서 이미 쓰고 있어서 골랐고 다른 이유는 없다.
+책은 로컬 `mlflow ui`와 Kubeflow에 딸린 MinIO를 쓰지만 여기서는 Kubernetes 위의 MLflow, Postgres, RustFS를 썼다. RustFS는 홈랩에서 이미 쓰고 있어서 골랐고 다른 이유는 없다.
 
-### 1. 한눈에 보기
+## 1. 한눈에 보기
 
 아래는 이번 절에서 실습할 파이프라인이다. 초록 칸은 Jupyter 노트북 셀로 직접 실행한 단계이고, 주황 칸은 노트북이 만든 결과를 MLflow에 기록하고 등록한 곳이다.
 
-![MLOps 파이프라인에서 데이터 수집·준비, 모델 학습, 모델 평가·검증을 Jupyter 노트북 셀로 직접 실행하고, 결과를 MLflow 실험 추적에 기록하고 1등 모델을 모델 레지스트리에 등록한 4.1절 실습 전체 범위. 점선 오케스트레이션 자리의 자동화는 5장 Kubeflow Pipelines 몫이다](pipeline-6-1-overview.svg)
+![MLOps 파이프라인에서 데이터 수집·준비, 모델 학습, 모델 평가·검증을 Jupyter 노트북 셀로 직접 실행하고, 결과를 MLflow 실험 추적에 기록하고 1등 모델을 모델 레지스트리에 등록한 이 글의 전체 범위. 점선 오케스트레이션 자리의 자동화는 5장 Kubeflow Pipelines 몫이다](pipeline-6-1-overview.svg)
 
-### 2. 환경설정하기
+## 2. 환경설정하기
 
 - JupyterLab 기동
   - 먼저 JupyterLab(`http://192.168.0.239:8888`)에 토큰으로 들어가 `practical-mlops/chapter-4/mlflow/data_exploration_and_model_training.ipynb`를 연다. 4.1절 코드는 이 노트북 하나(29셀)에 다 들어 있다.
@@ -60,7 +63,7 @@ if not found:
 
 바로 다음 셀의 `save_df_to_minio`는 이 `minioClient`를 그대로 쓰므로 바꿀 것이 없다. RustFS 콘솔(`192.168.0.237:9001`) 로그인도 같은 Secret `rustfs-credentials`의 값이다.
 
-### 3. EDA run
+## 3. EDA run
 
 EDA(탐색적 데이터 분석)는 모델을 만들기 전에 데이터를 그래프로 그려 보며 어떤 컬럼이 소득(Target)과 관련 있는지 살펴보는 작업이고, 이 run은 그 그래프를 MLflow에 기록해 둔다.
 
@@ -97,7 +100,7 @@ with mlflow.start_run(run_name=f"eda-{uuid.uuid4()}"):           # 모델 run �
 
 ![RustFS 콘솔에서 같은 run 의 artifacts/.ipynb_checkpoints 를 연 화면. Variable Marital-Status, Race, Sex 의 -checkpoint.png 3장이 함께 올라가 있다](orca-paste-1793018920708-fed1d949-b9cf-4745-8d33-e1e077d8ebe1.png)
 
-### 4. 데이터 준비
+## 4. 데이터 준비
 
 데이터 준비는 문자열이 섞인 원본 표를 모델이 학습할 수 있는 숫자 표로 바꾸고 학습용 80%, 시험용 20%로 나누는 단계이고, MLflow에는 아무것도 기록하지 않는다.
 
@@ -109,7 +112,7 @@ with mlflow.start_run(run_name=f"eda-{uuid.uuid4()}"):           # 모델 run �
 
 책 코드에는 `random_state`가 없어서 실행할 때마다 분할이 달라지고 지표도 조금씩 변한다. 실제로 같은 결정 트리를 네 번 돌린 test AUC가 0.8218, 0.8216, 0.8187, 0.8123으로 달랐다.
 
-### 5. 모델 run과 skops 에러
+## 5. 모델 run과 skops 에러
 
 모델 run은 결정 트리와 랜덤 포레스트를 학습해 데이터셋, 지표, 파라미터, 모델을 run 하나에 기록하는 단계이고, 최신 MLflow가 모델 저장에서 skops 에러를 내 두 셀의 `log_model` 줄을 고쳐야 했다.
 
@@ -196,7 +199,7 @@ MLflow 3부터 모델은 run의 Artifacts 폴더가 아니라 별도 logged mode
 
 책(2.x 기준)의 "Artifacts 탭에 모델이 보인다"는 설명과 다른 부분이다. run의 Artifacts 폴더에는 `column_list.pkl`만 남는다.
 
-### 6. XGBoost와 autolog
+## 6. XGBoost와 autolog
 
 세 번째 모델 XGBoost를 학습한다. 이번에는 기록 코드를 직접 쓰지 않고 MLflow에 "알아서 기록해 줘"(autolog)를 맡겨 본다.
 
@@ -220,9 +223,9 @@ MLflow 3부터 모델은 run의 Artifacts 폴더가 아니라 별도 logged mode
 - **파라미터는 첫 학습 것만 남았다.** MLflow는 한 run 안에서 이미 기록한 파라미터 값을 바꾸지 못한다. 두 번째 학습이 `objective`(→ `binary:hinge`)와 `num_boost_round`(→ 10)를 다시 쓰려다 막혀서 파라미터 10개는 모두 첫 학습(`binary:logistic`, 30라운드) 값이다.
 - **Datasets는 1개다.** autolog가 학습 데이터 하나만 기록하기 때문이다. 결정 트리 셀처럼 학습·시험·전체 3개를 직접 남긴 것과 다르다.
 
-정리하면 "파라미터는 logistic, 지표는 hinge"인 run이 하나 생긴 셈이다. 학습마다 run을 따로 열면(`with mlflow.start_run(run_name=f"xgboost-{objective}")`를 루프 안에) 모델, 파라미터, 지표가 짝을 맞춰 남는다. 9절에서 해 볼 거리로 남겼다.
+정리하면 "파라미터는 logistic, 지표는 hinge"인 run이 하나 생긴 셈이다. 학습마다 run을 따로 열면(`with mlflow.start_run(run_name=f"xgboost-{objective}")`를 루프 안에) 모델, 파라미터, 지표가 짝을 맞춰 남는다. 아래 9절에서 해 볼 거리로 남겼다.
 
-### 7. 결과 비교
+## 7. 결과 비교
 
 ![모델 평가·검증 단계에서 실험 추적에 쌓인 run 세 개의 test AUC 를 비교해 랜덤 포레스트 0.8608 을 1등으로 고르는 과정](pipeline-6-7-eval.svg)
 
@@ -252,7 +255,7 @@ MLflow 3부터 모델은 run의 Artifacts 폴더가 아니라 별도 logged mode
 
 순위는 첫 실행과 같지만 test AUC가 모델마다 0.006 ~ 0.017 떨어졌다. 분할 하나에서 나온 AUC는 소수점 둘째 자리부터 흔들리므로, 모델끼리 비교할 때는 `random_state`를 고정하거나 여러 번 돌린 평균을 봐야 한다.
 
-### 8. 모델 등록
+## 8. 모델 등록
 
 MLOps 파이프라인 전체에서 이 절이 홈랩에 직접 구현한 부분은 모델 레지스트리 하나다. 평가 단계의 결과 중 1등을 골라 등록하고 등록된 모델은 5장에서 배포 단계가 가져간다.
 
@@ -300,7 +303,7 @@ model.predict(X_test.head(3))
 
 책의 `runs:/…/income-classifier` URI는 sklearn 모델을 그 이름으로 저장했을 때만 맞는다. XGBoost autolog는 `model`이라는 이름으로 저장하므로, objective별 run을 나눠 XGBoost가 1등이 되면 이 URI로는 모델을 찾지 못한다. 그때는 1등 run의 logged model을 `mlflow.search_logged_models(filter_string=f"source_run_id = '{run_id}'")`로 찾아 `models:/<model_id>`로 등록한다.
 
-### 9. 남은 것과 더 해 볼 것
+## 9. 남은 것과 더 해 볼 것
 
 ![4.1절에서 다루지 않은 곳. 피처 스토어는 4.2절 Feast, 점선 오케스트레이션 자동화와 모델 배포는 5장 Kubeflow Pipelines, 모델 API 와 모니터링은 뒷장에서 다룬다](pipeline-6-9-next.svg)
 
@@ -324,7 +327,7 @@ run을 지워도 RustFS의 CSV는 지워지지 않는다. 데이터셋은 `save_
 - XGBoost를 objective별 run으로 나눠 logistic의 확률로 AUC를 계산한다. 랜덤 포레스트를 넘으면 등록 셀의 URI를 `models:/<model_id>`로 바꿔야 한다.
 - `position="fill"`을 `"stack"`으로 바꿔 EDA run을 하나 더 만들고 Artifacts를 나란히 본다.
 
-### 10. 노트북 전체 코드
+## 10. 노트북 전체 코드
 
 홈랩에서 실제로 돌린 `data_exploration_and_model_training.ipynb`의 현재 코드다. 책 원본에서 첫 셀(MinIO 키 3줄)을 지웠고, tracking URI 셀과 MinIO 클라이언트 셀은 환경변수를 읽게, 결정 트리와 랜덤 포레스트 셀의 `log_model`에는 `skops_trusted_types`를 더했다. `# %%`가 셀 하나이고 `# %% [markdown]`은 노트북의 제목 셀이다.
 
