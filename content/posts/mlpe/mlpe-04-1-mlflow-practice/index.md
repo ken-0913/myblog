@@ -5,6 +5,7 @@ draft: false
 tags: ["MLOps", "MLPE", "MLflow", "Experiment Tracking", "Model Registry", "JupyterLab", "RustFS", "XGBoost", "scikit-learn"]
 categories: ["MLOps"]
 series: ["MLPE 2주차"]
+featuredImage: images/banners/mlpe-04-1-mlflow-practice-e05eb6c0.png
 ---
 책 4.1절(실험 추적과 모델 레지스트리) 노트북을 홈랩 MLflow에서 돌린 기록이다. 실습 환경(MLflow, Postgres, RustFS, JupyterLab)을 Kubernetes에 올린 과정은 [앞 글](../mlpe-04-mlflow-feast/)에 있다.
 
