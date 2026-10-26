@@ -7,11 +7,7 @@ categories: ["MLOps"]
 series: ["MLPE 2주차"]
 featuredImage: images/banners/mlpe-04-mlflow-feast-36a0caef.png
 ---
-`Machine Learning Platform Engineering` 4장 2절은 피처 스토어 Feast를 다룬다. 학습과 추론이 같은 피처를 같은 시점 기준으로 꺼내 쓰게 해 주는 도구다.
-
-이 글은 홈랩 Kubernetes 클러스터에 Feast를 올리고 4.2절 실습을 따라 한 기록이다. MLflow, RustFS, JupyterLab은 [앞 글](../mlpe-04-mlflow-install/)에서 설치한 것을 그대로 쓴다.
-
-4.1절 실습 글의 MLOps 파이프라인 그림에서 비어 있던 피처 스토어 자리를 이번에 Feast로 채운다. 학습 쪽(모델 학습)과 서빙 쪽(모델 API)이 같은 피처 정의에서 값을 꺼내 가는 구조다.
+[앞 글](../mlpe-04-mlflow-install/)에서 만든 홈랩 환경에 피처 스토어 Feast를 올려, 학습과 추론이 같은 피처를 꺼내 쓰는 책 4.2절 실습을 진행한다.
 
 ![4.1절 MLOps 파이프라인 그림에서 피처 스토어만 강조한 그림. 데이터 웨어하우스 자리의 parquet 3개를 RustFS 오프라인 스토어에 두고, 모델 학습은 get_historical_features 로 시점 기준 피처를, 모델 API 는 materialize 로 Redis 에 옮긴 최신 피처를 get_online_features 와 피처 서버(:6566)로 가져간다. 오른쪽 카드에 오프라인 스토어, 레지스트리, materialize 30,162키, 학습·추론 조회 메서드를 정리했다](feast-pipeline-overview.svg)
 
@@ -29,7 +25,15 @@ Feast는 별도 네임스페이스 `feast`에 올렸다. 오프라인 스토어�
 | **feature server / UI** | 0.67.0 | Deployment, LB .240 / .241 | REST로 온라인 피처 조회, 레지스트리 열람 |
 | **JupyterLab** (공용) | Feast SDK 0.67.0 | ns `mlflow` | 책의 조회 스크립트 실행 |
 
-주황 화살표가 Feast의 핵심 흐름이다. ① Job이 책 저장소의 parquet를 RustFS에 올리고, ② `feast apply`가 엔티티 `user_id`와 피처 뷰 3개(demographic, relationship, occupation)를 레지스트리에 쓴다. ③ `feast materialize`가 parquet를 읽어 사용자 30,162명의 최신 값을 Redis에 채운다.
+주황 화살표와 번호(1 ~ 3)가 Feast의 핵심 흐름이고, 번호는 그림의 Job 상자와 화살표에 같이 붙어 있다. 
+
+① Job이 책 저장소의 parquet를 RustFS에 올리고, 
+
+② `feast apply`가 엔티티 `user_id`와 피처 뷰 3개(demographic, relationship, occupation)를 레지스트리에 쓴다. 
+
+③ `feast materialize`가 parquet를 읽어 사용자 30,162명의 최신 값을 Redis에 채운다.
+
+
 
 조회는 두 갈래다. 학습용 과거 시점 피처(`get_historical_features`)는 RustFS의 parquet에서, 추론용 최신 피처(`get_online_features`)는 Redis에서 읽는다. 피처 정의 파일(`entity.py`, `features.py`, `feature_store.yaml`)은 ConfigMap `feast-repo` 하나로 Job, 피처 서버, UI, Jupyter에 같이 마운트한다.
 
@@ -245,7 +249,7 @@ $ python ~/practical-mlops/chapter-4/feast_retrieval/retrieve_online_features.py
 
 책은 `feast serve`를 로컬에서 띄우지만, 홈랩에는 Deployment `feast-server`가 `192.168.0.240:6566`에 떠 있다. Feast SDK가 없는 언어의 애플리케이션도 HTTP로 온라인 피처를 가져갈 수 있다. 사용자 두 명과 없는 ID 하나를 섞어 세 뷰를 한 번에 조회했다.
 
-```bash
+```bash {title="개발 PC"}
 curl -s -X POST http://192.168.0.240:6566/get-online-features \
   -H 'Content-Type: application/json' -d '{
   "features": ["demographic:Sex", "occupation:Occupation", "relationship:Marital-Status"],
@@ -255,7 +259,92 @@ curl -s -X POST http://192.168.0.240:6566/get-online-features \
 }' | jq
 ```
 
-응답은 피처마다 `values`, `statuses`, `event_timestamps` 배열을 하나씩 돌려준다. 표로 옮기면 이렇다.
+응답 전체는 다음과 같다.
+
+```json {title="POST /get-online-features 응답"}
+{
+  "results": [
+    {
+      "values": [
+        "9f2ac416-06e1-44a0-87bd-d4787c85bf66",
+        "74b0638a-5742-4d1a-a03f-483794d7aa7c",
+        "no-such-user"
+      ],
+      "statuses": [
+        "PRESENT",
+        "PRESENT",
+        "PRESENT"
+      ],
+      "event_timestamps": [
+        "1970-01-01T00:00:00Z",
+        "1970-01-01T00:00:00Z",
+        "1970-01-01T00:00:00Z"
+      ]
+    },
+    {
+      "values": [
+        " Male",
+        " Male",
+        null
+      ],
+      "statuses": [
+        "PRESENT",
+        "PRESENT",
+        "PRESENT"
+      ],
+      "event_timestamps": [
+        "2023-01-24T06:52:20Z",
+        "2023-05-12T16:58:28Z",
+        "1970-01-01T00:00:00Z"
+      ]
+    },
+    {
+      "values": [
+        " Adm-clerical",
+        " Farming-fishing",
+        null
+      ],
+      "statuses": [
+        "PRESENT",
+        "PRESENT",
+        "PRESENT"
+      ],
+      "event_timestamps": [
+        "2023-01-24T06:52:20Z",
+        "2023-05-12T16:58:28Z",
+        "1970-01-01T00:00:00Z"
+      ]
+    },
+    {
+      "values": [
+        " Never-married",
+        " Married-civ-spouse",
+        null
+      ],
+      "statuses": [
+        "PRESENT",
+        "PRESENT",
+        "PRESENT"
+      ],
+      "event_timestamps": [
+        "2023-01-24T06:52:20Z",
+        "2023-05-12T16:58:28Z",
+        "1970-01-01T00:00:00Z"
+      ]
+    }
+  ],
+  "metadata": {
+    "feature_names": [
+      "user_id",
+      "Sex",
+      "Occupation",
+      "Marital-Status"
+    ]
+  }
+}
+```
+
+`results`의 첫 항목은 요청한 엔티티(`user_id`) 자신이고, 그 뒤로 `metadata.feature_names` 순서대로 피처마다 `values`, `statuses`, `event_timestamps` 배열이 하나씩 온다. 표로 옮기면 이렇다.
 
 | user_id | Sex | Occupation | Marital-Status | 피처 기록 시각 |
 | --- | --- | --- | --- | --- |
