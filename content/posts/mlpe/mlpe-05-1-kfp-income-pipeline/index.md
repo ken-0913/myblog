@@ -5,6 +5,7 @@ draft: true
 tags: ["MLOps", "MLPE", "Kubeflow", "Kubeflow Pipelines", "KFP", "Pipeline Orchestration", "MLflow", "Feast", "Batch Inference"]
 categories: ["MLOps"]
 series: ["MLPE 2주차"]
+featuredImage: images/banners/mlpe-05-1-kfp-income-pipeline-cb1bc660.png
 ---
 4장에서 MLflow로 실험과 모델을, Feast로 피처를 관리하게 됐지만 둘을 잇는 일은 아직 사람이 한다. 5장은 그 사이를 **Kubeflow Pipelines**(KFP)로 자동화해, 데이터 읽기부터 추론 결과 저장까지 이어지는 배치 추론 파이프라인을 만든다.
 
