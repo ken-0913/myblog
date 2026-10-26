@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 960 690" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="hl-seq-title hl-seq-desc">
+<title id="hl-seq-title">홈랩 MLflow 기록 흐름</title>
+<desc id="hl-seq-desc">4.1절 노트북이 MLflow 서버, Postgres, RustFS 와 주고받는 순서. 실험과 run 생성, 파라미터와 지표 기록, 모델 등록 같은 메타데이터는 MLflow 서버를 거쳐 Postgres 에 쌓이고, 데이터셋 CSV, EDA 그림, 모델 파일은 노트북 Pod 가 RustFS 에 S3 로 직접 올린다. MLflow 3 에서 log_model 은 run 아티팩트가 아니라 chapter-4/&lt;exp&gt;/models/m-… 의 logged model 로 저장되고, register_model(runs:/&lt;run&gt;/income-classifier) 은 run 경로가 비어 있어 그 logged model 을 source 로 버전을 만든다.</desc>
+<defs>
+<style>@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap');</style>
+<marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+<marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker>
+</defs>
+<rect width="100%" height="100%" fill="#f5f5f5"/>
+<line x1="130" y1="80" x2="130" y2="642" stroke="rgba(45,49,66,0.25)" stroke-width="1" stroke-dasharray="3 3"/>
+<line x1="390" y1="80" x2="390" y2="642" stroke="rgba(45,49,66,0.25)" stroke-width="1" stroke-dasharray="3 3"/>
+<line x1="620" y1="80" x2="620" y2="642" stroke="rgba(45,49,66,0.25)" stroke-width="1" stroke-dasharray="3 3"/>
+<line x1="840" y1="80" x2="840" y2="642" stroke="rgba(45,49,66,0.25)" stroke-width="1" stroke-dasharray="3 3"/>
+<rect x="46.0" y="24" width="168" height="56" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+<text x="130" y="48" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">노트북</text>
+<text x="130" y="66" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">chapter-4 커널</text>
+<svg x="190.0" y="31" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="#f37626" d="M7.157 22.201A1.784 1.799 0 0 1 5.374 24a1.784 1.799 0 0 1-1.784-1.799 1.784 1.799 0 0 1 1.784-1.799 1.784 1.799 0 0 1 1.783 1.799zM20.582 1.427a1.415 1.427 0 0 1-1.415 1.428 1.415 1.427 0 0 1-1.416-1.428A1.415 1.427 0 0 1 19.167 0a1.415 1.427 0 0 1 1.415 1.427zM4.992 3.336A1.047 1.056 0 0 1 3.946 4.39a1.047 1.056 0 0 1-1.047-1.055A1.047 1.056 0 0 1 3.946 2.28a1.047 1.056 0 0 1 1.046 1.056zm7.336 1.517c3.769 0 7.06 1.38 8.768 3.424a9.363 9.363 0 0 0-3.393-4.547 9.238 9.238 0 0 0-5.377-1.728A9.238 9.238 0 0 0 6.95 3.73a9.363 9.363 0 0 0-3.394 4.547c1.713-2.04 5.004-3.424 8.772-3.424zm.001 13.295c-3.768 0-7.06-1.381-8.768-3.425a9.363 9.363 0 0 0 3.394 4.547A9.238 9.238 0 0 0 12.33 21a9.238 9.238 0 0 0 5.377-1.729 9.363 9.363 0 0 0 3.393-4.547c-1.712 2.044-5.003 3.425-8.772 3.425Z"/></svg>
+<rect x="306.0" y="24" width="168" height="56" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+<text x="390" y="48" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">MLflow server</text>
+<text x="390" y="66" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">3.16.0 · REST :5000</text>
+<svg x="450.0" y="31" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="#0194e2" d="M11.883.002a12.044 12.044 0 0 0-9.326 19.463l3.668-2.694A7.573 7.573 0 0 1 12.043 4.45v2.867l6.908-5.14A12.012 12.012 0 0 0 11.883.002zm9.562 4.533L17.777 7.23a7.573 7.573 0 0 1-5.818 12.322v-2.867l-6.908 5.14a12.046 12.046 0 0 0 16.394-17.29z"/></svg>
+<rect x="536.0" y="24" width="168" height="56" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+<text x="620" y="48" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Postgres</text>
+<text x="620" y="66" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">백엔드 스토어</text>
+<svg x="680.0" y="31" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4169e1" d="M23.5594 14.7228a.5269.5269 0 0 0-.0563-.1191c-.139-.2632-.4768-.3418-1.0074-.2321-1.6533.3411-2.2935.1312-2.5256-.0191 1.342-2.0482 2.445-4.522 3.0411-6.8297.2714-1.0507.7982-3.5237.1222-4.7316a1.5641 1.5641 0 0 0-.1509-.235C21.6931.9086 19.8007.0248 17.5099.0005c-1.4947-.0158-2.7705.3461-3.1161.4794a9.449 9.449 0 0 0-.5159-.0816 8.044 8.044 0 0 0-1.3114-.1278c-1.1822-.0184-2.2038.2642-3.0498.8406-.8573-.3211-4.7888-1.645-7.2219.0788C.9359 2.1526.3086 3.8733.4302 6.3043c.0409.818.5069 3.334 1.2423 5.7436.4598 1.5065.9387 2.7019 1.4334 3.582.553.9942 1.1259 1.5933 1.7143 1.7895.4474.1491 1.1327.1441 1.8581-.7279.8012-.9635 1.5903-1.8258 1.9446-2.2069.4351.2355.9064.3625 1.39.3772a.0569.0569 0 0 0 .0004.0041 11.0312 11.0312 0 0 0-.2472.3054c-.3389.4302-.4094.5197-1.5002.7443-.3102.064-1.1344.2339-1.1464.8115-.0025.1224.0329.2309.0919.3268.2269.4231.9216.6097 1.015.6331 1.3345.3335 2.5044.092 3.3714-.6787-.017 2.231.0775 4.4174.3454 5.0874.2212.5529.7618 1.9045 2.4692 1.9043.2505 0 .5263-.0291.8296-.0941 1.7819-.3821 2.5557-1.1696 2.855-2.9059.1503-.8707.4016-2.8753.5388-4.1012.0169-.0703.0357-.1207.057-.1362.0007-.0005.0697-.0471.4272.0307a.3673.3673 0 0 0 .0443.0068l.2539.0223.0149.001c.8468.0384 1.9114-.1426 2.5312-.4308.6438-.2988 1.8057-1.0323 1.5951-1.6698zM2.371 11.8765c-.7435-2.4358-1.1779-4.8851-1.2123-5.5719-.1086-2.1714.4171-3.6829 1.5623-4.4927 1.8367-1.2986 4.8398-.5408 6.108-.13-.0032.0032-.0066.0061-.0098.0094-2.0238 2.044-1.9758 5.536-1.9708 5.7495-.0002.0823.0066.1989.0162.3593.0348.5873.0996 1.6804-.0735 2.9184-.1609 1.1504.1937 2.2764.9728 3.0892.0806.0841.1648.1631.2518.2374-.3468.3714-1.1004 1.1926-1.9025 2.1576-.5677.6825-.9597.5517-1.0886.5087-.3919-.1307-.813-.5871-1.2381-1.3223-.4796-.839-.9635-2.0317-1.4155-3.5126zm6.0072 5.0871c-.1711-.0428-.3271-.1132-.4322-.1772.0889-.0394.2374-.0902.4833-.1409 1.2833-.2641 1.4815-.4506 1.9143-1.0002.0992-.126.2116-.2687.3673-.4426a.3549.3549 0 0 0 .0737-.1298c.1708-.1513.2724-.1099.4369-.0417.156.0646.3078.26.3695.4752.0291.1016.0619.2945-.0452.4444-.9043 1.2658-2.2216 1.2494-3.1676 1.0128zm2.094-3.988-.0525.141c-.133.3566-.2567.6881-.3334 1.003-.6674-.0021-1.3168-.2872-1.8105-.8024-.6279-.6551-.9131-1.5664-.7825-2.5004.1828-1.3079.1153-2.4468.079-3.0586-.005-.0857-.0095-.1607-.0122-.2199.2957-.2621 1.6659-.9962 2.6429-.7724.4459.1022.7176.4057.8305.928.5846 2.7038.0774 3.8307-.3302 4.7363-.084.1866-.1633.3629-.2311.5454zm7.3637 4.5725c-.0169.1768-.0358.376-.0618.5959l-.146.4383a.3547.3547 0 0 0-.0182.1077c-.0059.4747-.054.6489-.115.8693-.0634.2292-.1353.4891-.1794 1.0575-.11 1.4143-.8782 2.2267-2.4172 2.5565-1.5155.3251-1.7843-.4968-2.0212-1.2217a6.5824 6.5824 0 0 0-.0769-.2266c-.2154-.5858-.1911-1.4119-.1574-2.5551.0165-.5612-.0249-1.9013-.3302-2.6462.0044-.2932.0106-.5909.019-.8918a.3529.3529 0 0 0-.0153-.1126 1.4927 1.4927 0 0 0-.0439-.208c-.1226-.4283-.4213-.7866-.7797-.9351-.1424-.059-.4038-.1672-.7178-.0869.067-.276.1831-.5875.309-.9249l.0529-.142c.0595-.16.134-.3257.213-.5012.4265-.9476 1.0106-2.2453.3766-5.1772-.2374-1.0981-1.0304-1.6343-2.2324-1.5098-.7207.0746-1.3799.3654-1.7088.5321a5.6716 5.6716 0 0 0-.1958.1041c.0918-1.1064.4386-3.1741 1.7357-4.4823a4.0306 4.0306 0 0 1 .3033-.276.3532.3532 0 0 0 .1447-.0644c.7524-.5706 1.6945-.8506 2.802-.8325.4091.0067.8017.0339 1.1742.081 1.939.3544 3.2439 1.4468 4.0359 2.3827.8143.9623 1.2552 1.9315 1.4312 2.4543-1.3232-.1346-2.2234.1268-2.6797.779-.9926 1.4189.543 4.1729 1.2811 5.4964.1353.2426.2522.4522.2889.5413.2403.5825.5515.9713.7787 1.2552.0696.087.1372.1714.1885.245-.4008.1155-1.1208.3825-1.0552 1.717-.0123.1563-.0423.4469-.0834.8148-.0461.2077-.0702.4603-.0994.7662zm.8905-1.6211c-.0405-.8316.2691-.9185.5967-1.0105a2.8566 2.8566 0 0 0 .135-.0406 1.202 1.202 0 0 0 .1342.103c.5703.3765 1.5823.4213 3.0068.1344-.2016.1769-.5189.3994-.9533.6011-.4098.1903-1.0957.333-1.7473.3636-.7197.0336-1.0859-.0807-1.1721-.151zm.5695-9.2712c-.0059.3508-.0542.6692-.1054 1.0017-.055.3576-.112.7274-.1264 1.1762-.0142.4368.0404.8909.0932 1.3301.1066.887.216 1.8003-.2075 2.7014a3.5272 3.5272 0 0 1-.1876-.3856c-.0527-.1276-.1669-.3326-.3251-.6162-.6156-1.1041-2.0574-3.6896-1.3193-4.7446.3795-.5427 1.3408-.5661 2.1781-.463zm.2284 7.0137a12.3762 12.3762 0 0 0-.0853-.1074l-.0355-.0444c.7262-1.1995.5842-2.3862.4578-3.4385-.0519-.4318-.1009-.8396-.0885-1.2226.0129-.4061.0666-.7543.1185-1.0911.0639-.415.1288-.8443.1109-1.3505.0134-.0531.0188-.1158.0118-.1902-.0457-.4855-.5999-1.938-1.7294-3.253-.6076-.7073-1.4896-1.4972-2.6889-2.0395.5251-.1066 1.2328-.2035 2.0244-.1859 2.0515.0456 3.6746.8135 4.8242 2.2824a.908.908 0 0 1 .0667.1002c.7231 1.3556-.2762 6.2751-2.9867 10.5405zm-8.8166-6.1162c-.025.1794-.3089.4225-.6211.4225a.5821.5821 0 0 1-.0809-.0056c-.1873-.026-.3765-.144-.5059-.3156-.0458-.0605-.1203-.178-.1055-.2844.0055-.0401.0261-.0985.0925-.1488.1182-.0894.3518-.1226.6096-.0867.3163.0441.6426.1938.6113.4186zm7.9305-.4114c.0111.0792-.049.201-.1531.3102-.0683.0717-.212.1961-.4079.2232a.5456.5456 0 0 1-.075.0052c-.2935 0-.5414-.2344-.5607-.3717-.024-.1765.2641-.3106.5611-.352.297-.0414.6111.0088.6356.1851z"/></svg>
+<rect x="756.0" y="24" width="168" height="56" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+<text x="840" y="48" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">RustFS</text>
+<text x="840" y="66" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">S3 :9000</text>
+<line x1="133" y1="108" x2="386" y2="108" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="145.5" y="92" width="229" height="13" rx="2" fill="#f5f5f5"/>
+<text x="260" y="102" fill="#2d3142" font-size="10" font-family="'Geist Mono', monospace" text-anchor="middle">set_experiment("income-classifier")</text>
+<circle cx="34" cy="108" r="9" fill="#ffffff" stroke="#4f5d75" stroke-width="1"/>
+<text x="34" y="111.5" fill="#4f5d75" font-size="9" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">1</text>
+<line x1="393" y1="160" x2="616" y2="160" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="458.7" y="130" width="92.6" height="13" rx="2" fill="#f5f5f5"/>
+<text x="505" y="140" fill="#2d3142" font-size="10" font-family="'Geist Mono', monospace" text-anchor="middle">experiment 생성</text>
+<rect x="350.5" y="144" width="309" height="11" rx="2" fill="#f5f5f5"/>
+<text x="505" y="153" fill="#4f5d75" font-size="8.5" font-family="'Geist Mono', monospace" text-anchor="middle">artifact_location s3://mlflow-artifacts/chapter-4/&lt;exp&gt;</text>
+<circle cx="34" cy="160" r="9" fill="#ffffff" stroke="#4f5d75" stroke-width="1"/>
+<text x="34" y="163.5" fill="#4f5d75" font-size="9" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">2</text>
+<line x1="133" y1="194" x2="386" y2="194" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="219.9" y="178" width="80.2" height="13" rx="2" fill="#f5f5f5"/>
+<text x="260" y="188" fill="#2d3142" font-size="10" font-family="'Geist Mono', monospace" text-anchor="middle">start_run()</text>
+<circle cx="34" cy="194" r="9" fill="#ffffff" stroke="#4f5d75" stroke-width="1"/>
+<text x="34" y="197.5" fill="#4f5d75" font-size="9" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">3</text>
+<line x1="393" y1="246" x2="616" y2="246" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="480.4" y="216" width="49.2" height="13" rx="2" fill="#f5f5f5"/>
+<text x="505" y="226" fill="#2d3142" font-size="10" font-family="'Geist Mono', monospace" text-anchor="middle">run 생성</text>
+<rect x="374.8" y="230" width="260.4" height="11" rx="2" fill="#f5f5f5"/>
+<text x="505" y="239" fill="#4f5d75" font-size="8.5" font-family="'Geist Mono', monospace" text-anchor="middle">artifact_uri …/chapter-4/&lt;exp&gt;/&lt;run&gt;/artifacts</text>
+<circle cx="34" cy="246" r="9" fill="#ffffff" stroke="#4f5d75" stroke-width="1"/>
+<text x="34" y="249.5" fill="#4f5d75" font-size="9" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">4</text>
+<line x1="133" y1="298" x2="836" y2="298" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+<rect x="392.2" y="268" width="185.6" height="13" rx="2" fill="#f5f5f5"/>
+<text x="485" y="278" fill="#2d3142" font-size="10" font-family="'Geist Mono', monospace" text-anchor="middle">save_df_to_minio (minio SDK)</text>
+<rect x="322.4" y="282" width="325.2" height="11" rx="2" fill="#f5f5f5"/>
+<text x="485" y="291" fill="#eb6c36" font-size="8.5" font-family="'Geist Mono', monospace" text-anchor="middle">mlflow-datasets/income-classifier-datasets/train-&lt;run&gt;.csv</text>
+<circle cx="34" cy="298" r="9" fill="#ffffff" stroke="#eb6c36" stroke-width="1"/>
+<text x="34" y="301.5" fill="#eb6c36" font-size="9" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">5</text>
+<line x1="133" y1="332" x2="386" y2="332" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="145.5" y="316" width="229" height="13" rx="2" fill="#f5f5f5"/>
+<text x="260" y="326" fill="#2d3142" font-size="10" font-family="'Geist Mono', monospace" text-anchor="middle">log_input · log_metric · log_params</text>
+<circle cx="34" cy="332" r="9" fill="#ffffff" stroke="#4f5d75" stroke-width="1"/>
+<text x="34" y="335.5" fill="#4f5d75" font-size="9" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">6</text>
+<line x1="393" y1="366" x2="616" y2="366" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="492.8" y="350" width="24.4" height="13" rx="2" fill="#f5f5f5"/>
+<text x="505" y="360" fill="#2d3142" font-size="10" font-family="'Geist Mono', monospace" text-anchor="middle">기록</text>
+<circle cx="34" cy="366" r="9" fill="#ffffff" stroke="#4f5d75" stroke-width="1"/>
+<text x="34" y="369.5" fill="#4f5d75" font-size="9" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">7</text>
+<line x1="133" y1="418" x2="836" y2="418" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+<rect x="392.2" y="388" width="185.6" height="13" rx="2" fill="#f5f5f5"/>
+<text x="485" y="398" fill="#2d3142" font-size="10" font-family="'Geist Mono', monospace" text-anchor="middle">log_artifacts(plots) (boto3)</text>
+<rect x="346.7" y="402" width="276.6" height="11" rx="2" fill="#f5f5f5"/>
+<text x="485" y="411" fill="#eb6c36" font-size="8.5" font-family="'Geist Mono', monospace" text-anchor="middle">mlflow-artifacts/chapter-4/&lt;exp&gt;/&lt;run&gt;/artifacts/</text>
+<circle cx="34" cy="418" r="9" fill="#ffffff" stroke="#eb6c36" stroke-width="1"/>
+<text x="34" y="421.5" fill="#eb6c36" font-size="9" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">8</text>
+<line x1="133" y1="452" x2="386" y2="452" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="161" y="436" width="198" height="13" rx="2" fill="#f5f5f5"/>
+<text x="260" y="446" fill="#2d3142" font-size="10" font-family="'Geist Mono', monospace" text-anchor="middle">log_model: logged model m-… 생성</text>
+<circle cx="34" cy="452" r="9" fill="#ffffff" stroke="#4f5d75" stroke-width="1"/>
+<text x="34" y="455.5" fill="#4f5d75" font-size="9" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">9</text>
+<line x1="133" y1="504" x2="836" y2="504" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+<rect x="401.5" y="474" width="167" height="13" rx="2" fill="#f5f5f5"/>
+<text x="485" y="484" fill="#2d3142" font-size="10" font-family="'Geist Mono', monospace" text-anchor="middle">MLmodel · model.skops 업로드</text>
+<rect x="333.2" y="488" width="303.6" height="11" rx="2" fill="#f5f5f5"/>
+<text x="485" y="497" fill="#eb6c36" font-size="8.5" font-family="'Geist Mono', monospace" text-anchor="middle">mlflow-artifacts/chapter-4/&lt;exp&gt;/models/m-…/artifacts/</text>
+<circle cx="34" cy="504" r="9" fill="#ffffff" stroke="#eb6c36" stroke-width="1"/>
+<text x="34" y="507.5" fill="#eb6c36" font-size="9" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">10</text>
+<line x1="133" y1="556" x2="386" y2="556" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="114.5" y="526" width="291" height="13" rx="2" fill="#f5f5f5"/>
+<text x="260" y="536" fill="#2d3142" font-size="10" font-family="'Geist Mono', monospace" text-anchor="middle">register_model(runs:/&lt;run&gt;/income-classifier)</text>
+<rect x="170.3" y="540" width="179.4" height="11" rx="2" fill="#f5f5f5"/>
+<text x="260" y="549" fill="#4f5d75" font-size="8.5" font-family="'Geist Mono', monospace" text-anchor="middle">name "random-forest-classifier"</text>
+<circle cx="34" cy="556" r="9" fill="#ffffff" stroke="#4f5d75" stroke-width="1"/>
+<text x="34" y="559.5" fill="#4f5d75" font-size="9" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">11</text>
+<line x1="393" y1="608" x2="616" y2="608" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="449.4" y="578" width="111.2" height="13" rx="2" fill="#f5f5f5"/>
+<text x="505" y="588" fill="#2d3142" font-size="10" font-family="'Geist Mono', monospace" text-anchor="middle">model version 생성</text>
+<rect x="361.3" y="592" width="287.4" height="11" rx="2" fill="#f5f5f5"/>
+<text x="505" y="601" fill="#4f5d75" font-size="8.5" font-family="'Geist Mono', monospace" text-anchor="middle">source = models:/m-… (run 경로가 비어 logged model 로 대체)</text>
+<circle cx="34" cy="608" r="9" fill="#ffffff" stroke="#4f5d75" stroke-width="1"/>
+<text x="34" y="611.5" fill="#4f5d75" font-size="9" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">12</text>
+<line x1="24" y1="652" x2="936" y2="652" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+<line x1="24" y1="665" x2="44" y2="665" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="52" y="668" fill="#4f5d75" font-size="9" font-family="'Geist', sans-serif">메타데이터 (REST → Postgres)</text>
+<line x1="250" y1="665" x2="270" y2="665" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+<text x="278" y="668" fill="#4f5d75" font-size="9" font-family="'Geist', sans-serif">파일 (노트북 Pod → RustFS 직접 S3 PUT, MLflow 서버를 거치지 않음)</text>
+<!-- icons: Simple Icons(CC0) 브랜드 마크 -->
+</svg>

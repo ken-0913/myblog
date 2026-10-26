@@ -7,7 +7,7 @@ categories: ["MLOps"]
 series: ["MLPE 2주차"]
 featuredImage: images/banners/mlpe-04-1-mlflow-practice-e05eb6c0.png
 ---
-책 4.1절(실험 추적과 모델 레지스트리) 노트북을 홈랩 MLflow에서 돌린 기록이다. 실습 환경(MLflow, Postgres, RustFS, JupyterLab)을 Kubernetes에 올린 과정은 [앞 글](../mlpe-04-mlflow-feast/)에 있다.
+책 4.1절(실험 추적과 모델 레지스트리) 노트북을 홈랩 MLflow에서 돌린 기록이다. 실습 환경(MLflow, Postgres, RustFS, JupyterLab)을 Kubernetes에 올린 과정은 [앞 글](../mlpe-04-mlflow-install/)에 있다.
 
 책은 로컬 `mlflow ui`와 Kubeflow에 딸린 MinIO를 쓰지만 여기서는 Kubernetes 위의 MLflow, Postgres, RustFS를 썼다. RustFS는 홈랩에서 이미 쓰고 있어서 골랐고 다른 이유는 없다.
 
