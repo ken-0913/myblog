@@ -13,7 +13,7 @@ featuredImage: images/banners/mlpe-04-mlflow-feast-36a0caef.png
 
 ## 1. 구성
 
-Feast는 별도 네임스페이스 `feast`에 올렸다. 오프라인 스토어와 레지스트리는 새로 만들지 않고 MLflow용으로 설치한 RustFS를 같이 쓴다. 매니페스트는 홈랩 저장소 `~/k8s/feast/`에 있고, 결정 배경은 ADR-046에 남겼다.
+Feast는 별도 네임스페이스 `feast`에 올렸다. 오프라인 스토어와 레지스트리는 새로 만들지 않고 MLflow용으로 설치한 RustFS를 같이 쓴다.
 
 ![홈랩 Kubernetes 클러스터의 feast 네임스페이스(전부 worker1-gpu)에 Redis 8.10.2 온라인 스토어, feast apply·materialize Job, feature server 0.67.0, Feast UI 를 올리고, 오프라인 스토어와 레지스트리는 mlflow 네임스페이스의 RustFS 를 같이 쓰는 구성. prepare-buckets Job 이 GitHub 에서 parquet 3개를 받아 RustFS 에 올리고, feast apply 가 엔티티와 피처 뷰 3개를 registry_local.db 에 등록하고, feast materialize 가 parquet 를 읽어 Redis 에 해시 키 30,162개를 쓴다. 피처 서버(192.168.0.240:6566)와 UI(192.168.0.241:8080)는 레지스트리를 읽고 Redis 를 조회하며, JupyterLab 의 Feast SDK 는 RustFS 에서 historical, Redis 에서 online 피처를 가져온다](homelab-feast.svg)
 
@@ -58,6 +58,30 @@ Feast 공식 이미지(`quay.io/feastdev/feature-server:0.67.0`)는 amd64 전용
 ![Feast 구성도에서 ConfigMap feast-repo, Secret redis-auth, 등록된 피처 목록, JupyterLab 만 강조한 그림. 정의 파일 3개를 ConfigMap 으로 만들어 Job, 서버, UI, Jupyter 의 /opt/feast-repo 에 마운트한다](feast-2-2-define.svg)
 
 정의 파일 3개는 ConfigMap `feast-repo`로 Jupyter의 `/opt/feast-repo`에 마운트돼 있다. 책 코드에서 바꾼 곳은 주소와 암호뿐이다.
+
+```terminal {title="kubectl -n mlflow describe pod (Jupyter, 요지)"}
+$ kubectl -n mlflow describe pod -l app=jupyter
+...
+    Environment:
+      REDIS_PASSWORD:  <set to the key 'redis-password' in secret 'redis-auth'>  Optional: true
+      FEAST_REPO:      /opt/feast-repo
+    Mounts:
+      /home/jovyan from home (rw)
+      /opt/feast-repo from feast-repo (ro)
+      /usr/local/bin/before-notebook.d/10-chapter4.sh from hooks (rw,path="10-chapter4.sh")
+...
+Volumes:
+  feast-repo:
+    Type:      ConfigMap (a volume populated by a ConfigMap)
+    Name:      feast-repo
+    Optional:  true
+$ kubectl -n mlflow exec deploy/jupyter -- ls -l /opt/feast-repo/
+lrwxrwxrwx 1 root users 16 Oct 26 13:46 entity.py -> ..data/entity.py
+lrwxrwxrwx 1 root users 25 Oct 26 13:46 feature_store.yaml -> ..data/feature_store.yaml
+lrwxrwxrwx 1 root users 18 Oct 26 13:46 features.py -> ..data/features.py
+```
+
+마운트는 읽기 전용(`ro`)이고, 파일은 ConfigMap 볼륨이 만드는 `..data/` 아래를 가리키는 심볼릭 링크다. 이 구조 때문에 2.3절에서 통째 복사(`cp -r`)가 문제를 일으킨다. Redis 암호는 같은 Pod에 Secret `redis-auth`에서 환경변수로 들어간다.
 
 ```python {title="entity.py (Listing 4.8)"}
 from feast import Entity, ValueType
@@ -108,7 +132,13 @@ Redis 암호는 파일에 쓰지 않는다. Feast가 `feature_store.yaml`을 읽
 
 ![Feast 구성도에서 feast apply Job, feast-repo, 등록된 피처, RustFS 만 강조한 그림. apply 가 엔티티 user_id 와 피처 뷰 3개를 feature-registry 버킷의 registry_local.db 에 쓴다](feast-2-3-apply.svg)
 
-`/opt/feast-repo`는 읽기 전용이라 정의 파일을 홈 디렉터리로 복사한 뒤 실행한다.
+아래 명령은 개발 PC가 아니라 **JupyterLab 터미널**(`192.168.0.239:8888` → File → New → Terminal)에서 실행한다. 터미널은 Jupyter Pod 안의 셸이라 `feast` 명령과 RustFS, Redis 접속 정보가 이미 갖춰져 있다. `/opt/feast-repo`는 읽기 전용이라 정의 파일을 홈 디렉터리로 복사한 뒤 실행한다.
+
+![JupyterLab 메뉴에서 File → New → Terminal 을 고르는 화면. New 하위 메뉴에 Console, Notebook, Terminal, Text File, Markdown File, Python File 이 있다](jupyter-new-terminal.png)
+
+![JupyterLab 터미널에서 실습을 실행한 화면. hostname 이 jupyter-5455bf946d-mkr4l 로 Jupyter Pod 이름을 찍고, 프롬프트 (chapter-4) jovyan@jupyter-… 에서 정의 파일 3개를 ~/feast-repo 로 복사한 뒤 feast apply 가 Applying changes for project my_feature_repo 와 Deploying infrastructure 3줄을 출력한다](jupyter-terminal-feast-apply.png)
+
+`hostname`이 `jupyter-5455bf946d-mkr4l`, 즉 Jupyter Pod 이름을 찍는다. 프롬프트 앞의 `(chapter-4)`는 venv가 이미 켜져 있다는 표시다.
 
 ```terminal
 $ source ~/.venvs/chapter-4/bin/activate
