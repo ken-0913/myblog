@@ -5,6 +5,7 @@ draft: false
 tags: ["MLOps", "MLPE", "MLflow", "Kubernetes", "Helm", "RustFS", "PostgreSQL", "JupyterLab", "Model Registry", "Experiment Tracking"]
 categories: ["MLOps"]
 series: ["MLPE 2주차"]
+featuredImage: images/banners/mlpe-04-mlflow-feast-36a0caef.png
 ---
 `Machine Learning Platform Engineering` 4장은 MLflow로 실험을 추적하고 모델을 레지스트리에 등록한다. 책은 로컬에서 띄운 `mlflow ui`(SQLite)와 Kubeflow에 딸린 MinIO로 진행하는데, 로컬 인스턴스로는 팀이 같은 실험 기록을 볼 수 없다. 그래서 4장의 도전과제가 "Kubernetes에 MLflow를 설치하라"다.
 

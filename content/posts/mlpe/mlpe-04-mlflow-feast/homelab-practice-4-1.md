@@ -1,6 +1,7 @@
 ---
 title: "홈랩에서 4.1절 실습하기 (MLflow 실험 추적·모델 레지스트리)"
 description: "mlpe-04 글의 마지막 절(4.1절 실습하기). index.md(Kubernetes 에 MLflow 설치) 끝에서 include 숏코드로 끌어다 쓴다(별도 페이지로 발행되지 않는다). 책 4.1절 노트북을 홈랩 MLflow(RustFS, Postgres, 클러스터 안 JupyterLab)에서 실제로 돌린 기록."
+featuredImage: images/banners/homelab-practice-4-1-c5fd7b27.png
 ---
 ## 4.1절 실습하기
 
