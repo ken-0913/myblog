@@ -5,6 +5,7 @@ draft: false
 tags: ["MLOps", "MLPE", "Feast", "Feature Store", "Redis", "RustFS", "Kubernetes", "JupyterLab"]
 categories: ["MLOps"]
 series: ["MLPE 2주차"]
+featuredImage: images/banners/mlpe-04-mlflow-feast-36a0caef.png
 ---
 `Machine Learning Platform Engineering` 4장 2절은 피처 스토어 Feast를 다룬다. 학습과 추론이 같은 피처를 같은 시점 기준으로 꺼내 쓰게 해 주는 도구다.
 
