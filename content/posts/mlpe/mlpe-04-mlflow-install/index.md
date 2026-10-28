@@ -7,9 +7,9 @@ categories: ["MLOps"]
 series: ["MLPE 2주차"]
 featuredImage: images/banners/mlpe-04-mlflow-install-01f7e9a6.png
 ---
-`Machine Learning Platform Engineering` 4장은 MLflow로 실험을 추적하고 Feast로 피처를 관리하며, 5장은 둘을 Kubeflow Pipelines로 잇는다. 책은 로컬 `mlflow ui`(SQLite), 로컬 `feast` 명령, Kubeflow에 딸린 MinIO로 진행하는데, 로컬 인스턴스로는 팀이 같은 기록을 볼 수 없다. 그래서 4장의 도전과제가 "Kubernetes에 MLflow를 설치하라"다.
+`Machine Learning Platform Engineering` 4장은 MLflow로 실험을 추적하고 Feast로 피처를 관리하며 5장은 둘을 Kubeflow Pipelines로 잇는다. 책은 로컬 `mlflow ui`(SQLite), 로컬 `feast` 명령, Kubeflow에 딸린 MinIO로 진행하는데, 로컬 인스턴스로는 팀이 같은 기록을 볼 수 없다. 그래서 4장의 도전과제가 "Kubernetes에 MLflow를 설치하라"다.
 
-이 글은 홈랩 Kubernetes 클러스터(v1.36.5, 노드 3대)에 2주차 실습 플랫폼 전체를 올린 기록이다. 2026-10-25에 MLflow 플랫폼, 10-26에 Feast와 Kubeflow Pipelines(KFP)를 설치했고, 10-28에 KFP 아티팩트 저장소를 RustFS로 통일했다. 매니페스트와 스크립트는 홈랩 저장소 `~/k8s/` 아래 `mlflow/`, `feast/`, `kubeflow-pipelines/`에 있고, 결정 배경은 ADR-045, 046, 047, 051에 남겼다.
+이 글은 홈랩 Kubernetes 클러스터(v1.36.5, 노드 3대)에 2주차 실습 플랫폼 전체를 올린 기록이다. 2026-10-25에 MLflow 플랫폼, 10-26에 Feast와 Kubeflow Pipelines(KFP)를 설치했고 10-28에 KFP 아티팩트 저장소를 RustFS로 통일했다. 매니페스트와 스크립트는 홈랩 저장소 `~/k8s/` 아래 `mlflow/`, `feast/`, `kubeflow-pipelines/`에 있고 결정 배경은 ADR-045, 046, 047, 051에 남겼다.
 
 ## 1. 전체 구성
 
@@ -70,9 +70,9 @@ flowchart LR
     cm -.->|cache-server TLS| api
 ```
 
-책과 다른 점은 다섯 가지다. MinIO 대신 RustFS, SQLite 대신 Postgres, 로컬 노트북 대신 클러스터 안 JupyterLab, 로컬 `feast` 명령 대신 Job과 Deployment, 그리고 KFP는 번들 Argo를 빼고 클러스터에 이미 있던 Argo Workflows를 같이 쓴다. S3 호환이면 책의 minio SDK와 boto3 코드가 그대로 돌고, Python 3.13에는 책의 고정 버전(mlflow 3.0.0, xgboost 1.7.6, feast 0.40.1) 휠이 없어 최신 버전을 쓴다.
+책과 다른 점은 다섯 가지다. MinIO 대신 RustFS, SQLite 대신 Postgres, 로컬 노트북 대신 클러스터 안 JupyterLab, 로컬 `feast` 명령 대신 Job과 Deployment, 그리고 KFP는 번들 Argo를 빼고 클러스터에 이미 있던 Argo Workflows를 같이 쓴다. S3 호환이면 책의 minio SDK와 boto3 코드가 그대로 돌고 Python 3.13에는 책의 고정 버전(mlflow 3.0.0, xgboost 1.7.6, feast 0.40.1) 휠이 없어 최신 버전을 쓴다.
 
-설치는 디렉터리마다 `scripts/install.sh` 하나로 하며, 순서는 `mlflow` → `feast` → `kubeflow-pipelines`다. 세 스크립트 모두 멱등이라 다시 실행하면 바뀐 것만 적용되고, 비밀값은 처음 한 번 무작위로 만들어 Secret에만 저장한다. 매니페스트와 Helm values에는 `secretKeyRef`와 `existingSecret` 참조만 둔다.
+설치는 디렉터리마다 `scripts/install.sh` 하나로 하며 순서는 `mlflow` → `feast` → `kubeflow-pipelines`다. 세 스크립트 모두 멱등이라 다시 실행하면 바뀐 것만 적용되고 비밀값은 처음 한 번 무작위로 만들어 Secret에만 저장한다. 매니페스트와 Helm values에는 `secretKeyRef`와 `existingSecret` 참조만 둔다.
 
 ```mermaid {title="설치 순서"}
 flowchart LR
@@ -92,7 +92,7 @@ Secret은 네임스페이스를 넘지 못하므로 `feast/scripts/install.sh`�
 
 ![홈 LAN 안의 홈랩 클러스터 mlflow 네임스페이스에 JupyterLab, MLflow server 3.16.0, Postgres 18.6, RustFS 1.0.3 을 올린 구성. 노트북은 MLflow 서버에 run·파라미터·지표를 REST 로 기록하고 아티팩트와 데이터셋 CSV 는 RustFS 에 S3 로 직접 올린다. MLflow 서버는 Postgres 를 백엔드 스토어로 쓰고 default-artifact-root 로 RustFS 버킷을 가리킨다. 세 서비스는 Cilium LB IPAM 으로 192.168.0.237~239 에 노출되고 monitoring 네임스페이스의 Prometheus 가 ServiceMonitor 로 /metrics 를 긁는다](homelab-mlflow.svg)
 
-핵심은 **아티팩트가 MLflow 서버를 거치지 않는다**는 점이다. 노트북이 `log_artifacts()`나 `log_model()`을 부르면 run과 지표 같은 메타데이터만 MLflow 서버(Postgres)로 가고, 파일은 노트북 Pod가 RustFS에 직접 올린다. 책의 MinIO 구성과 같은 비프록시 방식이다.
+핵심은 **아티팩트가 MLflow 서버를 거치지 않는다**는 점이다. 노트북이 `log_artifacts()`나 `log_model()`을 부르면 run과 지표 같은 메타데이터만 MLflow 서버(Postgres)로 가고 파일은 노트북 Pod가 RustFS에 직접 올린다. 책의 MinIO 구성과 같은 비프록시 방식이다.
 
 그래서 Jupyter Pod에는 MLflow 주소뿐 아니라 `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `MLFLOW_S3_ENDPOINT_URL`이 환경변수로 들어가 있다. MLflow 서버의 `--default-artifact-root`는 run을 만들 때 artifact URI를 기록하고 UI에서 아티팩트를 읽을 때만 쓴다.
 
@@ -142,7 +142,7 @@ kubectl -n $NS rollout status deploy/jupyter --timeout=15m
 
 ### 2.2 RustFS와 버킷
 
-**RustFS**는 Deployment 하나와 Service 둘이다. PV가 RWO라 롤링 업데이트가 교착되므로 `Recreate` 전략을 쓰고, 계정은 Secret에서만 읽는다. 클러스터 안에서는 `rustfs.mlflow.svc:9000`, LAN에서는 Cilium LB IPAM이 고정해 준 192.168.0.237로 접근한다.
+**RustFS**는 Deployment 하나와 Service 둘이다. PV가 RWO라 롤링 업데이트가 교착되므로 `Recreate` 전략을 쓰고 계정은 Secret에서만 읽는다. 클러스터 안에서는 `rustfs.mlflow.svc:9000`, LAN에서는 Cilium LB IPAM이 고정해 준 192.168.0.237로 접근한다.
 
 ```yaml {title="mlflow/00-rustfs/rustfs.yaml (요지)"}
 apiVersion: apps/v1
@@ -318,7 +318,7 @@ resources:
     memory: 4Gi
 ```
 
-이 values로 만들어진 Pod의 실제 명령은 다음과 같다. init 컨테이너 둘이 Postgres 연결 확인과 스키마 마이그레이션을 먼저 하고, 본 컨테이너가 서버를 띄운다.
+이 values로 만들어진 Pod의 실제 명령은 다음과 같다. init 컨테이너 둘이 Postgres 연결 확인과 스키마 마이그레이션을 먼저 하고 본 컨테이너가 서버를 띄운다.
 
 ```terminal {title="kubectl -n mlflow get pod -l app.kubernetes.io/name=mlflow -o jsonpath=..."}
 init: dbchecker            /script/dbchecker.sh
@@ -411,7 +411,7 @@ spec:
 
 ![홈랩 Kubernetes 클러스터의 feast 네임스페이스(전부 worker1-gpu)에 Redis 8.10.2 온라인 스토어, feast apply·materialize Job, feature server 0.67.0, Feast UI 를 올리고, 오프라인 스토어와 레지스트리는 mlflow 네임스페이스의 RustFS 를 같이 쓰는 구성. prepare-buckets Job 이 GitHub 에서 parquet 3개를 받아 RustFS 에 올리고, feast apply 가 엔티티와 피처 뷰 3개를 registry_local.db 에 등록하고, feast materialize 가 parquet 를 읽어 Redis 에 해시 키 30,162개를 쓴다. 피처 서버(192.168.0.240:6566)와 UI(192.168.0.241:8080)는 레지스트리를 읽고 Redis 를 조회하며, JupyterLab 의 Feast SDK 는 RustFS 에서 historical, Redis 에서 online 피처를 가져온다](homelab-feast.svg)
 
-책 4.2절은 MinIO를 오프라인 스토어와 레지스트리 저장소로, NodePort Redis를 온라인 스토어로 두고 `feast apply`, `materialize`, `serve`, `ui`를 모두 로컬 PC에서 실행한다. Redis 암호는 `feature_store.yaml`에 직접 쓴다. 홈랩에서는 오프라인 스토어와 레지스트리를 2절의 RustFS에 두고, 나머지는 모두 `feast` 네임스페이스의 Job과 Deployment로 돌린다.
+책 4.2절은 MinIO를 오프라인 스토어와 레지스트리 저장소로, NodePort Redis를 온라인 스토어로 두고 `feast apply`, `materialize`, `serve`, `ui`를 모두 로컬 PC에서 실행한다. Redis 암호는 `feature_store.yaml`에 직접 쓴다. 홈랩에서는 오프라인 스토어와 레지스트리를 2절의 RustFS에 두고 나머지는 모두 `feast` 네임스페이스의 Job과 Deployment로 돌린다.
 
 | 책 | 홈랩 |
 | --- | --- |
@@ -477,7 +477,7 @@ kubectl -n "$SRC_NS" rollout restart deployment/jupyter
 
 ### 3.2 Redis와 버킷 Job
 
-Redis는 StatefulSet 하나다. 암호는 `--requirepass $(REDIS_PASSWORD)`로 Secret에서 받고, 프로브의 `redis-cli`가 인자 없이 인증하도록 `REDISCLI_AUTH`도 같은 Secret에서 넣는다. LAN에는 열지 않는다.
+Redis는 StatefulSet 하나다. 암호는 `--requirepass $(REDIS_PASSWORD)`로 Secret에서 받고 프로브의 `redis-cli`가 인자 없이 인증하도록 `REDISCLI_AUTH`도 같은 Secret에서 넣는다. LAN에는 열지 않는다.
 
 ```yaml {title="feast/00-redis/redis.yaml (요지)"}
 apiVersion: apps/v1
@@ -516,7 +516,7 @@ spec:
         resources: { requests: { storage: 2Gi } }
 ```
 
-버킷 Job은 2.2절과 같은 aws-cli 이미지로 버킷 둘(`feature-data-sets`, `feature-registry`)을 만들고, 책 저장소의 parquet 3개를 GitHub raw에서 받아 올린다. `head-object`로 이미 있는 파일은 건너뛴다.
+버킷 Job은 2.2절과 같은 aws-cli 이미지로 버킷 둘(`feature-data-sets`, `feature-registry`)을 만들고 책 저장소의 parquet 3개를 GitHub raw에서 받아 올린다. `head-object`로 이미 있는 파일은 건너뛴다.
 
 ```yaml {title="feast/01-buckets/buckets-job.yaml (요지)"}
 env:
@@ -578,7 +578,7 @@ spec:
 | Deployment `feast-server` | `feast serve -h 0.0.0.0 -p 6566 --no-access-log` | LB 192.168.0.240 |
 | Deployment `feast-ui` | `feast ui -h 0.0.0.0 -p 8080` | LB 192.168.0.241 |
 
-`feature_store.yaml`의 온라인 스토어 연결 문자열은 `redis.feast.svc:6379,password=${REDIS_PASSWORD}`다. Feast가 설정 파일을 읽을 때 `os.path.expandvars`로 환경변수를 치환하는 것을 0.67.0 소스에서 확인했고, 덕분에 암호가 git과 ConfigMap 어디에도 남지 않는다.
+`feature_store.yaml`의 온라인 스토어 연결 문자열은 `redis.feast.svc:6379,password=${REDIS_PASSWORD}`다. Feast가 설정 파일을 읽을 때 `os.path.expandvars`로 환경변수를 치환하는 것을 0.67.0 소스에서 확인했고 덕분에 암호가 git과 ConfigMap 어디에도 남지 않는다.
 
 ## 4. Kubeflow Pipelines 2.17.3
 
@@ -617,7 +617,7 @@ flowchart LR
 
 ### 4.1 번들 Argo를 빼는 이유
 
-KFP 매니페스트는 Argo CRD와 `kubeflow` 네임스페이스 전용 workflow-controller(2.17.3은 v4.0.6)를 같이 설치한다. 그런데 홈랩에는 다른 워크로드(rag, bench)가 쓰는 Argo Workflows v4.1.4가 전체 네임스페이스를 감시하며 돌고 있고, Workflow CRD는 클러스터에 하나뿐이다. 그대로 설치하면 CRD가 v4.0.6으로 덮이고 두 컨트롤러가 같은 Workflow를 동시에 처리한다.
+KFP 매니페스트는 Argo CRD와 `kubeflow` 네임스페이스 전용 workflow-controller(2.17.3은 v4.0.6)를 같이 설치한다. 그런데 홈랩에는 다른 워크로드(rag, bench)가 쓰는 Argo Workflows v4.1.4가 전체 네임스페이스를 감시하며 돌고 있고 Workflow CRD는 클러스터에 하나뿐이다. 그대로 설치하면 CRD가 v4.0.6으로 덮이고 두 컨트롤러가 같은 Workflow를 동시에 처리한다.
 
 그래서 번들 Argo를 kustomize 패치로 통째로 빼고 기존 컨트롤러가 KFP 워크플로도 실행하게 했다. 2.17.3이 v4를 번들하므로 v4.1.4와 같은 메이저다. 대신 공유 Argo에 두 설정이 있어야 하는데, 2026-10-04에 2.16.1을 처음 올릴 때 실제로 실패를 겪고 넣은 것이다.
 
@@ -638,7 +638,7 @@ executor:
       type: RuntimeDefault
 ```
 
-둘 다 클러스터의 **모든** Argo 워크플로에 적용된다. executor 설정은 init과 wait 컨테이너에만 적용되고 사용자 컨테이너의 실행 사용자는 바뀌지 않으며, nodeSelector는 기본값이라 템플릿에 직접 지정한 값이 우선한다.
+둘 다 클러스터의 **모든** Argo 워크플로에 적용된다. executor 설정은 init과 wait 컨테이너에만 적용되고 사용자 컨테이너의 실행 사용자는 바뀌지 않으며 nodeSelector는 기본값이라 템플릿에 직접 지정한 값이 우선한다.
 
 ### 4.2 설치 스크립트
 
@@ -662,7 +662,7 @@ kubectl -n "${NAMESPACE}" wait --for=condition=Available deploy --all --timeout=
 kubectl apply -f 03-access/ml-pipeline-ui-lb.yaml
 ```
 
-`00-cert-manager`와 `01-cluster-scoped`는 upstream 매니페스트를 URL로 가리키는 kustomization 하나씩이다. `01-cluster-scoped`는 `cluster-scoped-resources` 전체 대신 `namespace.yaml`, `application/cluster-scoped`, `pipeline/cluster-scoped` 셋만 고르고, `third-party/argo`와 `cache-deployer/cluster-scoped`는 뺀다.
+`00-cert-manager`와 `01-cluster-scoped`는 upstream 매니페스트를 URL로 가리키는 kustomization 하나씩이다. `01-cluster-scoped`는 `cluster-scoped-resources` 전체 대신 `namespace.yaml`, `application/cluster-scoped`, `pipeline/cluster-scoped` 셋만 고르고 `third-party/argo`와 `cache-deployer/cluster-scoped`는 뺀다.
 
 ```yaml {title="kubeflow-pipelines/01-cluster-scoped/kustomization.yaml"}
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -723,7 +723,7 @@ patches:
                     - { key: kubernetes.io/arch, operator: In, values: ["amd64"] }
 ```
 
-UI는 LoadBalancer 하나로 연다. UI가 `/apis/*`를 API 서버로 프록시하므로 SDK도 같은 주소(`kfp.Client(host="http://192.168.0.242")`)를 쓴다. 원문 가이드의 NodePort 둘(30080, 30088) 대신이고, 인증이 없으니 LAN 밖으로 포워딩하면 안 된다.
+UI는 LoadBalancer 하나로 연다. UI가 `/apis/*`를 API 서버로 프록시하므로 SDK도 같은 주소(`kfp.Client(host="http://192.168.0.242")`)를 쓴다. 원문 가이드의 NodePort 둘(30080, 30088) 대신이고 인증이 없으니 LAN 밖으로 포워딩하면 안 된다.
 
 ```yaml {title="kubeflow-pipelines/03-access/ml-pipeline-ui-lb.yaml"}
 apiVersion: v1
@@ -874,7 +874,7 @@ KFP를 업그레이드하면 upstream 기본값이 다시 SeaweedFS를 가리키
 
 ## 6. 확인
 
-2026-10-28 기준으로 네 네임스페이스의 Pod가 모두 Running이다. KFP와 Feast는 amd64 전용 이미지라 worker1-gpu에 몰려 있고, RustFS와 cert-manager만 worker2-arm64에 있다.
+2026-10-28 기준으로 네 네임스페이스의 Pod가 모두 Running이다. KFP와 Feast는 amd64 전용 이미지라 worker1-gpu에 몰려 있고 RustFS와 cert-manager만 worker2-arm64에 있다.
 
 ```terminal
 $ kubectl -n mlflow get pods -o wide
