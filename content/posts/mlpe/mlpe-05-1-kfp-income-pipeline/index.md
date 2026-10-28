@@ -375,9 +375,9 @@ run_id 52f896e8-c3b4-4d7a-b456-0e1845aeeed3
 
 `feast[aws,redis]`로 바꿔 다시 실행하자 네 단계가 모두 성공했다(3분 9초).
 
-아티팩트 저장소를 RustFS로 옮긴 뒤의 첫 실행(2026-10-28 20:20)은 model-inference 단계에서 멈췄다. 앞 두 단계는 정상으로 끝났지만 model-inference Pod는 10분 가까이 아무 로그도 내지 않았고, MLflow 서버 로그에도 그 Pod의 요청이 없었다. MLflow Deployment를 `kubectl rollout restart`로 재기동하자 그 직후 모델 버전 조회 요청이 MLflow 로그에 찍히며 단계가 끝났다. MLflow가 멈춘 원인은 이전 Pod 로그가 사라져 확인하지 못했다. 이 run은 Terminate로 종료했고, UI에는 12분 15초 실패로 남아 있다.
+아티팩트 저장소를 RustFS로 옮긴 뒤의 첫 실행(2026-10-28 20:20)은 model-inference 단계에서 멈췄다. 앞 두 단계는 정상으로 끝났지만 model-inference Pod는 10분 가까이 아무 로그도 내지 않았고, MLflow 서버 로그에도 그 Pod의 요청이 없었다. 원인은 MLflow Pod 쪽이었다. 전날 worker1-gpu 전원을 껐다 켠 뒤 Postgres보다 먼저 뜬 MLflow Pod의 init 컨테이너 `dbchecker`가 재시도 간격을 약 8시간까지 늘린 채 대기하고 있어, MLflow Service에 엔드포인트가 없었다. MLflow Deployment를 `kubectl rollout restart`로 재기동하자 그 직후 모델 버전 조회 요청이 MLflow 로그에 찍히며 단계가 끝났다. 이 run은 Terminate로 종료했고, UI에는 12분 15초 실패로 남아 있다.
 
-![KFP UI 의 income-classifier 실험 run 목록. 10-27 실패(1분 32초, feast redis 모듈)와 성공(3분 9초), 10-28 실패(12분 15초, MLflow 응답 없음)와 성공(3분 8초) 네 건이 있다. 시간은 브라우저 시간대(JST)로 표시된다](kfp-experiment-runs.jpg)
+![KFP UI 의 income-classifier 실험 run 목록. 10-27 실패(1분 32초, feast redis 모듈)와 성공(3분 9초), 10-28 실패(12분 15초, MLflow Pod 가 init 에서 대기)와 성공(3분 8초) 네 건이 있다. 시간은 브라우저 시간대(JST)로 표시된다](kfp-experiment-runs.jpg)
 
 바로 다시 실행한 run은 네 단계가 모두 성공했고, RustFS `mlpipeline` 버킷에 단계별 `data_output`과 로그가 생겼다. 아래 시간과 화면은 이 실행 기준이다.
 
