@@ -44,6 +44,8 @@ MLflow, RustFS, Feast 레지스트리는 4장에서 이미 클러스터 내부 �
 
 컴포넌트 하나는 **Python 코드 → Docker 이미지 → `component.yaml`** 순서로 만든다. 데이터 읽기 컴포넌트를 예로 세 단계를 차례로 살펴본다.
 
+이 절의 작업은 모두 **개발 PC**에서 한다. 5장 코드는 4장과 달리 노트북이 아니라 `practical-mlops/chapter-5` 저장소의 일반 Python 파일이고, 이미지도 개발 PC에서 빌드해 레지스트리에 올려 둔다. KFP Pod는 그 이미지를 받아 실행만 하며, Pod 안에서 빌드하지 않는다. 홈랩에서는 rocky-linux(control-plane)가 개발 PC 역할을 맡았고, 이미지 빌드는 8.2절처럼 런타임 설치와 ConfigMap 마운트로 대신했다.
+
 ### 3.1 Python 코드
 
 `src/read_data/read_data.py`는 특별할 것 없는 Python 스크립트다. MinIO 클라이언트로 parquet 파일을 내려받아 DataFrame으로 읽은 뒤, 다음 단계가 이어받을 수 있도록 `data_output_path`에 다시 저장한다.
@@ -63,7 +65,7 @@ def get_data(minio_host, access_key, secret_key, bucket_name, file_name, data_ou
 
 ### 3.2 Docker 이미지
 
-컴포넌트는 Pod 안에서 실행되므로 코드를 컨테이너 이미지로 묶어야 한다. Dockerfile은 저장소 루트에 하나만 두고, 저장소 전체를 `/app`으로 복사한다.
+컴포넌트는 Pod 안에서 실행되므로 코드를 컨테이너 이미지로 묶어 레지스트리(책은 Docker Hub)에 올려 두어야 한다. Dockerfile은 저장소 루트에 하나만 두고, 저장소 전체를 `/app`으로 복사한다.
 
 ```dockerfile {title="Listing 5.3 Dockerfile"}
 FROM python:3.10-slim-buster     # buster 는 EOL 이라 지금은 apt-get update 가 실패한다 (bookworm 으로 교체)
