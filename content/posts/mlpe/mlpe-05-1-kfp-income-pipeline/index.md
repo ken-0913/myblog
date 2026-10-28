@@ -67,18 +67,20 @@ def get_data(minio_host, access_key, secret_key, bucket_name, file_name, data_ou
 
 컴포넌트는 Pod 안에서 실행되므로 코드를 컨테이너 이미지로 묶어 레지스트리(책은 Docker Hub)에 올려 두어야 한다. Dockerfile은 저장소 루트에 하나만 두고, 저장소 전체를 `/app`으로 복사한다.
 
-```dockerfile {title="Listing 5.3 Dockerfile"}
-FROM python:3.10-slim-buster     # buster 는 EOL 이라 지금은 apt-get update 가 실패한다 (bookworm 으로 교체)
+```dockerfile {title="Listing 5.3 Dockerfile (베이스 이미지만 최신으로 교체)"}
+FROM python:3.13-slim            # 책은 python:3.10-slim-buster. buster 는 EOL 이라 apt-get update 가 실패한다
 WORKDIR /app
 RUN apt-get update && \
     apt-get install --no-install-recommends -y build-essential \
-    && apt-get clean && rm -rf /tmp/* /var/tmp/*
+    && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 COPY requirements.txt /app/requirements.txt
 RUN pip3 install --upgrade pip
 RUN pip3 install --no-cache-dir -r requirements.txt
-ENV PYTHONPATH "/app"
+ENV PYTHONPATH=/app              # 책의 ENV PYTHONPATH "/app" 은 구식 표기라 빌드 경고가 난다
 COPY . /app
 ```
+
+`python:3.13-slim`은 현재 Debian 안정 버전 기반이라 apt가 동작하고, 홈랩 Pod가 쓰는 이미지와도 같다. 책의 `requirements.txt`(feast 0.40.1, mlflow 3.0.0)는 Python 3.13 휠이 없는 항목이 있으므로, 실제로 빌드하려면 4장과 같은 최신 버전으로 함께 올려야 한다.
 
 ```bash
 docker build . -t <docker_id>/read-minio-data:latest
