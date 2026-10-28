@@ -28,47 +28,7 @@ featuredImage: images/banners/mlpe-04-mlflow-install-01f7e9a6.png
 | `cert-manager` | **cert-manager** | v1.21.3 | worker2-arm64 | | KFP cache-server 웹훅 인증서 |
 | `argo` (기존) | **Argo Workflows** | v4.1.4 | | 192.168.0.233:2746 | KFP 워크플로 실행 엔진(공유) |
 
-```mermaid {title="홈랩 2주차 플랫폼 전체 구성"}
-flowchart LR
-    user["브라우저 / curl (LAN)"]
-    sdk["rocky-linux<br/>KFP SDK venv"]
-    subgraph nsm["namespace mlflow"]
-        jup["JupyterLab .239"]
-        ml["MLflow 3.16 .238"]
-        pg[("Postgres 18")]
-        fs[("RustFS 1.0.3 .237<br/>mlflow-artifacts, mlflow-datasets<br/>feature-data-sets, feature-registry<br/>inference-datasets, mlpipeline")]
-    end
-    subgraph nsf["namespace feast"]
-        redis[("Redis 8.10")]
-        jobs["Job apply / materialize"]
-        srv["feast-server .240<br/>feast-ui .241"]
-    end
-    subgraph nsk["namespace kubeflow"]
-        ui["ml-pipeline-ui .242"]
-        api["ml-pipeline API"]
-        mysql[("MySQL 8.4")]
-        pods["실행 Pod<br/>driver / 컴포넌트"]
-    end
-    subgraph nsa["namespace argo (기존)"]
-        wc["workflow-controller v4.1.4"]
-    end
-    cm["cert-manager v1.21.3"]
-    user --> jup & ml & srv & ui
-    sdk --> ui
-    jup -->|run, metric| ml
-    jup -->|S3 아티팩트| fs
-    ml --> pg
-    ml -.->|artifact root| fs
-    jobs -->|parquet, 레지스트리| fs
-    jobs -->|30,162 키| redis
-    srv --> redis & fs
-    ui --> api --> mysql
-    api -->|Workflow| wc --> pods
-    pods -->|Dataset, 로그| fs
-    pods -->|모델| ml
-    pods -->|historical 피처| fs
-    cm -.->|cache-server TLS| api
-```
+![홈 LAN 안의 홈랩 Kubernetes 클러스터(v1.36.5)에 올린 2주차 실습 플랫폼 전체 구성. mlflow 네임스페이스에 JupyterLab(192.168.0.239), MLflow 3.16.0(192.168.0.238), Postgres 18, Secret 4개, RustFS 1.0.3(192.168.0.237, 버킷 6개)이 있고, feast 네임스페이스에 Feast 서버·UI(192.168.0.240, 241), apply·materialize Job, Redis 8.10.2 가, kubeflow 네임스페이스에 ml-pipeline UI·API 2.17.3(192.168.0.242), 실행 Pod, MySQL 8.4 가 있다. 기존 argo 네임스페이스의 workflow-controller v4.1.4 가 KFP Workflow 를 받아 실행 Pod 를 만들고 cert-manager 가 cache-server 인증서를 준다. 노트북은 MLflow 에 run 과 지표를, RustFS 에 아티팩트를 직접 올리고, Feast Job 은 RustFS 에 parquet 와 레지스트리를, Redis 에 키 30,162개를 쓴다. KFP 실행 Pod 는 MLflow 에서 Production 모델을 받고 RustFS 에 Dataset 과 로그를 쓴다](homelab-platform.svg)
 
 책과 다른 점은 다섯 가지다. MinIO 대신 RustFS, SQLite 대신 Postgres, 로컬 노트북 대신 클러스터 안 JupyterLab, 로컬 `feast` 명령 대신 Job과 Deployment, 그리고 KFP는 번들 Argo를 빼고 클러스터에 이미 있던 Argo Workflows를 같이 쓴다. S3 호환이면 책의 minio SDK와 boto3 코드가 그대로 돌고 Python 3.13에는 책의 고정 버전(mlflow 3.0.0, xgboost 1.7.6, feast 0.40.1) 휠이 없어 최신 버전을 쓴다.
 
