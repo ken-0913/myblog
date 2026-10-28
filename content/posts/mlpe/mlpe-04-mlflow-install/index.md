@@ -9,7 +9,7 @@ featuredImage: images/banners/mlpe-04-mlflow-install-01f7e9a6.png
 ---
 `Machine Learning Platform Engineering` 4장은 MLflow로 실험을 추적하고 Feast로 피처를 관리하며 5장은 둘을 Kubeflow Pipelines로 잇는다. 책은 로컬 `mlflow ui`(SQLite), 로컬 `feast` 명령, Kubeflow에 딸린 MinIO로 진행하는데, 로컬 인스턴스로는 팀이 같은 기록을 볼 수 없다. 그래서 4장의 도전과제가 "Kubernetes에 MLflow를 설치하라"다.
 
-이 글은 홈랩 Kubernetes 클러스터(v1.36.5, 노드 3대)에 2주차 실습 플랫폼 전체를 올린 기록이다. 2026-10-25에 MLflow 플랫폼, 10-26에 Feast와 Kubeflow Pipelines(KFP)를 설치했고 10-28에 KFP 아티팩트 저장소를 RustFS로 통일했다. 매니페스트와 스크립트는 홈랩 저장소 `~/k8s/` 아래 `mlflow/`, `feast/`, `kubeflow-pipelines/`에 있고 결정 배경은 ADR-045, 046, 047, 051에 남겼다.
+이 글은 홈랩 Kubernetes 클러스터(v1.36.5, 노드 3대)에 2주차 실습 플랫폼 전체를 올린 기록이다. 2026-10-25에 MLflow 플랫폼, 10-26에 Feast와 Kubeflow Pipelines(KFP)를 설치했고 10-28에 KFP 아티팩트 저장소를 RustFS로 통일했다.
 
 ## 1. 전체 구성
 
