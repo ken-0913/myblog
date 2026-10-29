@@ -12,14 +12,18 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 POST = ROOT / "content/posts/mlpe/mlpe-05-1-kfp-income-pipeline"
-SI = Path(sys.argv[1])
+SI = Path(sys.argv[1]) if len(sys.argv) > 1 else None   # Simple Icons 디렉터리. 없으면 이전 출력 svg 에서 경로를 꺼낸다
 K8S = ROOT / "assets/images/icons/kubernetes/icons/resources/unlabeled"
 BRAND = {"kubernetes": "#326ce5", "mlflow": "#0194e2"}
 
 INK, MUTED, ACCENT, PAPER = "#2d3142", "#4f5d75", "#eb6c36", "#f5f5f5"
 MONO, SANS = "'Geist Mono', monospace", "'Geist', sans-serif"
 def simple(name):
-    d = re.search(r'<path d="([^"]+)"', (SI / f"{name}.svg").read_text()).group(1)
+    if SI is not None:
+        d = re.search(r'<path d="([^"]+)"', (SI / f"{name}.svg").read_text()).group(1)
+    else:
+        prev = (POST / "kfp-cluster.svg").read_text()
+        d = re.search(r'<path fill="' + BRAND[name] + r'" d="([^"]+)"', prev).group(1)
     return ("0 0 24 24", f'<path fill="{BRAND[name]}" d="{d}"/>')
 
 
@@ -110,7 +114,7 @@ boundary(224, 448, 672, 208, "NS · MLFLOW · 4장에서 설치", 136)
 arrow("M 152,140 H 236")                                        # PC → KFP
 arrow("M 330,208 V 248", dashed=True)                           # KFP → Pod 생성 (Argo)
 arrow("M 540,208 V 248", dashed=True)                           # kfp-launcher → Pod (아티팩트 저장 위치)
-arrow("M 770,208 V 248", dashed=True)                           # Secret · ConfigMap → Pod
+arrow("M 770,208 V 248", dashed=True)                           # Secret · 이미지 → Pod
 arrow("M 390,282 H 396")                                        # read → retrieve
 arrow("M 550,282 H 556")                                        # retrieve → inference
 arrow("M 710,282 H 716")                                        # inference → write
@@ -122,19 +126,19 @@ arrow("M 795,312 V 538", accent=True)                           # write → Rust
 chip(194, 128, 76, "UI · SDK")
 chip(330, 228, 150, "공유 Argo(argo ns)가 Pod 생성")
 chip(540, 228, 100, "아티팩트 저장 위치")
-chip(770, 228, 110, "env · /src (4개 Pod)")
+chip(770, 228, 110, "env · 이미지 (4개 Pod)")
 chip(315, 432, 100, "entity_df.parquet")
 chip(475, 432, 150, "feature_store.yaml · parquet")
 chip(635, 432, 104, "Production 모델")
 chip(795, 432, 132, "inference_result.parquet", ACCENT)
-chip(560, 336, 380, "4개 Pod 모두 python:3.13-slim + 런타임 pip install, 책 코드는 /src 에 마운트", size=7)
+chip(560, 336, 380, "4개 Pod 는 GitHub Actions 가 빌드한 Docker Hub 이미지 (python:3.13-slim + 책 src/ + 의존성)", size=7)
 chip(560, 350, 380, "단계 사이 Dataset · 로그는 RustFS mlpipeline 버킷 (SeaweedFS 는 replicas 0)", size=7)
 
 box(40, 108, 112, 64, "PC", "브라우저", ["KFP UI · SDK"], kind="pc")
 box(240, 124, 180, 84, "KFP", "KFP 2.17.3", ["ml-pipeline UI · API", "MySQL 8.4 (메타데이터)", "LB 192.168.0.242"], tagw=28)
 box(440, 124, 200, 84, "CM", "kfp-launcher", ["pipeline root", "minio://mlpipeline/v2/artifacts", "LB → rustfs.mlflow.svc:9000"], mark="cm")
 box(660, 124, 220, 36, "SEC", "rustfs-credentials (복사)", [], kind="small", mark="secret", tagw=28)
-box(660, 172, 220, 36, "CM", "ch5-src (책 코드 4개)", [], kind="small", mark="cm")
+box(660, 172, 220, 36, "IMG", "Docker Hub hyeonjae0913/*", [], kind="small", tagw=28)
 for x, name, sub in [(240, "read-data", "RustFS 에서 entity_df"), (400, "retrieve-features", "Feast 0.67 historical"),
                      (560, "model-inference", "MLflow 3.17 · sklearn"), (720, "write-data", "결과 parquet 업로드")]:
     box(x, 252, 150, 60, None, name, [sub], kind="small")
@@ -160,8 +164,8 @@ for sw, txt in [("node", "Pod · 리소스"), ("acc", "추론 결과 쓰기"), (
 
 TITLE = "홈랩 KFP 배치 추론 파이프라인 실행 구성"
 DESC = ("홈랩 Kubernetes 의 KFP 2.17.3 standalone(ns kubeflow)에서 소득 분류기 배치 추론 파이프라인이 도는 모습. 브라우저나 SDK 로 192.168.0.242 의 KFP 에 실행을 만들면 "
-        "공유 Argo Workflows 가 kubeflow 네임스페이스에 Pod 4개(read-data, retrieve-features, model-inference, write-data)를 차례로 띄운다. 각 Pod 는 python:3.13-slim 에 패키지를 설치하고 "
-        "ConfigMap ch5-src 로 마운트한 책 코드를 실행하며, RustFS 키는 Secret rustfs-credentials 에서 환경변수로 받는다. 단계 사이 Dataset 과 로그는 "
+        "공유 Argo Workflows 가 kubeflow 네임스페이스에 Pod 4개(read-data, retrieve-features, model-inference, write-data)를 차례로 띄운다. 각 Pod 는 GitHub Actions 가 빌드해 "
+        "Docker Hub 에 올린 이미지(hyeonjae0913/*, python:3.13-slim 에 책 src/ 와 의존성을 담은 것)를 받아 실행하며, RustFS 키는 Secret rustfs-credentials 에서 환경변수로 받는다. 단계 사이 Dataset 과 로그는 "
         "ConfigMap kfp-launcher 의 pipeline root 설정에 따라 RustFS 의 mlpipeline 버킷에 저장되고, KFP 번들 SeaweedFS 는 쓰지 않는다. "
         "read-data 는 RustFS inference-datasets 의 entity_df.parquet 를, retrieve-features 는 4.2절 Feast 레지스트리와 parquet 를 읽고, model-inference 는 mlflow 네임스페이스의 MLflow 에서 "
         "Production 단계 random-forest-classifier v2 를 받아 예측하며, write-data 는 inference_result.parquet 를 RustFS 에 쓴다.")

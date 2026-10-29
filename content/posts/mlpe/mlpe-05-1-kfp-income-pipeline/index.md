@@ -36,7 +36,7 @@ KFP는 이 흐름을 코드로 정의할 수 있는 Python SDK(`kfp`)를 제공�
 
 홈랩 구성은 아래 그림과 같다. 책의 MinIO 자리에는 4장에서 설치한 RustFS가 들어간다. KFP 2.17.3은 아티팩트 저장소로 SeaweedFS를 함께 설치하지만, 홈랩에서는 설정을 바꿔 단계 사이 Dataset과 로그도 RustFS의 `mlpipeline` 버킷에 둔다(8.1절).
 
-![홈랩 KFP 배치 추론 파이프라인 실행 구성. 브라우저나 SDK 로 192.168.0.242 의 KFP 2.17.3(ns kubeflow)에 실행을 만들면 공유 Argo 가 kubeflow 네임스페이스에 Pod 4개(read-data, retrieve-features, model-inference, write-data)를 차례로 띄운다. 각 Pod 는 python:3.13-slim 에 패키지를 설치하고 ConfigMap ch5-src 로 마운트한 책 코드를 실행하며, RustFS 키는 Secret rustfs-credentials 에서 환경변수로 받는다. 단계 사이 Dataset 과 로그는 ConfigMap kfp-launcher 설정에 따라 RustFS 의 mlpipeline 버킷에 저장된다. read-data 는 RustFS 의 entity_df.parquet 를, retrieve-features 는 4.2절 Feast 레지스트리와 parquet 를 읽고, model-inference 는 mlflow 네임스페이스의 MLflow 에서 Production 단계 random-forest-classifier v2 를 받아 예측하며, write-data 는 inference_result.parquet 를 RustFS 에 쓴다](kfp-cluster.svg)
+![홈랩 KFP 배치 추론 파이프라인 실행 구성. 브라우저나 SDK 로 192.168.0.242 의 KFP 2.17.3(ns kubeflow)에 실행을 만들면 공유 Argo 가 kubeflow 네임스페이스에 Pod 4개(read-data, retrieve-features, model-inference, write-data)를 차례로 띄운다. 각 Pod 는 GitHub Actions 가 빌드해 Docker Hub 에 올린 이미지(hyeonjae0913/*, python:3.13-slim 에 책 src/ 와 의존성을 담은 것)를 받아 실행하며, RustFS 키는 Secret rustfs-credentials 에서 환경변수로 받는다. 단계 사이 Dataset 과 로그는 ConfigMap kfp-launcher 설정에 따라 RustFS 의 mlpipeline 버킷에 저장된다. read-data 는 RustFS 의 entity_df.parquet 를, retrieve-features 는 4.2절 Feast 레지스트리와 parquet 를 읽고, model-inference 는 mlflow 네임스페이스의 MLflow 에서 Production 단계 random-forest-classifier v2 를 받아 예측하며, write-data 는 inference_result.parquet 를 RustFS 에 쓴다](kfp-cluster.svg)
 
 MLflow, RustFS, Feast 레지스트리는 4장에서 이미 클러스터 내부 주소로 구성해 두었다. 덕분에 Pod에서 `mlflow.mlflow.svc:5000`, `rustfs.mlflow.svc:9000`으로 바로 접근할 수 있고, 책처럼 Feast 레지스트리를 새로 만들 필요도 없었다.
 
@@ -44,7 +44,7 @@ MLflow, RustFS, Feast 레지스트리는 4장에서 이미 클러스터 내부 �
 
 컴포넌트 하나는 **Python 코드 → Docker 이미지 → `component.yaml`** 순서로 만든다. 데이터 읽기 컴포넌트를 예로 세 단계를 차례로 살펴본다.
 
-이 절의 작업은 모두 **개발 PC**에서 한다. 5장 코드는 4장과 달리 노트북이 아니라 `practical-mlops/chapter-5` 저장소의 일반 Python 파일이고, 이미지도 개발 PC에서 빌드해 레지스트리에 올려 둔다. KFP Pod는 그 이미지를 받아 실행만 하며, Pod 안에서 빌드하지 않는다. 홈랩에서는 rocky-linux(control-plane)가 개발 PC 역할을 맡았고, 이미지 빌드는 8.2절처럼 런타임 설치와 ConfigMap 마운트로 대신했다.
+이 절의 작업은 모두 **개발 PC**에서 한다. 5장 코드는 4장과 달리 노트북이 아니라 `practical-mlops/chapter-5` 저장소의 일반 Python 파일이고, 이미지도 개발 PC에서 빌드해 레지스트리에 올려 둔다. KFP Pod는 그 이미지를 받아 실행만 하며, Pod 안에서 빌드하지 않는다. 홈랩에서는 rocky-linux(control-plane)가 개발 PC 역할을 맡되, 이미지 빌드와 푸시는 1주차 hello-joker 앱처럼 GitHub Actions에 맡겼다(8.2절).
 
 ### 3.1 Python 코드
 
@@ -80,14 +80,14 @@ ENV PYTHONPATH=/app              # 책의 ENV PYTHONPATH "/app" 은 구식 표�
 COPY . /app
 ```
 
-`python:3.13-slim`은 현재 Debian 안정 버전 기반이라 apt가 동작하고, 홈랩 Pod가 쓰는 이미지와도 같다. 책의 `requirements.txt`(feast 0.40.1, mlflow 3.0.0)는 Python 3.13 휠이 없는 항목이 있으므로, 실제로 빌드하려면 4장과 같은 최신 버전으로 함께 올려야 한다.
+`python:3.13-slim`은 현재 Debian 안정 버전 기반이라 apt가 동작한다. 책의 `requirements.txt`(feast 0.40.1, mlflow 3.0.0)는 Python 3.13 휠이 없는 항목이 있으므로 홈랩 Dockerfile은 4장과 같은 최신 버전(feast 0.67.0, mlflow 3.17.2, scikit-learn 1.9.1)으로 고정했고, 전부 휠로 설치되어 `build-essential`도 뺐다.
 
 ```bash
 docker build . -t <docker_id>/read-minio-data:latest
 docker push <docker_id>/read-minio-data:latest
 ```
 
-책에서는 컴포넌트마다 이미지 이름을 따로 붙인다. 하지만 Dockerfile이 저장소 전체를 복사하므로 **네 이미지의 내용은 모두 같다**. 한 번만 빌드하고 태그를 네 개 붙여도 충분하다.
+책에서는 컴포넌트마다 이미지 이름을 따로 붙인다. 하지만 Dockerfile이 저장소 전체를 복사하므로 **네 이미지의 내용은 모두 같다**. 책 저장소의 Makefile도 같은 Dockerfile을 이름만 바꿔 네 번 빌드하며, 홈랩 워크플로는 한 번 빌드해 이름 네 개로 푸시한다. 이 두 명령을 손으로 치는 대신 GitHub Actions가 대신하는 것이 홈랩판이다(8.2절).
 
 ### 3.3 component.yaml
 
@@ -256,7 +256,7 @@ compiler.Compiler().compile(income_classifier_pipeline, "income_classifier_pipel
 
 홈랩의 KFP 2.17.3 standalone(`192.168.0.242`)에서 책의 파이프라인을 처음부터 끝까지 실행했다(2026-10-27). 컴포넌트 코드(`src/*.py`)는 책 저장소의 것을 한 줄도 고치지 않았고, 연결 방식과 실행 환경만 홈랩에 맞게 바꿨다.
 
-다음 날(2026-10-28) KFP 아티팩트 저장소를 SeaweedFS에서 RustFS로 옮기고 다시 실행했다. 아래 실행 기록과 결과는 다시 실행한 run 기준이다.
+다음 날(2026-10-28) KFP 아티팩트 저장소를 SeaweedFS에서 RustFS로 옮기고 다시 실행했고, 10-29에는 처음에 쓰던 ConfigMap 런타임 설치 방식을 책과 같은 Docker Hub 이미지 방식으로 바꿔 세 번째로 실행했다. 아래 설정은 최종(10-29) 기준이고 화면 캡처는 10-28 run의 것이다.
 
 ### 8.1 준비
 
@@ -303,11 +303,34 @@ MLflow 3.16 UI는 기본값인 New model registry UI에서 Stage 열을 숨기�
 
 책과 달라진 점은 세 가지다.
 
-- **이미지**: 홈랩에는 이미지 레지스트리가 없어서 책처럼 이미지를 빌드하지 않았다. 대신 `python:3.13-slim` 이미지로 Pod를 띄우고, 시작할 때 필요한 패키지를 `pip install`한다. 패키지 버전은 4장 Jupyter venv와 맞췄다(feast 0.67.0, mlflow 3.17.2, scikit-learn 1.9.1, skops 0.16.0).
-- **코드**: 책의 `src/*.py` 네 개를 ConfigMap `ch5-src`로 만들어 `/src`에 마운트한다.
+- **이미지 빌드**: 개발 PC에서 `docker build`/`docker push`를 치는 대신 GitHub Actions 워크플로가 한다. 스터디 저장소(GitHub)의 `Dockerfile`, `requirements.txt`, `src/`가 바뀌어 main에 올라가면 이미지 하나를 빌드해 Docker Hub에 책과 같은 이름 네 개(`read-minio-data`, `retrieve-feast-features`, `run-inference`, `write-minio-data`)로 푸시하고, `components/<컴포넌트>/component.yaml`의 태그를 커밋 SHA로 바꾸는 커밋을 봇이 넣는다. 1주차 hello-joker 앱의 빌드·푸시·차트 범프와 같은 패턴이다.
+- **코드**: 책과 같다. `src/*.py` 네 개를 고치지 않고 이미지에 복사한다. 10-28까지는 레지스트리가 없다는 이유로 ConfigMap으로 마운트하고 Pod 시작 때 `pip install`했는데, Docker Hub를 이미 쓰고 있었으므로 그 방식은 버렸다.
 - **비밀값**: `access_key`/`secret_key`를 파이프라인 파라미터에서 뺐다. 대신 Secret `rustfs-credentials`를 환경변수로 주입하고, 컴포넌트 명령에서 그 값을 책 코드의 인자로 넘긴다. 이렇게 하면 실행 이력에 키가 남지 않는다.
 
-```yaml {title="components/run_inference.yaml (홈랩판)"}
+```yaml {title=".github/workflows/kfp-components.yml (요지)"}
+on:
+  push:
+    branches: [main]
+    paths: ["k8s/kubeflow-pipelines/05-income-classifier/Dockerfile", ".../requirements.txt", ".../src/**"]
+jobs:
+  build-push-bump:
+    steps:
+      - uses: docker/build-push-action@v7
+        with:
+          context: k8s/kubeflow-pipelines/05-income-classifier
+          platforms: linux/amd64          # KFP 실행 Pod 는 amd64 노드에 고정
+          push: true
+          tags: |                         # 한 이미지, 책과 같은 이름 네 개
+            ${{ secrets.DOCKERHUB_USERNAME }}/read-minio-data:${{ steps.ver.outputs.tag }}          # 커밋 short SHA
+            ${{ secrets.DOCKERHUB_USERNAME }}/retrieve-feast-features:${{ steps.ver.outputs.tag }}
+            # ... run-inference, write-minio-data, 그리고 :latest
+      - run: yq -i '.implementation.container.image = "<owner>/run-inference:<sha>"' components/run_inference/component.yaml   # 4개
+      - run: git commit -m "ci: bump 05-income-classifier component images to <sha> [skip ci]" && git push
+```
+
+매니페스트에 `latest`를 두지 않는 이유는 노드의 이미지 캐시 때문이다. 태그가 같으면 `IfNotPresent` 정책이 새 이미지를 받지 않으므로, 커밋마다 다른 SHA 태그를 적는다.
+
+```yaml {title="components/run_inference/component.yaml (홈랩판)"}
 name: Model Inference
 inputs:
 - {name: minio_host, type: String}
@@ -320,15 +343,11 @@ outputs:
 - {name: data_output, type: Dataset}
 implementation:
   container:
-    image: python:3.13-slim
+    image: hyeonjae0913/run-inference:31bd38a     # 봇이 커밋 SHA 로 갱신한다
     command:
     - sh
     - -c
-    - |
-      cd /tmp && pip install --no-cache-dir -q --root-user-action=ignore \
-        mlflow==3.17.2 scikit-learn==1.9.1 skops==0.16.0 numpy==2.5.4 scipy==1.18.1 pandas==2.3.3 pyarrow==25.0.0 boto3 \
-        >/tmp/pip.log 2>&1 || { tail -20 /tmp/pip.log; exit 1; }
-      exec python /src/run_inference.py "$@" --access_key "$AWS_ACCESS_KEY_ID" --secret_key "$AWS_SECRET_ACCESS_KEY"
+    - exec python3 /app/src/run_inference/run_inference.py "$@" --access_key "$AWS_ACCESS_KEY_ID" --secret_key "$AWS_SECRET_ACCESS_KEY"
     - sh
     - --minio_host
     - {inputValue: minio_host}
@@ -339,9 +358,9 @@ implementation:
     - {outputPath: data_output}
 ```
 
-`pip install` 출력은 파일로 돌리고 실패했을 때만 마지막 20줄을 보여 준다. 그래야 KFP UI의 단계 로그에 책 코드의 출력만 남는다.
+책 component.yaml과 다른 곳은 입력에서 키 두 개가 빠진 것과, 명령을 `sh -c`로 감싸 환경변수의 키를 책 코드의 `--access_key`/`--secret_key` 인자로 넘기는 것뿐이다. 실행 파일 경로 `/app/src/...`는 책과 같다.
 
-Secret과 ConfigMap은 `kfp-kubernetes`를 써서 태스크마다 붙인다. 태스크를 잇는 방식(`task.outputs["data_output"]`)은 책과 같다.
+Secret은 `kfp-kubernetes`를 써서 태스크마다 붙인다. 태스크를 잇는 방식(`task.outputs["data_output"]`)은 책과 같다.
 
 ```python {title="inference_pipeline.py (홈랩판 요지)"}
 from kfp import kubernetes
@@ -350,7 +369,6 @@ def homelab(task):
     kubernetes.use_secret_as_env(task, secret_name="rustfs-credentials",
                                  secret_key_to_env={"AWS_ACCESS_KEY_ID": "AWS_ACCESS_KEY_ID",
                                                     "AWS_SECRET_ACCESS_KEY": "AWS_SECRET_ACCESS_KEY"})
-    kubernetes.use_config_map_as_volume(task, config_map_name="ch5-src", mount_path="/src")
     task.set_caching_options(False)
     return task
 
@@ -367,8 +385,8 @@ def income_classifier_pipeline(minio_host: str = "rustfs.mlflow.svc:9000",
 $ KFP_HOST=http://192.168.0.242 ~/.venvs/kfp/bin/python inference_pipeline.py
 compiled income_classifier_pipeline.yaml
 Experiment details: http://192.168.0.242/#/experiments/details/59dbf6ca-…
-Run details: http://192.168.0.242/#/runs/details/52f896e8-…
-run_id 52f896e8-c3b4-4d7a-b456-0e1845aeeed3
+Run details: http://192.168.0.242/#/runs/details/370842d9-…
+run_id 370842d9-f5db-4cbb-bd7e-8c79a6973b6a
 ```
 
 홈랩에서는 UI에 YAML을 올리지 않고 SDK의 `create_run_from_pipeline_package`로 바로 실행했다. 그래서 KFP UI의 Pipelines 메뉴에는 이 파이프라인이 없고, 실행 기록은 Experiments의 `income-classifier` 아래에만 쌓인다. 7절처럼 UI에서 돌리려면 컴파일된 `income_classifier_pipeline.yaml`을 Upload pipeline으로 올리면 된다.
@@ -383,7 +401,7 @@ run_id 52f896e8-c3b4-4d7a-b456-0e1845aeeed3
 
 ![KFP UI 의 income-classifier 실험 run 목록. 10-27 실패(1분 32초, feast redis 모듈)와 성공(3분 9초), 10-28 실패(12분 15초, MLflow Pod 가 init 에서 대기)와 성공(3분 8초) 네 건이 있다. 시간은 브라우저 시간대(JST)로 표시된다](kfp-experiment-runs.jpg)
 
-바로 다시 실행한 run은 네 단계가 모두 성공했고, RustFS `mlpipeline` 버킷에 단계별 `data_output`과 로그가 생겼다. 아래 시간과 화면은 이 실행 기준이다.
+바로 다시 실행한 run은 네 단계가 모두 성공했고, RustFS `mlpipeline` 버킷에 단계별 `data_output`과 로그가 생겼다. 아래 시간과 화면은 이 실행(10-28, 런타임 설치판) 기준이고, 10-29 이미지판 run은 이 절 끝에 따로 적었다.
 
 ![KFP UI 의 income-classifier-homelab 실행 그래프. read-data-from-minio, retrieve-features-from-feast, model-inference, write-data-to-minio 네 단계가 모두 초록 체크로 성공했고, 단계 사이에 data_output 아티팩트가 이어진다](kfp-run-graph.jpg)
 
@@ -394,6 +412,16 @@ run_id 52f896e8-c3b4-4d7a-b456-0e1845aeeed3
 | model-inference | 43초 | MLflow에서 Production 모델과 `column_list.pkl`을 받아 예측 |
 | write-data | 16초 | 결과 업로드 |
 | **전체** | **3분 8초** | 단계마다 driver Pod 기동 시간 포함 |
+
+10-29에 Docker Hub 이미지판으로 바꾼 뒤의 run(`370842d9`)도 네 단계가 모두 성공했다. 단계 안의 `pip install`이 사라져 retrieve-features와 model-inference가 절반으로 줄었고, 대신 첫 단계가 이미지를 받는 시간이 들어갔다. 네 이미지가 같은 레이어라 두 번째 단계부터는 pull이 2 ~ 4초로 끝난다.
+
+| 단계 (10-29 이미지판) | 걸린 시간 | 비고 |
+| --- | --- | --- |
+| read-data | 45초 | 이미지 pull 29초(압축 360MB) 포함 |
+| retrieve-features | 20초 | pull 4초 |
+| model-inference | 21초 | pull 2초 |
+| write-data | 10초 | pull 2초 |
+| **전체** | **3분 6초** | 단계별 `data_output` 크기는 10-28과 바이트 단위로 같다 |
 
 그래프에서 단계를 클릭하면 입력 파라미터와 아티팩트가 보인다. 파라미터 목록에 `access_key`와 `secret_key`가 없고, `input_data`는 RustFS `mlpipeline` 버킷의 `minio://` 주소를 가리킨다.
 
@@ -430,8 +458,9 @@ Logs 탭은 UI가 `MINIO_HOST` 설정대로 RustFS에서 `executor-logs`를 읽�
 
 | 문제 | 원인 | 홈랩에서는 |
 | --- | --- | --- |
-| 이미지 빌드 실패 | `python:3.10-slim-buster`의 apt 저장소가 EOL로 내려감 | 빌드하지 않고 `python:3.13-slim` + 런타임 설치 |
-| 이미지 버전 | 책 이미지는 feast 0.40.1, mlflow 3.0.0 | 4장과 같은 feast 0.67.0, mlflow 3.17.2로 설치 |
+| 이미지 빌드 실패 | `python:3.10-slim-buster`의 apt 저장소가 EOL로 내려감 | 베이스를 `python:3.13-slim`으로 바꾸고 GitHub Actions에서 빌드 |
+| 이미지 버전 | 책 `requirements.txt`는 feast 0.40.1, mlflow 3.0.0 (Python 3.13 휠 없음) | 4장과 같은 feast 0.67.0, mlflow 3.17.2로 고정 |
+| 이미지 이름 | `varunmallya/*:latest` (저자 계정, `latest` 태그) | 본인 Docker Hub 계정, 커밋 SHA 태그를 봇이 갱신 |
 | 모델을 못 찾음 | stage(Production)로 모델을 찾지만 4장에서 stage를 지정하지 않았다 | v2를 Production으로 전환 |
 | Feast 레지스트리 주소 | 책 4장 레지스트리는 `localhost`를 가리킨다 | 4.2절에서 이미 클러스터 안 주소로 등록 |
 | 비밀값 노출 | 키가 파이프라인 파라미터라 실행 이력에 평문 저장 | Secret을 env로 주입 |
@@ -443,4 +472,4 @@ Logs 탭은 UI가 `MINIO_HOST` 설정대로 RustFS에서 `executor-logs`를 읽�
 - **컴포넌트**는 재사용하고 조합할 수 있는 작업 단위이며, Python 코드, Docker 이미지, `component.yaml` 세 가지로 이루어진다.
 - 컴포넌트를 독립적이고 범용적으로 만들어야 재사용과 테스트가 쉬워진다. 큰 워크플로는 작은 컴포넌트로 쪼갠다.
 - 파이프라인은 태스크의 출력을 다음 태스크의 입력으로 넘겨 DAG를 구성하고, YAML로 컴파일한 뒤 KFP UI나 API로 실행한다.
-- 홈랩에서는 4장의 MLflow·Feast·RustFS를 그대로 활용하고 모델 stage, 이미지(런타임 설치), 비밀값 전달 방식만 바꿔, 3분 8초 만에 30,162명을 추론했다. KFP 아티팩트 저장소도 RustFS로 통일해 저장소는 하나만 쓴다.
+- 홈랩에서는 4장의 MLflow·Feast·RustFS를 그대로 활용하고 모델 stage, 이미지 빌드(GitHub Actions → Docker Hub), 비밀값 전달 방식만 바꿔, 3분 6초 만에 30,162명을 추론했다. KFP 아티팩트 저장소도 RustFS로 통일해 저장소는 하나만 쓴다.
