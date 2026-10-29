@@ -5,6 +5,7 @@ draft: false
 tags: ["MLOps", "MLPE", "MLflow", "EDA", "plotnine", "JupyterLab"]
 categories: ["MLOps"]
 series: ["MLPE 2주차"]
+featuredImage: images/banners/mlpe-04-2-eda-fill-vs-stack-97988625.png
 ---
 EDA run의 막대그래프 인자 `position="fill"`을 `"stack"`으로 바꿔 run을 하나 더 만들고, 두 그래프가 무엇을 보여 주는지 비교한다.
 
