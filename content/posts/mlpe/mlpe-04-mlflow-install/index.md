@@ -11,6 +11,8 @@ featuredImage: images/banners/mlpe-04-mlflow-install-01f7e9a6.png
 
 ## 1. 전체 구성
 
+![홈 LAN 안의 홈랩 Kubernetes 클러스터(v1.36.5)에 올린 2주차 실습 플랫폼 전체 구성. mlflow 네임스페이스에 JupyterLab(192.168.0.239), MLflow 3.16.0(192.168.0.238), Postgres 18, Secret 4개, RustFS 1.0.3(192.168.0.237, 버킷 6개)이 있고, feast 네임스페이스에 Feast 서버·UI(192.168.0.240, 241), apply·materialize Job, Redis 8.10.2 가, kubeflow 네임스페이스에 ml-pipeline UI·API 2.17.3(192.168.0.242), 실행 Pod, MySQL 8.4 가 있다. 기존 argo 네임스페이스의 workflow-controller v4.1.4 가 KFP Workflow 를 받아 실행 Pod 를 만들고 cert-manager 가 cache-server 인증서를 준다. 노트북은 MLflow 에 run 과 지표를, RustFS 에 아티팩트를 직접 올리고, Feast Job 은 RustFS 에 parquet 와 레지스트리를, Redis 에 키 30,162개를 쓴다. KFP 실행 Pod 는 MLflow 에서 Production 모델을 받고 RustFS 에 Dataset 과 로그를 쓴다](homelab-platform.svg)
+
 네임스페이스 셋에 나누어 올렸다. 객체 스토리지는 RustFS 하나뿐이고 MLflow 아티팩트, Feast 오프라인 스토어와 레지스트리, KFP 아티팩트가 모두 여기에 들어간다.
 
 
@@ -27,8 +29,6 @@ featuredImage: images/banners/mlpe-04-mlflow-install-01f7e9a6.png
 | `cert-manager` | **cert-manager**              | v1.21.3                          |                                         | KFP cache-server 웹훅 인증서             |
 | `argo` (기존)    | **Argo Workflows**            | v4.1.4                           | 192.168.0.233:2746                      | KFP 워크플로 실행 엔진(공유)                  |
 
-
-![홈 LAN 안의 홈랩 Kubernetes 클러스터(v1.36.5)에 올린 2주차 실습 플랫폼 전체 구성. mlflow 네임스페이스에 JupyterLab(192.168.0.239), MLflow 3.16.0(192.168.0.238), Postgres 18, Secret 4개, RustFS 1.0.3(192.168.0.237, 버킷 6개)이 있고, feast 네임스페이스에 Feast 서버·UI(192.168.0.240, 241), apply·materialize Job, Redis 8.10.2 가, kubeflow 네임스페이스에 ml-pipeline UI·API 2.17.3(192.168.0.242), 실행 Pod, MySQL 8.4 가 있다. 기존 argo 네임스페이스의 workflow-controller v4.1.4 가 KFP Workflow 를 받아 실행 Pod 를 만들고 cert-manager 가 cache-server 인증서를 준다. 노트북은 MLflow 에 run 과 지표를, RustFS 에 아티팩트를 직접 올리고, Feast Job 은 RustFS 에 parquet 와 레지스트리를, Redis 에 키 30,162개를 쓴다. KFP 실행 Pod 는 MLflow 에서 Production 모델을 받고 RustFS 에 Dataset 과 로그를 쓴다](homelab-platform.svg)
 
 설치는 디렉터리마다 `scripts/install.sh` 하나로 하며 순서는 `mlflow` → `feast` → `kubeflow-pipelines`다. 세 스크립트 모두 멱등이라 다시 실행하면 바뀐 것만 적용되고 비밀값은 처음 한 번 무작위로 만들어 Secret에만 저장한다.
 
@@ -106,7 +106,7 @@ EOF
 
 </details>
 
-<details class="orca-details" open>
+<details class="orca-details">
 <summary>② feast/scripts/install.sh 전체 보기</summary>
 
 ```bash {title="feast/scripts/install.sh"}
@@ -270,7 +270,7 @@ Secret은 네임스페이스를 넘지 못하므로 설치 스크립트가 `rust
 
 핵심은 **아티팩트가 MLflow 서버를 거치지 않는다**는 점이다. 노트북이 `log_model()`을 부르면 run과 지표 같은 메타데이터만 MLflow 서버(Postgres)로 가고 파일은 노트북 Pod가 RustFS에 직접 올린다. 그래서 Jupyter Pod에도 RustFS 계정과 `MLFLOW_S3_ENDPOINT_URL`이 환경변수로 들어간다.
 
-**RustFS**는 Deployment 하나와 LoadBalancer Service다. PV가 RWO라 `Recreate` 전략을 쓰고 데이터는 worker1-gpu의 디스크 부담을 덜려고 worker2-arm64(Raspberry Pi)에 둔다. 버킷은 aws-cli 이미지의 Job이 `head-bucket`으로 확인하고 없을 때만 만든다.
+**RustFS**는 Deployment 하나와 LoadBalancer Service다. PV가 RWO라 `Recreate` 전략을 쓴다. 버킷은 aws-cli 이미지의 Job이 `head-bucket`으로 확인하고 없을 때만 만든다.
 
 
 | 버킷                   | 만드는 곳         | 내용                              |
@@ -283,7 +283,7 @@ Secret은 네임스페이스를 넘지 못하므로 설치 스크립트가 `rust
 | `mlpipeline`         | 5장 실습 때 수동    | KFP 단계 사이 Dataset과 로그           |
 
 
-**Postgres**는 `postgres:18` 공식 이미지 단일 인스턴스다. worker2-arm64는 메모리 요청이 98%라 256Mi도 스케줄되지 않아 worker1-gpu에 둔다.
+**Postgres**는 `postgres:18` 공식 이미지 단일 인스턴스다.
 
 **MLflow**는 community-charts의 Helm 차트로 올린다. 공식 이미지에는 psycopg2와 boto3가 없는데 이 차트의 이미지(`burakince/mlflow`)는 둘을 포함하고 `existingSecret`도 지원한다. values에서 기본값과 다른 부분만 추리면 다음과 같다.
 
@@ -322,7 +322,14 @@ resources:
   limits: { memory: 4Gi }
 ```
 
-**JupyterLab**은 `scipy-notebook` 이미지에 시작 hook 하나를 ConfigMap으로 꽂았다. hook이 chapter-4 저장소를 clone하고 venv에 최신 mlflow, xgboost, `feast[redis,aws]`를 설치해 `chapter-4` 커널로 등록하며 홈 디렉터리가 PVC라 재시작해도 남는다. xgboost 휠이 amd64용이라 worker1-gpu에만 뜨고 Service 이름이 `jupyter`라 `enableServiceLinks: false`가 필요하다.
+**JupyterLab**은 Jupyter 공식 이미지 `scipy-notebook`(pandas, numpy 등이 미리 설치된 이미지)을 그대로 쓴다. 이미지를 새로 빌드하지 않고 책 실습 환경을 갖추기 위해 다음 네 가지를 설정했다.
+
+- **시작 hook**: 이 이미지는 노트북 서버를 띄우기 직전에 `/usr/local/bin/before-notebook.d/` 안의 셸 스크립트를 실행한다. 그 자리에 스크립트 하나를 ConfigMap으로 마운트해, 이미지를 고치지 않고도 시작할 때 할 일을 끼워 넣었다.
+- **chapter-4 커널**: hook은 책 4장 저장소를 git clone하고, 별도 가상환경(venv)에 최신 mlflow, xgboost, `feast[redis,aws]`를 설치한다. 그 venv를 JupyterLab 커널 목록에 `chapter-4`라는 이름으로 등록하므로, 노트북에서 이 커널을 고르면 책 코드가 바로 돈다.
+- **홈 디렉터리 PVC**: Pod가 다시 뜨면 컨테이너 안의 파일은 사라진다. 홈 디렉터리(`/home/jovyan`)를 PersistentVolume에 붙여 clone한 저장소, venv, 작성한 노트북을 보존하고, hook은 이미 있는 것을 건너뛰어 두 번째 기동부터는 빠르다.
+- **amd64 노드 고정**: 워커 하나는 Raspberry Pi(arm64)인데 xgboost는 arm64용 미리 빌드된 패키지(휠)가 없어 설치되지 않는다. 그래서 nodeSelector로 amd64 노드인 worker1-gpu에만 배치한다.
+
+Service 이름을 `jupyter`로 지은 탓에 설정 하나가 더 필요했다. Kubernetes는 같은 네임스페이스의 Service 주소를 환경변수로 Pod에 넣어 주는데, 그 결과 `JUPYTER_PORT=tcp://10.97.x.x:8888`이 생긴다. Jupyter는 `JUPYTER_PORT`를 포트 번호로 읽다가 이 문자열에서 죽으므로 `enableServiceLinks: false`로 환경변수 주입을 끈다.
 
 ## 3. Feast
 
