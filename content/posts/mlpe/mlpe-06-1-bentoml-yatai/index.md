@@ -7,63 +7,72 @@ categories: ["MLOps"]
 series: ["MLPE 3주차"]
 featuredImage: images/banners/mlpe-06-1-bentoml-yatai-ab5074cf.png
 ---
-`Machine Learning Platform Engineering` 6장은 머신러닝 수명주기의 남은 두 과제인 **배포**와 **모니터링**을 다룬다. 5장에서 소득 분류기를 배치 파이프라인으로 돌렸다면, 6장은 같은 모델을 **BentoML**로 API 서비스로 만들고 **Evidently**로 데이터 드리프트를 추적한다. 이 글은 앞부분인 6.1절 BentoML과 Yatai 배포를 홈랩 Kubernetes에 실제로 올린 기록이고, 6.2절 Evidently는 [다음 글](../mlpe-06-2-evidently-drift/)에서 다룬다.
+`Machine Learning Platform Engineering` 6장은  **배포**와 **모니터링**을 다룬다. 5장에서 소득 분류기를 배치 파이프라인으로 돌렸다면 6장은 같은 모델을 **BentoML**로 API 서비스로 만들고 **Evidently**로 데이터 드리프트를 추적한다. 
 
 ## 1. 한눈에 보기
 
-4.1절부터 써 온 MLOps 파이프라인 그림에서 6.1절이 채우는 자리는 **모델 배포**와 **모델 API**다. 5장은 같은 모델 배포 자리를 배치 추론 파이프라인으로 채웠고, 6.1절은 사용자가 요청하면 바로 답하는 실시간 API로 채운다. 모델은 4.1절 MLflow 레지스트리에서, 피처는 4.2절 Feast 온라인 스토어(Redis)에서 가져오고, 모델 모니터링은 6.2절의 몫이다.
+ MLOps 파이프라인 그림에서 6.1절은 **모델 배포**와 **모델 API부분**이다. 모델은 4.1절 MLflow 레지스트리에서 피처는 4.2절 Feast 온라인 스토어(Redis)에서 가져오고 모델 모니터링은 6.2절에서 다룬다.
 
 ![MLOps 파이프라인 그림에서 6.1절이 채우는 자리. 모델 배포(Bento 빌드 · Yatai 배포)와 모델 API(BentoML /predict)가 분홍으로 강조돼 있다. 4.1절 MLflow 모델 레지스트리에서 Production 모델을 import_model 로 가져와 모델 배포로, yatai-deployment 가 모델 API 로 이어지고, 4.2절 Feast 피처 스토어에서 Redis 의 online 피처가 모델 API 로 들어간다. 사용자는 /predict 로 요청하고 응답을 받는다. 모델 모니터링은 6.2절 Evidently 로 점선 표시돼 있다. 오른쪽 카드는 MLflow 모델을 BentoML 로컬 스토어로, Feast 온라인 피처와 러너 예측, bentofile_homelab 으로 만든 Bento 와 모델 38.9MB, Yatai 가 kaniko 로 빌드해 Docker Hub 를 거쳐 띄우는 API·러너 Pod 를 정리하고, 5장 배치 추론과 같은 모델을 실시간으로 쓴다고 적는다](bento-pipeline-overview.svg)
 
-## 2. BentoML이 푸는 문제
+## 2. BentoML이란?
 
-3장에서 hello-joker 앱을 FastAPI 엔드포인트로 배포할 때는 Dockerfile을 쓰고, Kubernetes 매니페스트를 여러 개 만들고, 모니터링 코드를 넣고, CI/CD까지 직접 구성했다. 이 일은 시간이 오래 걸리고, 팀의 모든 데이터 과학자가 할 수 있는 일도 아니다. BentoML은 모델 서빙에 필요한 것을 **Bento** 하나로 묶어 이 과정을 줄여 준다.
+3장에서 hello-joker 앱을 FastAPI 엔드포인트로 배포할 때는 Dockerfile을 쓰고 Kubernetes 매니페스트를 여러 개 만들고 모니터링 코드를 넣고, CI/CD까지 직접 구성했다. 이 일은 시간이 오래 걸리며 팀의 모든 데이터 과학자가 할 수 있는 일도 아니다. BentoML은 모델 서빙에 필요한 것을 **Bento** 하나로 묶어 이 과정을 줄여 준다.
 
 Bento는 머신러닝 애플리케이션을 담는 파일 아카이브다. 음식 대신 모델, 서빙 코드, 의존성, 환경 변수를 담은 도시락이라고 보면 된다. Bento를 쿠버네티스에 컨테이너로 올리고 확장·모니터링하는 일은 **Yatai**가 맡는다.
 
-![홈랩의 BentoML 과 Yatai 배포 흐름. rocky-linux 의 Python 3.12 venv(BentoML 1.1.10)와 홈랩 K8s v1.36.5 클러스터(Yatai 1.1.13) 두 영역으로 나뉜다. ① MLflow 3.16 레지스트리의 Production 모델(random-forest v2)을 import_model 로 ② BentoML 로컬 스토어로 가져온다(모델 38.9MB, skops). 로컬에서는 python:3.12-slim 이미지로 :3010 에 띄워 100명 중 >50K 23명을 확인한다. bentoml push 로 ③ Yatai(LB 192.168.0.243, DB mlflow-postgres/yatai, RustFS yatai 버킷)에 올리고, BentoRequest 를 apply 하면 ④ kaniko 빌더가 amd64 노드에서 6Gi 로 3분 37초에 이미지를 만들어 ⑤ Docker Hub hyeonjae0913/yatai-bentos 에 push 한다. Bento CRD 를 거쳐 ⑥ BentoDeployment(ns yatai, 1 + 1, ServiceAccount 로 Secret 읽기)가 ⑦ API 서버 Pod(3/3, LB 192.168.0.244, ServiceMonitor)와 ⑧ 러너 Pod(2/2, worker1-gpu)를 만들고, 두 Pod 는 Docker Hub 에서 이미지를 받는다](bentoml-deploy-flow.svg)
+| 구성요소                    | 하는 일                                               |
+| ----------------------- | -------------------------------------------------- |
+| **Bento**               | 모델을 API로 부를 수 있게 감싼 소스 묶음. tar 아카이브이고 아직 컨테이너가 아니다 |
+| **Yatai**               | 모델과 Bento를 객체 스토리지에 저장하는 레지스트리이자 대시보드              |
+| **yatai-image-builder** | Bento를 컨테이너 이미지로 빌드한다                              |
+| **yatai-deployment**    | 빌드된 이미지를 Swagger UI가 붙은 서비스로 배포한다                  |
 
-| 구성요소 | 하는 일 |
-| --- | --- |
-| **Bento** | 모델을 API로 부를 수 있게 감싼 소스 묶음. tar 아카이브이고 아직 컨테이너가 아니다 |
-| **Yatai** | 모델과 Bento를 객체 스토리지에 저장하는 레지스트리이자 대시보드 |
-| **yatai-image-builder** | Bento를 컨테이너 이미지로 빌드한다 |
-| **yatai-deployment** | 빌드된 이미지를 Swagger UI가 붙은 서비스로 배포한다 |
 
-세 도구의 역할을 한 줄씩 줄이면 이렇다. MLflow는 실험 기록과 "어떤 버전이 승인됐나"의 기준이다. Bento는 승인된 버전을 코드와 함께 고정한 배포 단위이고, Yatai는 Bento를 이미지로 만들어 배포하는 도구다.
+
+
+MLflow는 실험 기록과 "어떤 버전이 승인됐나"의 기준이다.
+
+ Bento는 승인된 버전을 코드와 함께 고정한 배포 단위이고 Yatai는 Bento를 이미지로 만들어 배포하는 도구다.
 
 BentoML 팀은 관리형 플랫폼 **BentoCloud**도 운영한다. 같은 Bento를 올리면 빌드, 배포, 스케일링을 대신 해 주는 서비스이고, 6장 실습은 쓰지 않는다.
 
-| 구분 | BentoML (오픈소스) | BentoCloud (관리형) |
-| --- | --- | --- |
-| 하는 일 | 서비스 코드 작성, Bento 패키징, 로컬 서빙, 컨테이너 빌드 | Bento를 받아 빌드·배포·스케일링·모니터링을 운영 |
-| 인프라 | Docker, 쿠버네티스를 직접 준비 | 플랫폼이 제공 |
-| 쿠버네티스 배포 | Yatai를 직접 설치·운영 (6장 방식) | 클러스터 운영이 필요 없다 |
-| 운영 부담 | 높다 (OOM, 레지스트리, 인증서를 직접 해결) | 낮다 |
-| 비용 | 무료 | 상용 |
+
+| 구분       | BentoML (오픈소스)                       | BentoCloud (관리형)              |
+| -------- | ------------------------------------ | ----------------------------- |
+| 하는 일     | 서비스 코드 작성, Bento 패키징, 로컬 서빙, 컨테이너 빌드 | Bento를 받아 빌드·배포·스케일링·모니터링을 운영 |
+| 인프라      | Docker, 쿠버네티스를 직접 준비                 | 플랫폼이 제공                       |
+| 쿠버네티스 배포 | Yatai를 직접 설치·운영 (6장 방식)              | 클러스터 운영이 필요 없다                |
+| 운영 부담    | 높다 (OOM, 레지스트리, 인증서를 직접 해결)          | 낮다                            |
+| 비용       | 무료                                   | 상용                            |
+
 
 ## 3. 홈랩 실습 환경
 
-실습은 1·2주차 홈랩 Kubernetes(v1.36.5, 노드 3대) 위에서 했다(2026-11-06). 2주차에 올린 MLflow 3.16, RustFS, Postgres 18, Feast 0.67(Redis), KFP 2.17.3을 그대로 쓰고, BentoML과 Yatai만 더 올렸다. 개발 PC 역할은 control-plane인 rocky-linux가 맡았다.
+실습은 1·2주차 홈랩 Kubernetes(v1.36.5, 노드 3대) 위에서 했다(2026-11-06). 2주차에 올린 MLflow 3.16, RustFS, Postgres 18, Feast 0.67(Redis), KFP 2.17.3을 그대로 쓰고, BentoML과 Yatai만 더 올렸다. 
 
-| 구성요소 | 버전 | 홈랩에서 |
-| --- | --- | --- |
-| BentoML | 1.1.10 | rocky-linux `~/mlpe-ch6/chapter-6`의 Python 3.12 venv |
+
+| 구성요소                                         | 버전                 | 홈랩에서                                                                           |
+| -------------------------------------------- | ------------------ | ------------------------------------------------------------------------------ |
+| BentoML                                      | 1.1.10             | rocky-linux `~/mlpe-ch6/chapter-6`의 Python 3.12 venv                           |
 | Yatai, yatai-image-builder, yatai-deployment | 1.1.13 (차트 1.1.13) | ns `yatai-system`, `yatai-image-builder`, `yatai-deployment`. 2023-10이 마지막 릴리스 |
-| Yatai 메타데이터·파일 | | 기존 `mlflow-postgres`의 DB `yatai`, RustFS `yatai` 버킷 |
-| 이미지 레지스트리 | | Docker Hub `hyeonjae0913/yatai-bentos` |
-| cert-manager | v1.21.3 | KFP가 쓰던 것을 재사용 |
-| 접속 | | LB IP. Yatai `192.168.0.243`, 소득 분류기 `192.168.0.244` |
+| Yatai 메타데이터·파일                               |                    | 기존 `mlflow-postgres`의 DB `yatai`, RustFS `yatai` 버킷                            |
+| 이미지 레지스트리                                    |                    | Docker Hub `hyeonjae0913/yatai-bentos`                                         |
+| cert-manager                                 | v1.21.3            | KFP가 쓰던 것을 재사용                                                                 |
+| 접속                                           |                    | LB IP. Yatai `192.168.0.243`, 소득 분류기 `192.168.0.244`                           |
+
 
 ### 3.1 먼저 확인한 제약
 
 설치 전에 클러스터를 살펴보니 공용 가이드를 그대로 옮길 수 없는 이유가 셋 있었다.
 
-| 제약 | 확인한 내용 | 대응 |
-| --- | --- | --- |
-| Yatai 이미지가 amd64 전용 | yatai, image-builder, deployment, kaniko, bentoml-proxy, metrics-transformer 6개가 모두 단일 아키텍처(amd64) | 유일한 amd64 워커 worker1-gpu에 고정. 요청량이 CPU 92%, 메모리 95%라 끝난 벤치마크(clickstack-bench)를 내려 약 4.3Gi를 비웠다 |
-| 모델이 Python 3.10으로 안 읽힌다 | Production 모델은 MLflow 3.17.2, scikit-learn 1.9.1, numpy 2.5.4, skops 형식, Python 3.13으로 저장됐다 | scikit-learn 1.9.1은 Python 3.11+, numpy 2.5.4는 3.12+라 책의 3.10을 버리고 3.12를 쓴다 |
-| 차트가 쓰는 API | 1.1.13 차트는 apps/v1, batch/v1, rbac/v1, cert-manager.io/v1, apiextensions/v1만 쓴다 | Kubernetes 1.36에서 제거된 API가 없어 차트는 그대로 쓴다 |
+
+| 제약                      | 확인한 내용                                                                                             | 대응                                                                                              |
+| ----------------------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Yatai 이미지가 amd64 전용     | yatai, image-builder, deployment, kaniko, bentoml-proxy, metrics-transformer 6개가 모두 단일 아키텍처(amd64) | 유일한 amd64 워커 worker1-gpu에 고정. 요청량이 CPU 92%, 메모리 95%라 끝난 벤치마크(clickstack-bench)를 내려 약 4.3Gi를 비웠다 |
+| 모델이 Python 3.10으로 안 읽힌다 | Production 모델은 MLflow 3.17.2, scikit-learn 1.9.1, numpy 2.5.4, skops 형식, Python 3.13으로 저장됐다        | scikit-learn 1.9.1은 Python 3.11+, numpy 2.5.4는 3.12+라 책의 3.10을 버리고 3.12를 쓴다                     |
+| 차트가 쓰는 API              | 1.1.13 차트는 apps/v1, batch/v1, rbac/v1, cert-manager.io/v1, apiextensions/v1만 쓴다                    | Kubernetes 1.36에서 제거된 API가 없어 차트는 그대로 쓴다                                                        |
+
 
 Python 버전은 `uv pip compile`로 의존성만 풀어 보고 정했다. 3.10과 3.11은 풀리지 않고 3.12부터 풀린다.
 
@@ -164,7 +173,7 @@ def predict(inputs: IncomeClassifierUsers, ctx: bentoml.Context) -> Dict[str, An
 
 저자 `DataStore`는 RustFS에서 받은 `feature_store.yaml`의 Redis 연결 문자열을 암호와 함께 덮어쓴다. 그래서 2주차에 올려 둔 historical 전용 설정(암호 없음)으로도 온라인 조회가 된다. 홈랩에서 고친 곳은 세 군데이고 4.4절에 모았다.
 
-### 4.3 bentofile_homelab.yaml
+### 4.3 bentofile\_homelab.yaml
 
 책의 `bentofile.yaml`은 `docker.env`에 MinIO 계정을 적어 이미지에 굽는다. 홈랩판은 비밀값을 빼고 `ENV_NAME=homelab`만 넣는다. BentoML 1.1.10이 만드는 이미지의 Python은 3.11까지라 `base_image`로 3.12를 지정한다.
 
@@ -449,7 +458,7 @@ Yatai만으로는 배포가 되지 않는다. Bento를 이미지로 만드는 **
 
 kaniko는 Docker 데몬 없이 빌드하므로 결과를 레지스트리로 push해야 하고, 노드의 containerd는 그 레지스트리에서 이미지를 받는다. 공용 가이드는 클러스터 안에 `registry:2`를 띄우고, 노드가 클러스터 DNS를 못 풀어 socat hostPort 프록시까지 둔다. 홈랩은 1주차 hello-joker와 5장 컴포넌트 이미지가 이미 Docker Hub를 쓰고 있어 같은 계정을 썼다.
 
-Docker Hub의 Read & Write 토큰은 직접 Secret 두 개로 넣었다. 하나는 image-builder가 읽는 비밀번호이고, 다른 하나는 kaniko push와 Pod pull에 쓰는 docker 설정이다.
+Docker Hub의 Read &amp; Write 토큰은 직접 Secret 두 개로 넣었다. 하나는 image-builder가 읽는 비밀번호이고, 다른 하나는 kaniko push와 Pod pull에 쓰는 docker 설정이다.
 
 ```bash {title="Docker Hub 토큰 Secret (직접)"}
 read -rs TOK && \
@@ -506,7 +515,7 @@ $ # Yatai DB 의 yatai_component
 
 ### 7.3 BentoRequest: UI 대신 매니페스트로 이미지 빌드
 
-공용 가이드는 Yatai UI에서 배포를 만들고, 빌더가 OOM으로 죽으면 BentoRequest를 패치한다. 두 CRD가 빌더의 nodeSelector와 리소스, 레지스트리 계정을 받으므로, 홈랩에서는 처음부터 매니페스트로 만들었다(도전과제 1). kaniko 이미지도 amd64 전용이라 Pi에 뜨면 안 된다.
+공용 가이드는 Yatai UI에서 배포를 만들고, 빌더가 OOM으로 죽으면 BentoRequest를 패치한다. 두 CRD가 빌더의 nodeSelector와 리소스, 레지스트리 계정을 받으므로, 홈랩에서는 처음부터 매니페스트로 만들었다. kaniko 이미지도 amd64 전용이라 Pi에 뜨면 안 된다.
 
 ```yaml {title="04-income-classifier/bentorequest.yaml"}
 apiVersion: resources.yatai.ai/v1alpha1
@@ -527,10 +536,12 @@ spec:
 
 여기까지 오면서 BentoRequest에서 두 번 막혔다.
 
-| 증상 | 원인 | 해결 |
-| --- | --- | --- |
-| `parse "http://:yatai.income_classifier_service..."` | `dockerConfigJsonSecretName`을 주면 레지스트리 주소가 빠진 채 이미지 이름이 만들어진다 | `spec.image`에 전체 이름을 적는다 |
-| 빌드 Pod는 Succeeded인데 `image build timeout`, Bento가 안 생김 | `imageBuildTimeout: 3600`을 초로 넣었는데 컨트롤러가 Go Duration(나노초)으로 읽어 즉시 시간 초과 | 필드를 빼고 기본값을 쓴다 |
+
+| 증상                                                     | 원인                                                                      | 해결                       |
+| ------------------------------------------------------ | ----------------------------------------------------------------------- | ------------------------ |
+| `parse "http://:yatai.income_classifier_service..."`   | `dockerConfigJsonSecretName`을 주면 레지스트리 주소가 빠진 채 이미지 이름이 만들어진다           | `spec.image`에 전체 이름을 적는다 |
+| 빌드 Pod는 Succeeded인데 `image build timeout`, Bento가 안 생김 | `imageBuildTimeout: 3600`을 초로 넣었는데 컨트롤러가 Go Duration(나노초)으로 읽어 즉시 시간 초과 | 필드를 빼고 기본값을 쓴다           |
+
 
 ```terminal
 $ kubectl apply -f 04-income-classifier/bentorequest.yaml
@@ -661,10 +672,12 @@ $ # Prometheus targets
 [('income-classifier-service', 'serviceMonitor/yatai/income-classifier-service/0', 'up', '')]
 ```
 
-| Pod | 컨테이너 | 하는 일 |
-| --- | --- | --- |
+
+| Pod          | 컨테이너                                    | 하는 일                            |
+| ------------ | --------------------------------------- | ------------------------------- |
 | API 서버 (3/3) | main, metrics-transformer, proxy(Envoy) | 요청을 받고 Feast 피처를 읽어 러너에 예측을 맡긴다 |
-| 러너 (2/2) | main, metrics-transformer | 모델을 들고 추론한다. API 서버와 따로 확장된다 |
+| 러너 (2/2)     | main, metrics-transformer               | 모델을 들고 추론한다. API 서버와 따로 확장된다    |
+
 
 클러스터 배포의 예측 결과는 로컬 컨테이너와 같다(100명 중 `>50K` 23명). 브라우저로 `http://192.168.0.244`를 열면 BentoML이 만든 Swagger 문서에서 같은 요청을 보낼 수 있다.
 
@@ -672,41 +685,34 @@ $ # Prometheus targets
 
 ## 8. 겪은 문제
 
-| 증상 | 원인 | 해결 |
-| --- | --- | --- |
-| Python 3.10·3.11로 의존성이 안 풀림 | 모델이 scikit-learn 1.9.1(3.11+)·numpy 2.5.4(3.12+)로 저장됨 | Python 3.12, Bento `base_image: python:3.12-slim` |
-| `bentoml containerize` → `NotImplementedError` | 1.1.10 CLI가 태그 인자를 docker 백엔드에 못 넘김 | 내부 `build`를 튜플 태그로 호출 |
-| 100명 모두 `<=50K` | 요청 한 행에 `get_dummies(drop_first=True)` | `drop_first` 없이 reindex |
-| 기동 실패 `RepoConfig() argument after ** must be a mapping` | API 서버 워커들이 같은 `./feature_store.yaml`을 동시에 씀 | 워커마다 임시 디렉터리 |
-| Yatai가 S3 키를 못 읽음 | 차트 기본값의 키 이름 오타 `aceessKeyExistingSecretKey` | `accessKeyExistingSecretKey` 직접 지정 |
-| `push` → `Not found default cloud context` | API 토큰 없이 로그인해 빈 설정만 남음 | API Tokens에서 발급한 토큰으로 다시 로그인 |
-| deployment 등록 실패 `yatai-common-env not found` | 그 Secret은 image-builder 차트가 만든다 | image-builder 먼저, deployment 재시작 |
-| BentoRequest `parse "http://:yatai..."` | `dockerConfigJsonSecretName`을 주면 레지스트리 주소가 빠짐 | `spec.image` 명시 |
-| 빌드 성공 후 `image build timeout` | `imageBuildTimeout` 정수를 나노초로 읽음 | 필드 삭제 |
-| Pod `NoCredentialsError` | yatai-deployment가 env `valueFrom`을 버림 | ServiceAccount로 Secret 직접 읽기 |
-| 로컬 시험 `Could not bind 0.0.0.0:3000` | rocky-linux의 다른 서비스가 3000을 씀 | `BENTOML_PORT=3010` |
 
-## 9. 도전과제
+| 증상                                                       | 원인                                                    | 해결                                                |
+| -------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------- |
+| Python 3.10·3.11로 의존성이 안 풀림                              | 모델이 scikit-learn 1.9.1(3.11+)·numpy 2.5.4(3.12+)로 저장됨 | Python 3.12, Bento `base_image: python:3.12-slim` |
+| `bentoml containerize` → `NotImplementedError`           | 1.1.10 CLI가 태그 인자를 docker 백엔드에 못 넘김                   | 내부 `build`를 튜플 태그로 호출                             |
+| 100명 모두 `<=50K`                                          | 요청 한 행에 `get_dummies(drop_first=True)`                | `drop_first` 없이 reindex                           |
+| 기동 실패 `RepoConfig() argument after ** must be a mapping` | API 서버 워커들이 같은 `./feature_store.yaml`을 동시에 씀          | 워커마다 임시 디렉터리                                      |
+| Yatai가 S3 키를 못 읽음                                        | 차트 기본값의 키 이름 오타 `aceessKeyExistingSecretKey`          | `accessKeyExistingSecretKey` 직접 지정                |
+| `push` → `Not found default cloud context`               | API 토큰 없이 로그인해 빈 설정만 남음                               | API Tokens에서 발급한 토큰으로 다시 로그인                      |
+| deployment 등록 실패 `yatai-common-env not found`            | 그 Secret은 image-builder 차트가 만든다                       | image-builder 먼저, deployment 재시작                  |
+| BentoRequest `parse "http://:yatai..."`                  | `dockerConfigJsonSecretName`을 주면 레지스트리 주소가 빠짐         | `spec.image` 명시                                   |
+| 빌드 성공 후 `image build timeout`                            | `imageBuildTimeout` 정수를 나노초로 읽음                       | 필드 삭제                                             |
+| Pod `NoCredentialsError`                                 | yatai-deployment가 env `valueFrom`을 버림                 | ServiceAccount로 Secret 직접 읽기                      |
+| 로컬 시험 `Could not bind 0.0.0.0:3000`                      | rocky-linux의 다른 서비스가 3000을 씀                          | `BENTOML_PORT=3010`                               |
 
-| 도전과제 | 홈랩에서 |
-| --- | --- |
-| UI 대신 `BentoRequest`·`BentoDeployment` CRD로 배포 | **했다** (7.3, 7.4) |
-| 내부 레지스트리 대신 Docker Hub나 Harbor | **했다** (Docker Hub, 7.1) |
-| `/metrics`를 Prometheus로 수집하고 Grafana 대시보드 | 수집까지 했다 (ServiceMonitor, target up). 대시보드는 아직 |
-| Yatai 레지스트리를 KitOps 등으로 바꾸기 | 하지 않았다 |
-| yatai-image-builder 대신 Kubeflow Pipelines로 빌드·배포 자동화 | 하지 않았다 |
-| yatai-deployment 대신 KServe로 서빙 | 하지 않았다 |
 
-## 10. 정리
+## 9. 정리
 
-| 단계 | 명령 또는 객체 | 홈랩 결과 |
-| --- | --- | --- |
-| 모델 가져오기 | `download_model_homelab.py` | `random-forest-classifier:5j5xhfwz3ohqrbch` 38.9MiB |
-| Bento 빌드 | `bentoml build -f bento/bentofile_homelab.yaml` | 비밀값 없는 Bento, Python 3.12 베이스 |
-| 로컬 확인 | `build_bento_image.py` + `docker run` | 1.66GB 이미지, 100명 중 `>50K` 23명 |
-| 원격 저장 | `bentoml push` | Yatai(Postgres·RustFS)에 모델 40.8MB, Bento 61KB |
-| 이미지 빌드 | `BentoRequest` → kaniko | 3분 37초, Docker Hub `hyeonjae0913/yatai-bentos` |
-| 서빙 | `BentoDeployment` + LB + ServiceMonitor | `192.168.0.244/predict`, Prometheus up |
+
+| 단계       | 명령 또는 객체                                        | 홈랩 결과                                               |
+| -------- | ----------------------------------------------- | --------------------------------------------------- |
+| 모델 가져오기  | `download_model_homelab.py`                     | `random-forest-classifier:5j5xhfwz3ohqrbch` 38.9MiB |
+| Bento 빌드 | `bentoml build -f bento/bentofile_homelab.yaml` | 비밀값 없는 Bento, Python 3.12 베이스                       |
+| 로컬 확인    | `build_bento_image.py` + `docker run`           | 1.66GB 이미지, 100명 중 `>50K` 23명                       |
+| 원격 저장    | `bentoml push`                                  | Yatai(Postgres·RustFS)에 모델 40.8MB, Bento 61KB       |
+| 이미지 빌드   | `BentoRequest` → kaniko                         | 3분 37초, Docker Hub `hyeonjae0913/yatai-bentos`      |
+| 서빙       | `BentoDeployment` + LB + ServiceMonitor         | `192.168.0.244/predict`, Prometheus up              |
+
 
 `bentofile.yaml` 하나로 Dockerfile과 Deployment 매니페스트를 대신 만들어 주는 것은 책 말대로 편했다. 하지만 2023년에 멈춘 Yatai를 지금 클러스터에 올리려면 Python 버전, 레지스트리, 컨트롤러 버그를 결국 Docker와 쿠버네티스 수준에서 풀어야 했다. 매니페스트와 홈랩판 소스는 MLOPs-study 저장소의 `k8s/bentoml/`에 있다.
 
