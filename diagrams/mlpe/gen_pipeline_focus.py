@@ -14,18 +14,24 @@
 import re, sys
 from pathlib import Path
 
-SI = Path(sys.argv[1])
+SI = Path(sys.argv[1]) if len(sys.argv) > 1 else None   # 없으면 이미 만든 그림에서 아이콘 경로를 꺼낸다
 OUT = Path(__file__).resolve().parents[2] / "content/posts/mlpe/mlpe-04-1-mlflow-practice"
+_PREV = [OUT / "pipeline-6-1-overview.svg", OUT.parent / "mlpe-04-mlflow-feast" / "feast-pipeline-overview.svg"]
 
 
 def mark(name, color):
-    d = re.search(r'<path d="([^"]+)"', (SI / f"{name}.svg").read_text()).group(1)
+    if SI is not None:
+        d = re.search(r'<path d="([^"]+)"', (SI / f"{name}.svg").read_text()).group(1)
+    else:
+        d = next(m.group(1) for f in _PREV for m in [re.search(f'<path fill="{color}" d="([^"]+)"', f.read_text())] if m)
     return f'<path fill="{color}" d="{d}"/>'
 
 
 ICON = {"mlflow": mark("mlflow", "#0194E2"), "jupyter": mark("jupyter", "#F37626"), "redis": mark("redis", "#FF4438")}
 FEAST_OUT = OUT.parent / "mlpe-04-mlflow-feast"
 KFP_OUT = OUT.parent / "mlpe-05-1-kfp-income-pipeline"
+BENTO_OUT = OUT.parent / "mlpe-06-1-bentoml-yatai"
+DRIFT_OUT = OUT.parent / "mlpe-06-2-evidently-drift"
 
 DIM = dict(fill="#F4F4F2", stroke="#C9C8C2", text="#9C9B95", sub="#B4B3AD")
 ROLE = {
@@ -34,8 +40,11 @@ ROLE = {
     "next":  dict(fill="#EEEDFE", stroke="#534AB7", text="#3C3489", sub="#534AB7", icon=None, dash="5 3"),
     "feast": dict(fill="#E6F0FA", stroke="#1F6FB2", text="#0C3B66", sub="#1F6FB2", icon="redis", dash=None),
     "kfp":   dict(fill="#E3F4F4", stroke="#0E7C86", text="#08474D", sub="#0E7C86", icon=None, dash=None),
+    "bento": dict(fill="#FCE8EF", stroke="#C2185B", text="#6A0E33", sub="#C2185B", icon=None, dash=None),
+    "drift": dict(fill="#FFF4D6", stroke="#B7791F", text="#5C3D0A", sub="#B7791F", icon=None, dash=None),
 }
-LEGEND = {"run": "Jupyter 에서 직접 실행", "store": "MLflow 에 기록·등록", "next": "다음 절·장에서 할 단계", "feast": "4.2절 Feast 로 구현", "kfp": "5장 KFP 로 자동화"}
+LEGEND = {"run": "Jupyter 에서 직접 실행", "store": "MLflow 에 기록·등록", "next": "다음 절·장에서 할 단계", "feast": "4.2절 Feast 로 구현", "kfp": "5장 KFP 로 자동화",
+          "bento": "6.1절 BentoML·Yatai", "drift": "6.2절 Evidently"}
 ARROW_DIM = "#C9C8C2"
 
 # 상자: id → (x, y, w, h, 제목, 부제)
@@ -71,7 +80,7 @@ def esc(s):
     return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-def render(name, title, desc, roles, arrows=(), extra_arrows=(), card=None, subs=None, orch=None, out=OUT):
+def render(name, title, desc, roles, arrows=(), extra_arrows=(), card=None, subs=None, orch=None, out=OUT, legend_step=11):
     """roles: {box_id: role}, arrows: [(arrow_id, role, label, (lx, ly, anchor), dashed)],
     extra_arrows: [(path_d, role, label, (lx, ly, anchor), dashed)], card: dict(y, title, kicker, lines, note, link)
     subs: {box_id: 부제 덮어쓰기}, orch: 오케스트레이션 점선 상자 역할"""
@@ -149,14 +158,14 @@ def render(name, title, desc, roles, arrows=(), extra_arrows=(), card=None, subs
 
     # 범례
     arrow_roles = {a[1] for a in arrows} | {a[1] for a in extra_arrows}
-    used = [r for r in ("kfp", "run", "store", "next", "feast") if r in roles.values() or r == orch or r in arrow_roles]
+    used = [r for r in ("bento", "drift", "kfp", "run", "store", "next", "feast") if r in roles.values() or r == orch or r in arrow_roles]
     x = 40
     for r in used:
         c = ROLE[r]
         dash = f' stroke-dasharray="{c["dash"]}"' if c["dash"] else ""
         P(f'<rect x="{x}" y="874" width="14" height="12" rx="3" fill="{c["fill"]}" stroke="{c["stroke"]}" stroke-width="1.5"{dash}/>')
         P(f'<text x="{x+22}" y="884" font-size="12" fill="#5F5E5A">{LEGEND[r]}</text>')
-        x += 22 + len(LEGEND[r]) * 11 + 30
+        x += 22 + len(LEGEND[r]) * legend_step + 30
     P(f'<rect x="{x}" y="874" width="14" height="12" rx="3" fill="{DIM["fill"]}" stroke="{DIM["stroke"]}" stroke-width="0.75"/>')
     P(f'<text x="{x+22}" y="884" font-size="12" fill="#5F5E5A">이 절과 무관한 단계</text>')
 
@@ -293,3 +302,37 @@ render("kfp-pipeline-overview", "5장 KFP: 파이프라인 오케스트레이션
                         "run_inference: MLflow 모델 predict_proba", "write_data: 결과 parquet 를 RustFS 로"],
                  note="홈랩 KFP 2.17.3 실측: 3분 9초, 30,162행"),
        out=KFP_OUT)
+
+# mlpe-06-1 (6.1절): 모델 배포 · 모델 API 자리를 BentoML 과 Yatai 로 채운다
+render("bento-pipeline-overview", "6.1절 BentoML·Yatai: 모델 배포와 모델 API 자리를 채운다",
+       "4.1절 그림에서 비어 있던 모델 배포와 모델 API 를 BentoML 과 Yatai 로 채운 그림. 4.1절 MLflow 모델 레지스트리의 Production 모델을 import_model 로 가져와 "
+       "Bento 로 빌드하고 Yatai 가 kaniko 로 이미지를 만들어 API 서버와 러너 Pod 로 배포한다. /predict 는 4.2절 Feast 의 Redis 에서 온라인 피처를 읽어 예측하고, "
+       "모델 모니터링은 6.2절 Evidently 에서 다룬다.",
+       roles={"deploy": "bento", "api": "bento", "reg": "store", "fs": "feast", "mon": "next"},
+       subs={"deploy": "Bento 빌드 · Yatai 배포", "api": "BentoML /predict", "reg": "4.1절 MLflow", "fs": "4.2절 Feast", "mon": "6.2절 Evidently"},
+       arrows=[("reg-deploy", "store", "import_model\n(Production)", (572, 540, "start"), False),
+               ("deploy-api", "bento", "yatai-deployment", (358, 636, "start"), False),
+               ("fs-api", "feast", "online 피처\n(Redis)", (98, 600, "start"), False),
+               ("api-user", "bento", "/predict", (322, 772, "end"), False),
+               ("user-api", "bento", None, None, False)],
+       card=dict(y=560, role="bento", kicker="6.1절 BentoML · Yatai", title="모델을 API 서비스로",
+                 lines=["MLflow 모델 → BentoML 로컬 스토어", "서비스: Feast 온라인 피처 + 러너 예측",
+                        "bentofile_homelab → Bento + 모델 38.9MB", "Yatai: kaniko → Docker Hub → Pod"],
+                 note="5장 배치 추론과 같은 모델을 실시간으로", link=(450, 600)),
+       out=BENTO_OUT, legend_step=8)
+
+# mlpe-06-2 (6.2절): 모델 모니터링 자리를 Evidently 로 채운다. 배치(KFP)와 실시간(BentoML) 두 경로
+render("drift-pipeline-overview", "6.2절 Evidently: 모델 모니터링 자리를 채운다",
+       "4.1절 그림에서 비어 있던 모델 모니터링을 Evidently 로 채운 그림. 배치 경로에서는 5장 KFP 추론 파이프라인에 detect_drift 단계를 넣어 실행마다, "
+       "실시간 경로에서는 BentoML 서비스가 최근 요청 N개(마이크로배치)가 찰 때마다 리포트를 Evidently UI 에 올린다. 비교 기준인 reference 데이터셋은 "
+       "4.1절 MLflow 모델 run 에 log_input 으로 남긴 학습 피처다. 드리프트를 찾은 뒤 재학습은 사람이 판단한다.",
+       roles={"mon": "drift", "api": "bento", "deploy": "kfp", "reg": "store"}, orch="kfp",
+       subs={"mon": "Evidently 0.5 · 드리프트", "api": "BentoML 마이크로배치", "deploy": "배치 추론 + detect_drift", "reg": "reference 데이터셋"},
+       arrows=[("api-mon", "drift", "윈도 N개", (467, 754, "middle"), False)],
+       extra_arrows=[("M456 584 L600 584 L600 674", "drift", "detect_drift", (606, 630, "start"), False),
+                     ("M640 494 L664 494 L664 708 L646 708", "store", "reference\n(log_input)", (668, 560, "start"), False)],
+       card=dict(y=96, role="drift", kicker="6.2절 Evidently", title="입력 분포가 학습 때와 같은가",
+                 lines=["기준: MLflow run 의 학습 피처", "배치: KFP detect_drift, 실행마다 리포트",
+                        "실시간: BentoML 윈도 N개, 요청마다", "판정: 컬럼별 검정 → 드리프트 비율 0.5"],
+                 note="조사 · 재학습은 사람이 판단"),
+       out=DRIFT_OUT, legend_step=8)
