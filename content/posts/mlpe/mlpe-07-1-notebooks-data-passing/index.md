@@ -1,10 +1,10 @@
 ---
-title: "MLPE 스터디 4주차 - Ch7.1 ~ 7.2 Kubeflow 노트북과 KFP 데이터 전달"
+title: "MLPE 스터디 3주차 - Ch7.1 ~ 7.2 Kubeflow 노트북과 KFP 데이터 전달"
 date: 2026-11-06T22:30:00+09:00
 draft: false
 tags: ["MLOps", "MLPE", "Kubeflow", "Kubeflow Notebooks", "PodDefault", "Kubeflow Pipelines", "KFP", "Artifact", "Kubernetes"]
 categories: ["MLOps"]
-series: ["MLPE 4주차"]
+series: ["MLPE 3주차"]
 featuredImage: images/banners/mlpe-07-1-notebooks-data-passing-0699d521.png
 ---
 `Machine Learning Platform Engineering` 파트 3은 1 ~ 6장에서 갖춘 플랫폼을 **실제 프로젝트**에 적용한다. 캡스톤 프로젝트는 세 개이고, 7장은 그중 **신분증 객체 탐지기**와 **영화 추천 시스템**의 첫 단계인 **데이터 분석과 준비**를 다룬다. 이 글은 7장의 앞부분인 7.1절 Kubeflow 노트북과 7.2절 KFP 데이터 전달을 정리하고, 1 ~ 6주차 홈랩 Kubernetes 위에 직접 올리고 돌린 결과를 함께 적는다.
