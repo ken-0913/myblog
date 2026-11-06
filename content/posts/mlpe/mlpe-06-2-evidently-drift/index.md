@@ -5,6 +5,7 @@ draft: false
 tags: ["MLOps", "MLPE", "Evidently", "Data Drift", "Model Monitoring", "Kubeflow Pipelines", "KFP", "BentoML", "Kubernetes"]
 categories: ["MLOps"]
 series: ["MLPE 3주차"]
+featuredImage: images/banners/mlpe-06-2-evidently-drift-a597b167.png
 ---
 [6.1절](../mlpe-06-1-bentoml-yatai/)까지 소득 분류기를 배치 파이프라인과 API 두 가지로 배포했다. 배포한 모델은 처음에는 잘 맞다가, 몇 달 뒤 들어오는 데이터가 학습 때와 달라지면서 조용히 성능이 떨어질 수 있다. 6.2절은 이 **데이터 드리프트**를 **Evidently**로 탐지하고 대시보드로 추적한다. 이 글은 홈랩 Kubernetes에 Evidently UI를 올리고, 배치(KFP)와 실시간(BentoML) 두 경로에서 실제로 리포트를 쌓은 기록이다(2026-11-06).
 

@@ -5,6 +5,7 @@ draft: false
 tags: ["MLOps", "MLPE", "BentoML", "Yatai", "Model Serving", "Kubernetes", "Helm", "kaniko", "cert-manager", "MLflow", "Feast"]
 categories: ["MLOps"]
 series: ["MLPE 3주차"]
+featuredImage: images/banners/mlpe-06-1-bentoml-yatai-ab5074cf.png
 ---
 `Machine Learning Platform Engineering` 6장은 머신러닝 수명주기의 남은 두 과제인 **배포**와 **모니터링**을 다룬다. 5장에서 소득 분류기를 배치 파이프라인으로 돌렸다면, 6장은 같은 모델을 **BentoML**로 API 서비스로 만들고 **Evidently**로 데이터 드리프트를 추적한다. 이 글은 앞부분인 6.1절 BentoML과 Yatai 배포를 홈랩 Kubernetes에 실제로 올린 기록이고, 6.2절 Evidently는 [다음 글](../mlpe-06-2-evidently-drift/)에서 다룬다.
 
