@@ -336,3 +336,19 @@ render("drift-pipeline-overview", "6.2절 Evidently: 모델 모니터링 자리�
                         "실시간: BentoML 윈도 N개, 요청마다", "판정: 컬럼별 검정 → 드리프트 비율 0.5"],
                  note="조사 · 재학습은 사람이 판단"),
        out=DRIFT_OUT, legend_step=8)
+
+# mlpe-07-1 (7.1 ~ 7.2절): 데이터 수집·준비 자리를 Kubeflow 노트북과 KFP 데이터 전달로 채운다
+NB_OUT = OUT.parent / "mlpe-07-1-notebooks-data-passing"
+render("notebook-pipeline-overview", "7장: 데이터 수집·준비 자리를 Kubeflow 노트북과 KFP 로 채운다",
+       "4.1절 그림에서 데이터 수집·준비 단계를 강조한 그림. 7.1절은 Kubeflow 노트북 서버를 클러스터 안에 띄워 데이터를 탐색하고, PodDefault 로 MLflow 와 KFP 주소를 "
+       "노트북 Pod 에 주입한다. 7.2절은 KFP 컴포넌트 사이에서 데이터를 넘기는 두 방식(작은 값은 반환값 .output, 큰 데이터는 Output[Artifact] 의 경로)을 다룬다. "
+       "데이터 준비 결과는 다음 단계인 모델 학습으로 이어진다.",
+       roles={"data": "run", "train": "next", "track": "store"}, orch="kfp",
+       subs={"data": "Kubeflow 노트북 · EDA", "train": "다음 장 학습 파이프라인", "track": "MLFLOW_TRACKING_URI"},
+       arrows=[("data-train", "kfp", "값 .output\n경로 .path", (358, 322, "start"), False)],
+       extra_arrows=[("M450 294 L520 294 L520 350", "store", "PodDefault 주입", (526, 326, "start"), True)],
+       card=dict(y=120, role="run", kicker="7.1 ~ 7.2절", title="데이터를 클러스터 안에서 다룬다",
+                 lines=["Notebook CR → StatefulSet · PVC", "PodDefault: MLflow · KFP 주소 env",
+                        "작은 값: 반환값과 .output", "큰 데이터: Output[Artifact].path"],
+                 note="캡스톤: 신분증 탐지 · 영화 추천", link=(450, 266)),
+       out=NB_OUT, legend_step=8)
