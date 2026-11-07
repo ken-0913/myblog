@@ -7,11 +7,11 @@ categories: ["MLOps"]
 series: ["MLPE 3주차"]
 featuredImage: images/banners/mlpe-06-2-evidently-drift-a597b167.png
 ---
-[6.1절](../mlpe-06-1-bentoml-yatai/)까지 소득 분류기를 배치 파이프라인과 API 두 가지로 배포했다. 배포한 모델은 처음에는 잘 맞다가, 몇 달 뒤 들어오는 데이터가 학습 때와 달라지면서 조용히 성능이 떨어질 수 있다. 6.2절은 이 **데이터 드리프트**를 **Evidently**로 탐지하고 대시보드로 추적한다. 이 글은 홈랩 Kubernetes에 Evidently UI를 올리고, 배치(KFP)와 실시간(BentoML) 두 경로에서 실제로 리포트를 쌓은 기록이다(2026-11-06).
+[6.1절](../mlpe-06-1-bentoml-yatai/)까지 소득 분류기를 배치 파이프라인과 API 두 가지로 배포했다. 배포한 모델은 처음에는 잘 맞다가, 몇 달 뒤 들어오는 데이터가 학습 때와 달라지면서 조용히 성능이 떨어질 수 있다. 6.2절은 이 **데이터 드리프트**를 **Evidently**로 탐지하고 대시보드로 추적한다. 
 
 ## 1. 한눈에 보기
 
-6.2절이 채우는 자리는 그림 아래쪽의 **모델 모니터링**이다. 드리프트를 보는 경로는 두 가지로, 5장 KFP 배치 추론 파이프라인에 넣은 `detect_drift` 단계와 6.1절 BentoML API의 마이크로배치 윈도다. 둘 다 4.1절 MLflow 모델 run에 남긴 학습 피처를 기준(reference)으로 삼아 리포트를 Evidently UI에 쌓는다.
+6.2절은 그림 아래쪽의 **모델 모니터링**에 해당한다. 드리프트를 보는 경로는 두 가지로, 5장에서 KFP 배치 추론 파이프라인에 넣은 `detect_drift` 단계와 6.1절 BentoML API의 마이크로배치 윈도다. 둘 다 4.1절 MLflow 모델 run에 남긴 학습 피처를 기준(reference)으로 삼아 리포트를 Evidently UI에 쌓는다.
 
 ![MLOps 파이프라인 그림에서 6.2절이 채우는 자리. 모델 모니터링(Evidently 0.5 · 드리프트)이 노랑으로 강조돼 있다. 5장 KFP 로 자동화한 파이프라인 오케스트레이션 안의 모델 배포(배치 추론 + detect_drift)에서 detect_drift 화살표가, 6.1절 BentoML 모델 API(마이크로배치)에서 윈도 N개 화살표가 모델 모니터링으로 들어간다. 4.1절 MLflow 모델 레지스트리의 reference 데이터셋(log_input)도 모델 모니터링으로 이어진다. 오른쪽 위 카드는 기준이 MLflow run 의 학습 피처이고, 배치는 KFP detect_drift 로 실행마다, 실시간은 BentoML 윈도 N개로 요청마다 리포트를 만들며, 컬럼별 검정 뒤 드리프트 비율 0.5 로 판정하고, 조사와 재학습은 사람이 판단한다고 적는다](drift-pipeline-overview.svg)
 
@@ -26,7 +26,7 @@ featuredImage: images/banners/mlpe-06-2-evidently-drift-a597b167.png
 | 공변량 이동 (covariate shift) | 입력 피처의 분포 | 고객의 연령, 지역, 행동 분포가 2018년과 2021년에 다르다 |
 | 급격한 드리프트 (sudden drift) | 짧은 시간에 큰 변화 | 팬데믹이나 큰 시장 사건으로 행동이 갑자기 바뀐다 |
 
-Evidently는 과거 데이터와 지금 들어오는 데이터에 통계 검정을 돌려 분포가 유의미하게 바뀌었는지 판단한다. 데이터 형태에 맞는 검정을 자동으로 고르고, 원하는 검정을 직접 지정하거나 만들어 쓸 수도 있다.
+Evidently는 과거 데이터와 지금 들어오는 데이터에 통계 검정(statistical test)을 돌려 분포가 유의미하게 바뀌었는지 판단한다. 데이터 형태에 맞는 검정(KS test, chi-squared test 등)을 자동으로 고르고, 원하는 검정을 직접 지정하거나 만들어(custom test) 쓸 수도 있다.
 
 | 검정 | 대상 | 판정 방식 |
 | --- | --- | --- |
@@ -569,4 +569,3 @@ Evidently UI에서 스냅숏을 내려받아 보면, 윈도 100의 리포트는 
 - 배치 경로는 KFP 파이프라인에 `detect_drift` 단계를 넣어 실행마다 리포트를 쌓는다. 드리프트가 나도 추론을 멈추게 하려면 분기를 따로 넣어야 한다.
 - 실시간 경로는 윈도가 작으면 같은 학습 데이터로도 거짓 경보가 난다. 홈랩에서 윈도 100으로도 절반 컬럼이 드리프트로 나왔으니, 윈도 크기와 임곗값을 함께 정해야 한다.
 
-매니페스트와 이미지 빌드 설정은 MLOPs-study 저장소의 `k8s/evidently/`, `k8s/kubeflow-pipelines/06-income-classifier-drift/`, `k8s/bentoml/05-income-classifier-drift/`에 있다.
