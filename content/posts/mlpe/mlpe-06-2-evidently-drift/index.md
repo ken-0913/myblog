@@ -7,7 +7,7 @@ categories: ["MLOps"]
 series: ["MLPE 3주차"]
 featuredImage: images/banners/mlpe-06-2-evidently-drift-a597b167.png
 ---
-[6.1절](../mlpe-06-1-bentoml-yatai/)까지 소득 분류기를 배치 파이프라인과 API 두 가지로 배포했다. 배포한 모델은 처음에는 잘 맞다가, 몇 달 뒤 들어오는 데이터가 학습 때와 달라지면서 조용히 성능이 떨어질 수 있다. 6.2절은 이 **데이터 드리프트**를 **Evidently**로 탐지하고 대시보드로 추적한다. 
+[6.1절](../mlpe-06-1-bentoml-yatai/)까지 소득 분류기를 배치 파이프라인과 API 두 가지로 배포했다. 배포한 모델은 처음에는 잘 맞다가, 몇 달 뒤 들어오는 데이터가 학습 때와 달라지면서 조용히 성능이 떨어질 수 있다. 6.2절은 이 **데이터 드리프트**를 **Evidently**로 탐지하고 대시보드로 추적한다.
 
 ## 1. 한눈에 보기
 
@@ -96,11 +96,11 @@ workspace
 
 ### 4.1 홈랩에 Evidently UI 올리기
 
-공용 가이드는 `python:3.10-slim-bookworm`에 build-essential을 깔아 이미지를 만들고 `kind load`로 노드에 넣는다. 홈랩은 kind가 아니라서, 5장 컴포넌트 이미지처럼 MLOPs-study 저장소의 GitHub Actions가 빌드해 Docker Hub에 올리게 했다. 패키지가 전부 휠이라 컴파일러는 필요 없다.
+이미지는 5장 컴포넌트 이미지처럼 MLOPs-study 저장소의 GitHub Actions가 빌드해 Docker Hub에 올린다.
 
 ```text {title="k8s/evidently/ui/requirements.txt"}
 evidently==0.5.0
-pandas==2.3.3        # 고정하지 않으면 Evidently 0.5.0 과 함께 pandas 3.x 가 잡힌다
+pandas==2.3.3
 litestar==2.12.1
 sniffio
 ```
@@ -112,25 +112,6 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --root-user-action=ignore -r requirements.txt
 EXPOSE 8000
 ENTRYPOINT ["evidently", "ui"]
-```
-
-```yaml {title=".github/workflows/evidently-images.yml (요지)"}
-on:
-  push:
-    branches: [main]
-    paths: ["k8s/evidently/ui/**", "k8s/kubeflow-pipelines/06-income-classifier-drift/{Dockerfile,requirements.txt,src/**}"]
-jobs:
-  build-push-bump:
-    steps:
-      - uses: docker/build-push-action@v7          # evidently-ui
-        with: {context: k8s/evidently/ui, platforms: linux/amd64, push: true,
-               tags: "${{ secrets.DOCKERHUB_USERNAME }}/evidently-ui:${{ steps.ver.outputs.tag }}"}
-      - uses: docker/build-push-action@v7          # detect-drift (5.2절)
-        with: {context: k8s/kubeflow-pipelines/06-income-classifier-drift, platforms: linux/amd64, push: true,
-               tags: "${{ secrets.DOCKERHUB_USERNAME }}/detect-drift:${{ steps.ver.outputs.tag }}"}
-      - run: |                                     # 매니페스트 태그를 커밋 SHA 로 바꾸는 봇 커밋
-          yq -i '(select(.kind == "Deployment") | .spec.template.spec.containers[0].image) = "<owner>/evidently-ui:<sha>"' k8s/evidently/evidently-ui.yaml
-          yq -i '.implementation.container.image = "<owner>/detect-drift:<sha>"' .../components/detect_drift/component.yaml
 ```
 
 ```yaml {title="k8s/evidently/evidently-ui.yaml (요지)"}
@@ -145,7 +126,7 @@ spec:
       nodeSelector: {kubernetes.io/arch: amd64}
       containers:
         - name: evidently-ui
-          image: hyeonjae0913/evidently-ui:dd6b564  # 봇이 갱신
+          image: hyeonjae0913/evidently-ui:dd6b564
           args: ["--host", "0.0.0.0", "--port", "8000", "--workspace", "/app/workspace"]
           resources:
             requests: {cpu: 50m, memory: 256Mi}
@@ -217,9 +198,9 @@ DashboardPanelCounter(
 
 `PanelValue`는 값을 꺼낼 주소다. `metric_id`의 메트릭이 실제 리포트에 들어 있어야 패널에 값이 나온다.
 
-저자의 `build_evidently_dashboard.py`는 제목, 호출 수, 드리프트 컬럼 비율, 데이터 품질 선 그래프, 범주형 컬럼 8개의 드리프트 점수 막대 그래프를 추가하고 `project.save()`로 저장한다. 홈랩판은 UI 주소만 환경변수로 받게 바꿨다. 패널이 계속 추가되므로 한 번만 실행한다.
+저자의 `build_evidently_dashboard.py`는 제목, 호출 수, 드리프트 컬럼 비율, 데이터 품질 선 그래프, 범주형 컬럼 8개의 드리프트 점수 막대 그래프를 추가하고 `project.save()`로 저장한다.
 
-```terminal {title="rocky-linux: Evidently 전용 venv (BentoML venv 와 의존성이 섞이지 않게)"}
+```terminal
 $ uv venv ~/.venvs/evidently --python 3.12
 $ uv pip install --python ~/.venvs/evidently/bin/python evidently==0.5.0 pandas==2.3.3 litestar==2.12.1 sniffio mlflow-skinny==3.17.2 minio pyarrow boto3
 $ EVIDENTLY_WORKSPACE_URL=http://192.168.0.245 ~/.venvs/evidently/bin/python build_evidently_dashboard.py
@@ -265,17 +246,17 @@ def detect_drift(model_name, model_stage, mlflow_host, minio_host, access_key, s
 | reference | RustFS `mlflow-datasets/income-classifier-datasets/feature_df-c93bc05b….csv` | 30,162행 × 8컬럼 (범주형) |
 | current | `retrieve-features` 단계 출력 parquet | 30,162행 × 9컬럼 (8컬럼 + `event_timestamp`) |
 
-current에는 저자 코드가 빼지 않는 `event_timestamp`가 남는다. Evidently는 reference에 없는 컬럼을 비교에서 빼고 8컬럼만 검사했다. 컬럼이 모두 범주형이라, 책 그림의 바서슈타인 거리 대신 **Jensen-Shannon 거리**가 자동으로 골라졌고 임곗값은 같은 0.1이다.
+컬럼이 모두 범주형이라 **Jensen-Shannon 거리**가 자동으로 골라졌고, 임곗값은 0.1이다.
 
-### 5.2 detect_drift 이미지는 5장과 따로
+### 5.2 detect_drift 이미지
 
-5장 홈랩 컴포넌트 이미지는 모델을 읽으려고 numpy 2.5.4를 쓴다. 그런데 Evidently 0.5.0은 numpy 2.0대까지만 허용해 같은 이미지에 둘 수 없었다. `detect_drift`는 모델을 읽지 않으므로, 드리프트에 필요한 패키지만 담은 이미지를 따로 만들고 저자 `detect_drift.py`는 고치지 않았다.
+`detect_drift`는 드리프트에 필요한 패키지만 담은 이미지를 따로 쓴다.
 
 ```text {title="06-income-classifier-drift/requirements.txt"}
 evidently==0.5.0
 pandas==2.3.3
 pyarrow
-mlflow-skinny==3.17.2      # 서버(3.16)와 통신만 한다. 모델 로드용 의존성은 필요 없다
+mlflow-skinny==3.17.2
 minio
 boto3
 ```
@@ -297,7 +278,7 @@ implementation:
     command:
       - sh
       - -c
-      # 책은 access_key/secret_key 를 파이프라인 파라미터로 받는다. 5장 홈랩판처럼 Secret env 를 인자로 넘긴다
+      # 키는 Secret env 로 받는다
       - exec python3 /app/src/detect_drift/detect_drift.py "$@" --access_key "$AWS_ACCESS_KEY_ID" --secret_key "$AWS_SECRET_ACCESS_KEY"
       - sh
       - --model_name
@@ -335,20 +316,12 @@ def homelab(task):        # Secret rustfs-credentials 를 env 로, 캐시 끔 (5
     return task
 ```
 
-캐시를 꺼야 같은 입력으로 다시 돌려도 `detect_drift`가 건너뛰어지지 않고 리포트가 새로 쌓인다. 저자 코드는 `fetch_data`만 캐시를 끈다.
-
 ### 5.4 실행 결과
 
 ```terminal
 $ cd 06-income-classifier-drift && KFP_HOST=http://192.168.0.242 RUN_NAME=income-classifier-drift-homelab-1 ~/.venvs/kfp/bin/python inference_pipeline.py
 compiled income_classifier_pipeline_with_drift.yaml
 run_id 8d6eef0d-13c3-401f-9487-321e9fdb1f38
-$ grep -h "image:" income_classifier_pipeline_with_drift.yaml | sort | uniq -c
-      1         image: hyeonjae0913/detect-drift:dd6b564
-      1         image: hyeonjae0913/read-minio-data:31bd38a
-      1         image: hyeonjae0913/retrieve-feast-features:31bd38a
-      1         image: hyeonjae0913/run-inference:31bd38a
-      1         image: hyeonjae0913/write-minio-data:31bd38a
 ```
 
 | 단계 | 상태 | 시간 |
@@ -362,26 +335,13 @@ $ grep -h "image:" income_classifier_pipeline_with_drift.yaml | sort | uniq -c
 
 ![KFP 2.17.3 UI 에서 income-classifier-drift-homelab-1 run 의 그래프. read-data-from-minio, retrieve-features-from…, detect-drift, model-inference, write-data-to-minio 다섯 단계가 모두 초록 체크로 성공했고, 단계 사이에 data_output 아티팩트가 이어진다. retrieve-features 의 data_output 이 detect-drift 와 model-inference 양쪽으로 들어간다](homelab-kfp-drift-run.jpg)
 
-```terminal {title="detect-drift 단계 로그와 결과"}
-report written
-project retreived
-uploadFile(localFilePath="/minio/mlpipeline/v2/artifacts/income-classifier-pipeline-with-drift/8d6eef0d-.../detect-drift/...
-$ # RustFS inference-datasets
-inference_result.parquet 296080
-inference_result_with_drift.parquet 296080
-```
-
 | 리포트 (배치) | 값 |
 | --- | --- |
 | 비교 행 수 | reference 30,162 / current 30,162 |
 | 드리프트 컬럼 | **0 / 8** (share 0.0, dataset drift False) |
 | 컬럼별 점수 (Jensen-Shannon) | 8컬럼 모두 0.0000 |
 
-현재 피처는 학습 때와 같은 사용자 30,162명이라 분포가 완전히 같다. 책 그림 6.20처럼 "드리프트된 피처 비율"이 0으로 나오고, 결과 parquet도 5장과 같은 296,080B다.
-
-### 5.5 드리프트가 나도 추론은 멈추지 않는다
-
-책 본문은 "드리프트가 탐지되면 파이프라인 실행을 중단한다"고 쓰지만, 저자 코드는 그렇게 동작하지 않는다. `run_inference`는 `.after(drift)`로 순서만 묶여 있어서, `detect_drift`가 **성공으로 끝나기만 하면** 드리프트 여부와 상관없이 추론이 돈다. 정말 멈추려면 `detect_drift`가 드리프트 여부를 출력으로 내고, 파이프라인이 `dsl.If`(또는 `dsl.Condition`)로 분기해야 한다.
+현재 피처는 학습 때와 같은 사용자 30,162명이라 분포가 완전히 같고, 책 그림 6.20처럼 "드리프트된 피처 비율"이 0으로 나온다.
 
 ## 6. API로 배포한 모델의 드리프트 (6.2.3)
 
@@ -406,9 +366,9 @@ class MonitoringService:
 
 서비스 시작 함수에서는 KFP 컴포넌트와 같은 방법으로 MLflow에서 reference 데이터셋을 찾아 내려받고, 프로젝트 ID와 윈도 크기(`EVIDENTLY_REPORT_WINDOW_SIZE`)로 `MonitoringService`를 만든다(Listing 6.11). `predict` 함수는 피처를 조회한 직후 `ctx.state["monitoring_service"].iterate(feature_df)`를 한 줄 더 부른다.
 
-### 6.1 드리프트 Bento: numpy를 Evidently에 맞춘다
+### 6.1 드리프트 Bento
 
-드리프트 변형 서비스(`service_with_drift_detection.py`)는 BentoML 1.1.10과 Evidently 0.5.0을 한 이미지에 담는다. 5.2절과 같은 이유로 numpy 2.5.4를 고정할 수 없어서, 이 변형만 numpy를 Evidently에 맞췄다(2.0.2). numpy 2.5.4로 저장된 skops 모델도 numpy 2.0.2에서 로드되고 예측됐다. 6.1절의 홈랩 수정(환경변수 덮어쓰기, Secret 읽기, 워커별 임시 디렉터리)은 이 파일에도 들어 있다.
+드리프트 변형 서비스(`service_with_drift_detection.py`)는 BentoML 1.1.10과 Evidently 0.5.0을 한 이미지에 담는다.
 
 ```text {title="bentoml/requirements_homelab_drift.txt"}
 bentoml==1.1.10
@@ -417,7 +377,7 @@ scikit-learn==1.9.1
 skops==0.16.0
 scipy==1.18.1
 feast[redis,aws]==0.67.0
-evidently==0.5.0          # numpy 2.0 대까지. numpy 는 고정하지 않는다 (2.0.2 로 풀린다)
+evidently==0.5.0
 pandas==2.3.3
 litestar==2.12.1
 sniffio
@@ -445,16 +405,13 @@ docker:
 ```
 
 ```terminal
-$ ~/.venvs/bento-drift/bin/python -c "import numpy, evidently, bentoml; bentoml.mlflow.load_model('random-forest-classifier:latest')"
-numpy 2.0.2 sklearn 1.9.1 evidently 0.5.0
-model load ok PyFuncModel
 $ ~/.venvs/bento-drift/bin/bentoml build -f bento/bentofile_homelab_drift.yaml
 income_classifier_service:l2mj57gz42lndbch
 $ ~/.venvs/bento-drift/bin/bentoml push income_classifier_service:l2mj57gz42lndbch
 │ Successfully pushed bento "income_classifier_service:l2mj57gz42lndbch"       │
 ```
 
-공용 가이드는 이 변형을 `docker run`으로 띄웠지만, 홈랩에서는 6.1절과 같이 BentoRequest와 BentoDeployment로 Yatai에 배포했다. 윈도(`self.current`)는 워커와 Pod의 메모리에 있다. 워커나 복제본이 여럿이면 각자 따로 쌓여 리포트가 늦게 생기므로 둘 다 1로 고정한다.
+배포는 6.1절과 같이 BentoRequest와 BentoDeployment로 Yatai에 했다. 윈도(`self.current`)는 Pod 메모리에 있으므로 워커와 복제본을 1로 둔다.
 
 ```yaml {title="bentoml/05-income-classifier-drift/bentodeployment.yaml (요지)"}
 apiVersion: serving.yatai.ai/v2alpha1
@@ -479,8 +436,6 @@ spec:
 # + LB Service income-classifier-drift-lb (192.168.0.246)
 ```
 
-kaniko 빌드는 4분 30초 안에 끝났다. 첫 빌드 때와 달리 control-plane은 부하 0.6 안팎, API 서버 응답 10ms대로 정상이었다.
-
 ### 6.2 요청 150건을 보냈다
 
 저자 저장소의 `mock_request_data.csv`에는 사용자 100명이 있다. 100명을 보낸 뒤 앞의 50명을 한 번 더 보내 150건을 만들었다.
@@ -499,7 +454,7 @@ $ curl -s http://192.168.0.245/api/projects/01a1b111-77ef-7c70-8281-b55822c671c6
 
 책 설명대로 1 ~ 99번째 요청은 "데이터가 모자라다"며 기다렸고, 100번째부터 요청마다 리포트가 하나씩 생겼다. 150건에서 51건이고, 배치 1건과 합쳐 프로젝트에 리포트 52건이 쌓였다.
 
-### 6.3 학습 사용자인데 드리프트가 절반 컬럼에서 나온다
+### 6.3 실시간 리포트 결과
 
 Evidently UI에서 스냅숏을 내려받아 보면, 윈도 100의 리포트는 8컬럼 중 4개를 드리프트로 판정했다. 드리프트 컬럼 비율이 데이터셋 임곗값 0.5에 걸려 **데이터셋 드리프트가 True**가 됐다.
 
@@ -527,13 +482,11 @@ Evidently UI에서 스냅숏을 내려받아 보면, 윈도 100의 리포트는 
 
 보낸 요청은 모두 학습 데이터에 있는 사용자다. 모델이나 데이터가 변한 것이 아니라 **표본 100개가 30,162명 분포를 대표하기에 작아서** 생긴 거짓 경보다. 범주가 41개인 Native_country나 16개인 Education처럼 범주가 많은 컬럼일수록, 100명 안에서 우연히 빠지거나 몰린 범주가 거리를 키운다.
 
-마지막 51개 리포트의 값이 모두 같은 것은 윈도가 계속 같은 100명(51 ~ 100번 + 1 ~ 50번)이기 때문이다.
-
-책은 윈도 50에서 0.875였고, 홈랩은 윈도 100에서 0.5였다. 윈도를 두 배로 늘리자 거짓 경보가 줄었지만 여전히 데이터셋 임곗값에 걸린다. 대응은 셋이다.
+윈도가 작을수록 이런 경보가 잦다. 대응은 셋이다.
 
 - **윈도를 키운다**: 200, 500처럼 늘린다. 대신 드리프트를 알아채기까지의 시간이 늘어난다.
 - **임곗값을 조정한다**: 컬럼 임곗값이나 데이터셋 임곗값(0.5)을 올려 작은 흔들림에 반응하지 않게 한다.
-- **연속 초과일 때만 알린다**: 스냅숏 한 번이 아니라 여러 번 연달아 넘을 때 알림을 보낸다. 책이 다루는 방법은 아니고 일반적인 운영 방식이다.
+- **연속 초과일 때만 알린다**: 스냅숏 한 번이 아니라 여러 번 연달아 넘을 때 알림을 보낸다.
 
 ## 7. 드리프트를 찾은 다음
 
@@ -546,17 +499,7 @@ Evidently UI에서 스냅숏을 내려받아 보면, 윈도 100의 리포트는 
 | 재학습 | 성능 영향이 크면 최신 데이터로 모델을 다시 학습한다 |
 | 피처 재선택 | 피처 중요도가 바뀐 것이면 피처를 추가·제거·수정한다 |
 
-## 8. 겪은 문제
-
-| 증상 | 원인 | 해결 |
-| --- | --- | --- |
-| Evidently 0.5.0과 pandas 3.x가 같이 잡힘 | evidently 0.5.0이 pandas 상한을 두지 않음 | `pandas==2.3.3` 고정 |
-| 5장 이미지에 Evidently를 넣을 수 없음 | 5장 이미지는 numpy 2.5.4, Evidently 0.5.0은 numpy 2.0대까지 | `detect_drift`는 별도 이미지(mlflow-skinny), 드리프트 Bento는 numpy를 Evidently에 맞춤 |
-| 공용 가이드의 `kind load` | 홈랩은 kind가 아님 | GitHub Actions로 Docker Hub에 올리고 태그를 봇 커밋으로 갱신 |
-| current에 `event_timestamp`가 남음 | 저자 코드는 `user_id`만 뺌 | reference에 없는 컬럼은 Evidently가 비교에서 뺀다. 그대로 둠 |
-| 대시보드 스크립트를 두 번 돌리면 패널이 두 벌 | `add_panel`이 매번 추가 | 한 번만 실행 |
-
-## 9. 정리
+## 8. 정리
 
 | 경로 | 구성 | 홈랩 결과 |
 | --- | --- | --- |
@@ -566,6 +509,6 @@ Evidently UI에서 스냅숏을 내려받아 보면, 윈도 100의 리포트는 
 
 - 배포한 모델은 입력 분포가 학습 때와 달라지면 성능이 떨어진다. 드리프트 모니터링은 이를 일찍 알아채 비싼 실수를 막는다.
 - Evidently는 reference와 current 두 데이터만으로 컬럼별 검정을 돌리고, 컬럼 판정과 데이터셋 판정 두 단계로 드리프트를 정한다. 범주형 컬럼에는 Jensen-Shannon 거리가 쓰였다.
-- 배치 경로는 KFP 파이프라인에 `detect_drift` 단계를 넣어 실행마다 리포트를 쌓는다. 드리프트가 나도 추론을 멈추게 하려면 분기를 따로 넣어야 한다.
-- 실시간 경로는 윈도가 작으면 같은 학습 데이터로도 거짓 경보가 난다. 홈랩에서 윈도 100으로도 절반 컬럼이 드리프트로 나왔으니, 윈도 크기와 임곗값을 함께 정해야 한다.
+- 배치 경로는 KFP 파이프라인에 `detect_drift` 단계를 넣어 실행마다 리포트를 쌓는다.
+- 실시간 경로는 최근 요청 N개로 리포트를 만든다. 윈도 크기와 임곗값을 함께 정해야 거짓 경보가 줄어든다.
 
