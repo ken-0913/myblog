@@ -1,0 +1,203 @@
+{{- /*
+  scaling-demo shortcode — 특성 스케일링·변환을 보여 주는 작은 인터랙티브 위젯 모음.
+  사용법:  {{< scaling-demo range >}}
+  종류:    range(스케일 차이) · outlier(min-max vs 표준화) · clip(범위 밖 새 데이터)
+           log(두꺼운 꼬리 변환) · bucket(버킷타이징) · rbf(가우스 RBF) · inverse(타깃 역변환)
+  스타일과 스크립트는 페이지당 한 번만 출력한다. 색은 사이트 토큰(--surface, --line 등)을 따른다.
+*/ -}}
+{{- $kind := .Get 0 | default "range" -}}
+{{- if not (.Page.Store.Get "scaling-demo-assets") -}}
+{{- .Page.Store.Set "scaling-demo-assets" true -}}
+<style>
+  .sd {
+    --sd-a: #2a78d6; --sd-b: #e34948; --sd-c: #b7791f;
+    --sd-ink: #1d1c1a; --sd-muted: #6b6f76; --sd-panel: var(--surface, #fff);
+    --sd-panel2: var(--surface-2, #f3f4f6); --sd-line: var(--line, #e2e4e8);
+    margin: 1.6rem 0; padding: 16px; border: 1px solid var(--sd-line); border-radius: 12px;
+    background: var(--sd-panel); color: var(--sd-ink); font-size: 14px; line-height: 1.5;
+  }
+  html.dark .sd, body[theme="dark"] .sd {
+    --sd-a: #6aa5f0; --sd-b: #ff7b7a; --sd-c: #f0b955; --sd-ink: #ecebe8; --sd-muted: #a0a4ab;
+  }
+  .sd * { box-sizing: border-box; }
+  .sd-title { font-weight: 600; margin: 0 0 4px; }
+  .sd-sub { color: var(--sd-muted); font-size: 13px; margin: 0 0 14px; }
+  .sd-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+  .sd-ctl label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; min-height: 32px; }
+  .sd-btn {
+    font: inherit; color: inherit; cursor: pointer; min-height: 32px; padding: 4px 12px; border-radius: 8px;
+    border: 1px solid var(--sd-line); background: var(--sd-panel2);
+  }
+  .sd-btn[aria-pressed="true"] { border-color: var(--sd-a); color: var(--sd-a); font-weight: 600; }
+  .sd-btn:focus-visible, .sd input:focus-visible { outline: 2px solid var(--sd-a); outline-offset: 2px; }
+  .sd-row { margin: 0 12px 26px; }
+  .sd-row-label { font-size: 12px; color: var(--sd-muted); margin: 0 -12px 6px; }
+  .sd-axis { position: relative; height: 46px; }
+  .sd-axis::before { content: ""; position: absolute; left: 0; right: 0; top: 16px; height: 1px; background: var(--sd-line); }
+  .sd-band { position: absolute; top: 5px; height: 22px; border-radius: 4px; background: color-mix(in srgb, var(--sd-a) 16%, transparent); transition: left .6s, width .6s; }
+  .sd-dot { position: absolute; top: 10px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: var(--sd-a); border: 2px solid var(--sd-panel); transition: left .6s, opacity .4s; }
+  .sd-dot.out { border-radius: 2px; background: var(--sd-b); }
+  .sd-tick { position: absolute; top: 28px; font-size: 11px; color: var(--sd-muted); transform: translateX(-50%); white-space: nowrap; }
+  .sd-flag { position: absolute; right: 0; top: -4px; font-size: 11px; color: var(--sd-b); transition: opacity .4s; }
+  .sd-legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--sd-muted); margin: 0 0 14px; }
+  .sd-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--sd-a); margin-right: 5px; }
+  .sd-legend i.out { border-radius: 2px; background: var(--sd-b); }
+  .sd-legend i.curve { border-radius: 0; height: 3px; vertical-align: middle; background: var(--sd-c); }
+  .sd-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .sd-stat { background: var(--sd-panel2); border-radius: 8px; padding: 10px 12px; }
+  .sd-stat span { display: block; font-size: 12px; color: var(--sd-muted); }
+  .sd-stat b { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .sd-bars { display: flex; align-items: flex-end; gap: 1px; height: 150px; border-bottom: 1px solid var(--sd-line); }
+  .sd-bars div { flex: 1; min-width: 0; background: var(--sd-a); border-radius: 2px 2px 0 0; transition: height .7s, flex-grow .7s; }
+  .sd-xlab { display: flex; justify-content: space-between; font-size: 11px; color: var(--sd-muted); margin: 4px 0 14px; }
+  .sd-hbar { position: relative; height: 22px; margin: 0 0 6px; background: var(--sd-panel2); border-radius: 4px; }
+  .sd-hbar div { position: absolute; top: 0; bottom: 0; border-radius: 4px; background: var(--sd-a); min-width: 2px; transition: left .7s, width .7s; }
+  .sd-hbar div.alt { background: var(--sd-c); }
+  .sd-plot { position: relative; }
+  .sd-plot svg { position: absolute; inset: 0; width: 100%; height: 150px; overflow: visible; }
+  .sd-plot path { fill: none; stroke: var(--sd-c); stroke-width: 2.5; vector-effect: non-scaling-stroke; }
+  .sd-flow { display: flex; flex-wrap: wrap; gap: 6px; align-items: stretch; margin-bottom: 14px; }
+  .sd-step { flex: 1 1 120px; padding: 8px 10px; border: 1px solid var(--sd-line); border-radius: 8px; background: var(--sd-panel2); opacity: .4; transition: opacity .4s, border-color .4s; }
+  .sd-step.on { opacity: 1; border-color: var(--sd-a); }
+  .sd-step small { display: block; font-size: 11px; color: var(--sd-muted); }
+  .sd-step b { font-variant-numeric: tabular-nums; }
+  .sd-wrap { border: 2px dashed transparent; border-radius: 12px; padding: 8px; margin: -8px -8px 6px; transition: border-color .4s; }
+  .sd-wrap.on { border-color: var(--sd-c); }
+  .sd-wrap-label { font-size: 12px; color: var(--sd-c); opacity: 0; transition: opacity .4s; margin: 0 0 6px; }
+  .sd-wrap.on .sd-wrap-label { opacity: 1; }
+  .sd input[type="range"] { flex: 1; min-width: 140px; accent-color: var(--sd-a); }
+  @media (prefers-reduced-motion: reduce) { .sd * { transition: none !important; } }
+</style>
+<script>
+window.sdInit = (function () {
+  const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
+  const fmt = (v, d = 2) => v.toFixed(d);
+  // 재현 가능한 난수(시드 고정)와 정규 난수
+  const rng = (seed) => () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+  const normal = (r) => Math.sqrt(-2 * Math.log(r() + 1e-12)) * Math.cos(2 * Math.PI * r());
+  const hist = (xs, lo, hi, n) => { const h = Array(n).fill(0); xs.forEach((x) => { const i = Math.min(n - 1, Math.max(0, Math.floor(((x - lo) / (hi - lo)) * n))); h[i]++; }); return h; };
+  const pressed = (btns, on) => btns.forEach((b) => b.setAttribute('aria-pressed', b === on));
+  const stat = (label) => { const s = el('div', 'sd-stat'); s.append(el('span', '', label)); const b = el('b', '', ''); s.append(b); return [s, b]; };
+  const axis = (ticks) => { const a = el('div', 'sd-axis'); ticks.forEach(([p, t]) => { const k = el('div', 'sd-tick', t); k.style.left = p + '%'; a.append(k); }); return a; };
+
+  // 대표 12개 구역의 중간 소득(만 달러). 통계는 훈련 세트 전체(16,512개)를 가정해 계산한다.
+  const INCOME = [1.5, 2.2, 2.8, 3.1, 3.6, 4.0, 4.5, 5.2, 6.1, 7.5, 9.0, 12];
+  const N = 16512, MEAN = 3.87, STD = 1.9;
+
+  const demos = {
+    range(root) {
+      root.append(el('p', 'sd-title', '특성마다 다른 숫자 범위'), el('p', 'sd-sub', '같은 축에 놓으면 중간 소득은 거의 보이지 않는다. 스케일링하면 두 특성이 같은 범위를 쓴다.'));
+      const ctl = el('div', 'sd-ctl'); const b0 = el('button', 'sd-btn', '스케일링 전'); const b1 = el('button', 'sd-btn', 'min-max 스케일링 후'); ctl.append(b0, b1); root.append(ctl);
+      const rows = [['전체 방 개수 (6 ~ 39,320)', 6, 39320, ''], ['중간 소득 (0 ~ 15)', 0, 15, 'alt']].map(([name, lo, hi, cls]) => {
+        root.append(el('div', 'sd-row-label', name)); const h = el('div', 'sd-hbar'); const bar = el('div', cls); h.append(bar); root.append(h); return { lo, hi, bar };
+      });
+      const lab = el('div', 'sd-xlab'); const l0 = el('span'), l1 = el('span'); lab.append(l0, l1); root.append(lab);
+      const stats = el('div', 'sd-stats'); const [s1, v1] = stat('중간 소득이 축에서 차지하는 폭'); stats.append(s1); root.append(stats);
+      const draw = (scaled) => {
+        pressed([b0, b1], scaled ? b1 : b0);
+        rows.forEach((r) => { const w = scaled ? 100 : ((r.hi - r.lo) / 39320) * 100; r.bar.style.left = scaled ? '0%' : (r.lo / 39320) * 100 + '%'; r.bar.style.width = w + '%'; });
+        l0.textContent = '0'; l1.textContent = scaled ? '1' : '39,320'; v1.textContent = scaled ? '100%' : '0.04%';
+      };
+      b0.onclick = () => draw(false); b1.onclick = () => draw(true); draw(false);
+    },
+
+    outlier(root) {
+      root.append(el('p', 'sd-title', '이상치 하나가 스케일링에 주는 영향'), el('p', 'sd-sub', '잘못 입력된 소득 100을 넣으면 min-max 는 정상 구역을 0 근처로 몰아넣고, 표준화는 거의 그대로다.'));
+      const ctl = el('div', 'sd-ctl'); const lab = el('label'); const cb = el('input'); cb.type = 'checkbox'; lab.append(cb, document.createTextNode('잘못 입력된 소득 100 추가')); ctl.append(lab); root.append(ctl);
+      const mk = (name, ticks) => { root.append(el('div', 'sd-row-label', name)); const row = el('div', 'sd-row'); const a = axis(ticks); const band = el('div', 'sd-band'); a.prepend(band); const dots = INCOME.map(() => { const d = el('div', 'sd-dot'); a.append(d); return d; }); const out = el('div', 'sd-dot out'); a.append(out); const flag = el('div', 'sd-flag'); a.append(flag); row.append(a); root.append(row); return { band, dots, out, flag }; };
+      const mm = mk('min-max 스케일링 (0 ~ 1)', [[0, '0'], [25, '0.25'], [50, '0.5'], [75, '0.75'], [100, '1']]);
+      const zs = mk('표준화 (평균 0, 표준 편차 1)', [[0, '-3'], [25, '0'], [50, '3'], [75, '6'], [100, '9']]);
+      root.append(el('div', 'sd-legend', '<span><i></i>정상 구역 (대표 12개)</span><span><i class="out"></i>잘못 입력된 값 100</span>'));
+      const stats = el('div', 'sd-stats'); const [a1, v1] = stat('min-max: 정상 구역의 범위'); const [a2, v2] = stat('min-max: 소득 3과 6의 간격'); const [a3, v3] = stat('표준화: 소득 3과 6의 간격'); stats.append(a1, a2, a3); root.append(stats);
+      const draw = () => {
+        const on = cb.checked, max = on ? 100 : 15;
+        const mean = on ? (MEAN * N + 100) / (N + 1) : MEAN;
+        const std = on ? Math.sqrt((N * (STD * STD + (MEAN - mean) ** 2) + (100 - mean) ** 2) / (N + 1)) : STD;
+        const m = (v) => v / max, z = (v) => (v - mean) / std, zp = (v) => ((z(v) + 3) / 12) * 100;
+        mm.dots.forEach((d, i) => (d.style.left = m(INCOME[i]) * 100 + '%')); mm.band.style.left = '0%'; mm.band.style.width = m(15) * 100 + '%';
+        mm.out.style.left = '100%'; mm.out.style.opacity = on ? 1 : 0; mm.flag.textContent = '';
+        zs.dots.forEach((d, i) => (d.style.left = zp(INCOME[i]) + '%')); zs.band.style.left = zp(0) + '%'; zs.band.style.width = zp(15) - zp(0) + '%';
+        zs.out.style.left = '100%'; zs.out.style.opacity = on ? 1 : 0; zs.flag.style.opacity = on ? 1 : 0; zs.flag.textContent = on ? '이상치는 z = ' + fmt(z(100), 1) + ' (축 밖)' : '';
+        v1.textContent = '0 ~ ' + fmt(m(15)); v2.textContent = fmt(m(6) - m(3)); v3.textContent = fmt(z(6) - z(3));
+      };
+      cb.onchange = draw; draw();
+    },
+
+    clip(root) {
+      root.append(el('p', 'sd-title', '훈련 범위 밖의 새 데이터'), el('p', 'sd-sub', '스케일러는 훈련 세트(0 ~ 15)로만 fit 한다. 새 데이터의 소득 20은 1을 넘고, clip=True 면 1로 잘린다.'));
+      const ctl = el('div', 'sd-ctl'); const lab = el('label'); const cb = el('input'); cb.type = 'checkbox'; lab.append(cb, document.createTextNode('clip=True')); ctl.append(lab); root.append(ctl);
+      const row = el('div', 'sd-row'); const a = axis([[0, '0'], [35.7, '0.5'], [71.4, '1'], [100, '1.4']]); const band = el('div', 'sd-band'); band.style.left = '0%'; band.style.width = '71.4%'; a.prepend(band);
+      const news = [2.5, 6, 11, 20]; const dots = news.map((v) => { const d = el('div', 'sd-dot' + (v > 15 ? ' out' : '')); a.append(d); return d; }); row.append(a); root.append(row);
+      root.append(el('div', 'sd-legend', '<span><i></i>새 데이터 (소득 2.5, 6, 11)</span><span><i class="out"></i>새 데이터의 이상치 (소득 20)</span>'));
+      const stats = el('div', 'sd-stats'); const [s1, v1] = stat('소득 20의 변환 결과'); stats.append(s1); root.append(stats);
+      const draw = () => { const t = (v) => (cb.checked ? Math.min(1, v / 15) : v / 15); dots.forEach((d, i) => (d.style.left = (t(news[i]) / 1.4) * 100 + '%')); v1.textContent = fmt(t(20)); };
+      cb.onchange = draw; draw();
+    },
+
+    log(root) {
+      root.append(el('p', 'sd-title', '두꺼운 꼬리 줄이기'), el('p', 'sd-sub', '인구처럼 오른쪽 꼬리가 긴 특성은 제곱근이나 로그를 취하면 종 모양에 가까워진다.'));
+      const r = rng(7); const pop = Array.from({ length: 6000 }, () => Math.exp(7 + 0.72 * normal(r)));
+      const modes = [['원본', (x) => x, 0, 16000, ['0', '인구', '16,000']], ['제곱근', Math.sqrt, 0, 126, ['0', '√인구', '126']], ['로그', Math.log, 2, 10, ['2', 'log(인구)', '10']]];
+      const ctl = el('div', 'sd-ctl'); const btns = modes.map(([n]) => el('button', 'sd-btn', n)); ctl.append(...btns); root.append(ctl);
+      const bars = el('div', 'sd-bars'); const bs = Array.from({ length: 40 }, () => { const b = el('div'); bars.append(b); return b; }); root.append(bars);
+      const lab = el('div', 'sd-xlab'); const ls = [el('span'), el('span'), el('span')]; lab.append(...ls); root.append(lab);
+      const stats = el('div', 'sd-stats'); const [s1, v1] = stat('왜도 (0 이면 좌우 대칭)'); const [s2, v2] = stat('가장 높은 막대에 몰린 비율'); stats.append(s1, s2); root.append(stats);
+      const draw = (i) => {
+        pressed(btns, btns[i]); const [, f, lo, hi, labels] = modes[i]; const xs = pop.map(f); const h = hist(xs, lo, hi, 40); const top = Math.max(...h);
+        bs.forEach((b, k) => (b.style.height = (h[k] / top) * 100 + '%')); ls.forEach((l, k) => (l.textContent = labels[k]));
+        const m = xs.reduce((a, b) => a + b, 0) / xs.length; const sd = Math.sqrt(xs.reduce((a, b) => a + (b - m) ** 2, 0) / xs.length);
+        v1.textContent = fmt(xs.reduce((a, b) => a + ((b - m) / sd) ** 3, 0) / xs.length); v2.textContent = fmt((top / xs.length) * 100, 1) + '%';
+      };
+      btns.forEach((b, i) => (b.onclick = () => draw(i))); draw(0);
+    },
+
+    bucket(root) {
+      root.append(el('p', 'sd-title', '버킷타이징'), el('p', 'sd-sub', '값을 같은 개수씩 담는 10개 구간으로 자르고 구간 번호로 바꾸면 거의 균등한 분포가 된다.'));
+      const r = rng(7); const pop = Array.from({ length: 6000 }, () => Math.exp(7 + 0.72 * normal(r))).sort((a, b) => a - b);
+      const ctl = el('div', 'sd-ctl'); const b0 = el('button', 'sd-btn', '원본 값'); const b1 = el('button', 'sd-btn', '버킷 번호 (10분위)'); ctl.append(b0, b1); root.append(ctl);
+      const bars = el('div', 'sd-bars'); const bs = Array.from({ length: 40 }, () => { const b = el('div'); bars.append(b); return b; }); root.append(bars);
+      const lab = el('div', 'sd-xlab'); const l0 = el('span'), l1 = el('span'), l2 = el('span'); lab.append(l0, l1, l2); root.append(lab);
+      const stats = el('div', 'sd-stats'); const [s1, v1] = stat('가장 높은 막대 ÷ 가장 낮은 막대'); stats.append(s1); root.append(stats);
+      const raw = hist(pop, 0, 6000, 40); const top = Math.max(...raw);
+      const draw = (on) => {
+        pressed([b0, b1], on ? b1 : b0);
+        // 버킷 모드에서는 막대 40개를 4개씩 묶어 10개 버킷처럼 보이게 한다(높이는 모두 같다)
+        bs.forEach((b, k) => { b.style.height = on ? '62%' : (raw[k] / top) * 100 + '%'; b.style.marginRight = on && k % 4 === 3 ? '5px' : '0'; });
+        l0.textContent = on ? '0번 버킷' : '0'; l1.textContent = on ? '버킷 번호' : '인구'; l2.textContent = on ? '9번 버킷' : '6,000 이상';
+        v1.textContent = on ? '1.0' : fmt(top / Math.max(1, Math.min(...raw)), 1);
+      };
+      b0.onclick = () => draw(false); b1.onclick = () => draw(true); draw(false);
+    },
+
+    rbf(root) {
+      root.append(el('p', 'sd-title', '가우스 RBF 유사도 특성'), el('p', 'sd-sub', '주택 연식 35와의 유사도 exp(-γ(x-35)²). γ 가 클수록 35에서 멀어질 때 유사도가 빨리 떨어진다.'));
+      const r = rng(11); const peaks = [[17, 3.5, 0.3], [26, 3, 0.22], [35, 2.5, 0.3], [52, 0.4, 0.07], [8, 3, 0.11]];
+      const ages = Array.from({ length: 5000 }, () => { let u = r(), p = peaks[0]; for (const q of peaks) { if (u < q[2]) { p = q; break; } u -= q[2]; } return Math.min(52, Math.max(1, p[0] + p[1] * normal(r))); });
+      const ctl = el('div', 'sd-ctl'); const lab = el('label'); lab.style.flex = '1'; const sl = el('input'); sl.type = 'range'; sl.min = 0.01; sl.max = 0.3; sl.step = 0.01; sl.value = 0.1; const gv = el('b'); lab.append(document.createTextNode('γ (gamma)'), sl, gv); ctl.append(lab); root.append(ctl);
+      const plot = el('div', 'sd-plot'); const bars = el('div', 'sd-bars'); const h = hist(ages, 0, 52, 52); const top = Math.max(...h); h.forEach((c) => { const b = el('div'); b.style.height = (c / top) * 100 + '%'; b.style.opacity = '.55'; bars.append(b); }); plot.append(bars);
+      plot.insertAdjacentHTML('beforeend', '<svg viewBox="0 0 52 100" preserveAspectRatio="none" aria-hidden="true"><path/></svg>'); const path = plot.querySelector('path'); root.append(plot);
+      root.append(el('div', 'sd-xlab', '<span>0</span><span>중간 주택 연식</span><span>52</span>'), el('div', 'sd-legend', '<span><i></i>구역 개수 (예시 분포)</span><span><i class="curve"></i>연식 35와의 유사도 (0 ~ 1)</span>'));
+      const stats = el('div', 'sd-stats'); const cells = [30, 35, 45].map((x) => { const [s, v] = stat('연식 ' + x + '의 유사도'); stats.append(s); return [x, v]; }); root.append(stats);
+      const draw = () => { const g = +sl.value; gv.textContent = fmt(g); let d = ''; for (let x = 0; x <= 52; x += 0.25) d += (x ? 'L' : 'M') + x + ' ' + (100 - 100 * Math.exp(-g * (x - 35) ** 2)).toFixed(2); path.setAttribute('d', d); cells.forEach(([x, v]) => (v.textContent = fmt(Math.exp(-g * (x - 35) ** 2)))); };
+      sl.oninput = draw; draw();
+    },
+
+    inverse(root) {
+      root.append(el('p', 'sd-title', '타깃을 변환했다면 예측은 되돌린다'), el('p', 'sd-sub', '레이블을 스케일링해 학습하면 모델은 스케일된 값을 예측한다. inverse_transform 으로 원래 단위(달러)로 돌린다.'));
+      const ctl = el('div', 'sd-ctl'); const play = el('button', 'sd-btn', '단계 재생'); const wrapBtn = el('button', 'sd-btn', 'TransformedTargetRegressor 로 묶기'); wrapBtn.setAttribute('aria-pressed', 'false'); ctl.append(play, wrapBtn); root.append(ctl);
+      const wrap = el('div', 'sd-wrap'); wrap.append(el('p', 'sd-wrap-label', 'TransformedTargetRegressor 가 아래 단계를 한 번에 처리한다')); const flow = el('div', 'sd-flow');
+      const steps = [['원본 레이블', '286,600 달러'], ['fit_transform', 'z = 0.69'], ['모델 학습·예측', 'z = 0.41'], ['inverse_transform', '254,200 달러']].map(([t, v]) => { const s = el('div', 'sd-step'); s.append(el('small', '', t), el('b', '', v)); flow.append(s); return s; });
+      wrap.append(flow); root.append(wrap);
+      root.append(el('p', 'sd-sub', '숫자는 예시다. 평균 206,900달러, 표준 편차 115,400달러로 표준화했다고 가정했다.'));
+      let timer; const show = (n) => steps.forEach((s, i) => s.classList.toggle('on', i <= n));
+      play.onclick = () => { clearInterval(timer); let n = 0; show(0); timer = setInterval(() => { n++; show(n); if (n >= steps.length - 1) clearInterval(timer); }, 800); };
+      wrapBtn.onclick = () => { const on = wrap.classList.toggle('on'); wrapBtn.setAttribute('aria-pressed', on); };
+      show(steps.length - 1);
+    },
+  };
+  return (root) => { const fn = demos[root.dataset.sd]; if (fn && !root.dataset.ready) { root.dataset.ready = '1'; fn(root); } };
+})();
+</script>
+{{- end }}
+<div class="sd" data-sd="{{ $kind }}"></div>
+<script>window.sdInit(document.currentScript.previousElementSibling);</script>
