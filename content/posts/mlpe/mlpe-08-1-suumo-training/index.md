@@ -5,6 +5,7 @@ draft: true
 tags: ["MLOps", "MLPE", "Kubeflow", "Kubeflow Pipelines", "KFP", "Regression", "LightGBM", "Model Training", "Capstone"]
 categories: ["MLOps"]
 series: ["MLPE 5주차"]
+featuredImage: images/banners/mlpe-08-1-suumo-training-6a6e5231.png
 ---
 7장에서는 데이터를 가져와 정제하고, 좌표를 붙여 train / val / test 로 나누는 작업까지 끝냈다. 8장에서는 이 데이터로 m²당 단가 회귀 모델을 학습하고 검증한다.
 
