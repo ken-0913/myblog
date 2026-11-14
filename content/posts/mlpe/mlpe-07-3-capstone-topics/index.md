@@ -125,6 +125,127 @@ featuredImage: images/banners/mlpe-07-3-capstone-topics-c1383d08.png
 - 버킷이 있으면 건너뛰고, 같은 경로에 같은 크기의 파일이 있으면 건너뛴다. 여러 번 돌려도 결과가 같다.
 - `--dry-run` 으로 할 일만 먼저 보고, `--snapshot` 으로 날짜를 바꿔 다시 수집한 데이터를 올린다.
 
+<details class="orca-details">
+<summary>scripts/upload-raw.sh 전체 보기</summary>
+
+```bash {title="scripts/upload-raw.sh"}
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ==============================================================================
+# SUUMO 원본 CSV 를 RustFS(S3 호환 버킷)에 올린다. 07-suumo 파이프라인의 "준비" 단계.
+# 원본은 맥에만 있으므로(공개 URL 없음) 클러스터 Job 이 아니라 맥에서 실행한다.
+# 멱등: 버킷이 있으면 건너뛰고, 같은 경로에 같은 크기의 파일이 있으면 건너뛴다(--force 로 덮어쓰기).
+# 접속 키: 클러스터 Secret kubeflow/rustfs-credentials 를 ssh 로 읽어 env 로만 쓴다. 화면에 찍지 않는다.
+#
+# 사용법: ./scripts/upload-raw.sh [--snapshot YYYY-MM-DD] [--csv 경로] [--force] [--dry-run]
+#   기본값  snapshot = 2026-11-13, csv = ../../../summo-crwal/data/csv/tokyo_23ku_all.csv
+# 결과    s3://datasets/suumo/raw/<snapshot>/tokyo_23ku_all.csv
+# ==============================================================================
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
+
+SNAPSHOT=2026-11-13
+CSV="${REPO_DIR}/summo-crwal/data/csv/tokyo_23ku_all.csv"
+FORCE=false
+DRY_RUN=false
+
+SSH_HOST="${SSH_HOST:-hyeonjae@rocky-linux}"
+S3_ENDPOINT="${S3_ENDPOINT:-http://192.168.0.237:9000}"   # rustfs-lb (LoadBalancer)
+SECRET_NS=kubeflow
+SECRET_NAME=rustfs-credentials
+BUCKET=datasets
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --snapshot) SNAPSHOT="$2"; shift 2 ;;
+        --csv)      CSV="$2"; shift 2 ;;
+        --force)    FORCE=true; shift ;;
+        --dry-run)  DRY_RUN=true; shift ;;
+        -h|--help)  sed -n '4,13p' "$0"; exit 0 ;;
+        *) echo "❌ 알 수 없는 인자: $1"; exit 1 ;;
+    esac
+done
+
+if ! [[ "$SNAPSHOT" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+    echo "❌ --snapshot 은 YYYY-MM-DD 형식이어야 합니다: $SNAPSHOT"; exit 1
+fi
+if [[ ! -f "$CSV" ]]; then
+    echo "❌ CSV 없음: $CSV"; exit 1
+fi
+command -v aws >/dev/null || { echo "❌ aws CLI 가 필요합니다"; exit 1; }
+
+KEY="suumo/raw/${SNAPSHOT}/$(basename "$CSV")"
+LOCAL_SIZE=$(wc -c < "$CSV" | tr -d ' ')
+LOCAL_ROWS=$(( $(wc -l < "$CSV" | tr -d ' ') - 1 ))
+
+echo "=========================================================="
+echo "📦 SUUMO 원본 업로드"
+echo "   원본   : $CSV (${LOCAL_SIZE} bytes, 헤더 제외 약 ${LOCAL_ROWS} 줄)"
+echo "   대상   : s3://${BUCKET}/${KEY}"
+echo "   엔드포인트: ${S3_ENDPOINT}"
+$DRY_RUN && echo "   (dry-run: 버킷과 파일을 만들지 않는다)"
+echo "=========================================================="
+
+# 1. 접속 키를 Secret 에서 읽는다. 값은 export 만 하고 출력하지 않는다.
+read_secret() {
+    ssh -o BatchMode=yes "$SSH_HOST" \
+        "kubectl -n ${SECRET_NS} get secret ${SECRET_NAME} -o jsonpath='{.data.$1}'" | base64 -d
+}
+AWS_ACCESS_KEY_ID="$(read_secret AWS_ACCESS_KEY_ID)"
+AWS_SECRET_ACCESS_KEY="$(read_secret AWS_SECRET_ACCESS_KEY)"
+if [[ -z "$AWS_ACCESS_KEY_ID" || -z "$AWS_SECRET_ACCESS_KEY" ]]; then
+    echo "❌ Secret ${SECRET_NS}/${SECRET_NAME} 을 읽지 못했습니다"; exit 1
+fi
+export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+export AWS_DEFAULT_REGION=us-east-1
+s3() { aws --endpoint-url "$S3_ENDPOINT" "$@"; }
+echo "✅ 접속 키 읽음 (Secret ${SECRET_NS}/${SECRET_NAME})"
+
+# 2. 버킷
+if s3 s3api head-bucket --bucket "$BUCKET" >/dev/null 2>&1; then
+    echo "✅ 버킷 ${BUCKET} 있음"
+elif $DRY_RUN; then
+    echo "➡️  버킷 ${BUCKET} 없음 → 만들 예정"
+else
+    s3 s3api create-bucket --bucket "$BUCKET" >/dev/null
+    echo "✅ 버킷 ${BUCKET} 만듦"
+fi
+
+# 3. 파일
+REMOTE_SIZE=$(s3 s3api head-object --bucket "$BUCKET" --key "$KEY" \
+    --query ContentLength --output text 2>/dev/null || true)
+if [[ -n "$REMOTE_SIZE" && "$REMOTE_SIZE" != "None" ]]; then
+    if [[ "$REMOTE_SIZE" == "$LOCAL_SIZE" ]] && ! $FORCE; then
+        echo "✅ 같은 크기의 파일이 이미 있음 → 건너뜀 (덮어쓰려면 --force)"
+        exit 0
+    fi
+    if ! $FORCE; then
+        echo "❌ 같은 경로에 크기가 다른 파일이 있음 (원격 ${REMOTE_SIZE} / 로컬 ${LOCAL_SIZE} bytes)"
+        echo "   스냅샷 날짜를 바꾸거나 --force 로 덮어쓰세요"
+        exit 1
+    fi
+    echo "⚠️  --force: 기존 파일을 덮어씁니다"
+fi
+
+if $DRY_RUN; then
+    echo "➡️  s3://${BUCKET}/${KEY} 로 올릴 예정"
+    exit 0
+fi
+s3 s3 cp "$CSV" "s3://${BUCKET}/${KEY}" --only-show-errors
+
+# 4. 확인
+UPLOADED=$(s3 s3api head-object --bucket "$BUCKET" --key "$KEY" --query ContentLength --output text)
+if [[ "$UPLOADED" != "$LOCAL_SIZE" ]]; then
+    echo "❌ 업로드 후 크기가 다름 (원격 ${UPLOADED} / 로컬 ${LOCAL_SIZE} bytes)"; exit 1
+fi
+echo "✅ 업로드 완료: s3://${BUCKET}/${KEY} (${UPLOADED} bytes)"
+s3 s3 ls "s3://${BUCKET}/suumo/raw/${SNAPSHOT}/"
+```
+
+</details>
+
 먼저 `--dry-run` 으로 할 일을 확인했다.
 
 ```terminal {title="개발 PC: dry-run"}
