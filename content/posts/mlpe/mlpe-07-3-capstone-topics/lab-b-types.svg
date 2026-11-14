@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="960" height="330" viewBox="0 0 960 330" font-family="'Pretendard','Noto Sans KR','Apple SD Gothic Neo',sans-serif" role="img" aria-labelledby="lab-b-types-title lab-b-types-desc">
   <title id="lab-b-types-title">B 단계: 타입별 출력</title>
-  <desc id="lab-b-types-desc">importer 가 통합 CSV 를 prepare_dataset 에 넘기고, prepare_dataset 은 Dataset 과 Artifact(config.json)를 낸다. fit_baseline 이 Model 을, evaluate_baseline 이 Metrics(MAE, MAPE), ClassificationMetrics(가격대 혼동 행렬), SlicedClassificationMetrics(구별 가격대 지표), HTML(오차 분포 리포트), Markdown(데이터 카드)를 낸다.</desc>
+  <desc id="lab-b-types-desc">prepare_dataset 이 S3 호환 버킷의 통합 CSV 를 읽고, prepare_dataset 은 Dataset 과 Artifact(config.json)를 낸다. fit_baseline 이 Model 을, evaluate_baseline 이 Metrics(MAE, MAPE), ClassificationMetrics(가격대 혼동 행렬), SlicedClassificationMetrics(구별 가격대 지표), HTML(오차 분포 리포트), Markdown(데이터 카드)를 낸다.</desc>
   <defs>
     <marker id="m-line" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#C9C8C2" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
     <marker id="m-emph" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#0F6E56" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
@@ -10,7 +10,7 @@
   </defs>
   <rect width="960" height="330" fill="#FFFFFF"/>
   <rect x="20" y="40" width="130" height="56" rx="8" fill="#FFFFFF" stroke="#C9C8C2" stroke-width="0.75" stroke-dasharray="4 4"/>
-  <text x="85" y="68" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#9C9B95">importer</text>
+  <text x="85" y="68" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#9C9B95">S3 호환 버킷</text>
   <rect x="200" y="40" width="160" height="56" rx="8" fill="#E3F4F4" stroke="#0E7C86" stroke-width="1.4"/>
   <text x="280" y="68" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#0E7C86">prepare_dataset</text>
   <rect x="410" y="40" width="150" height="56" rx="8" fill="#E3F4F4" stroke="#0E7C86" stroke-width="1.4"/>

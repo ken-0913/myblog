@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="960" height="400" viewBox="0 0 960 400" font-family="'Pretendard','Noto Sans KR','Apple SD Gothic Neo',sans-serif" role="img" aria-labelledby="qa-gate-title qa-gate-desc">
   <title id="qa-gate-title">qa_data 가 읽는 고정 경로와 검사</title>
-  <desc id="qa-gate-desc">datasets/suumo/prepared/2026-11-13/ 의 train.parquet, val.parquet, test.parquet, chome.parquet 를 pyarrow fs.S3FileSystem 으로 읽어 검사 7개를 한다: 파일 4개 존재, 분할 간 chome_key 중복 0, 분할 간 物件ID 중복 0, 행 비율 75/15/10 ±2%p, 좌표 결측 0, unit_price 10 ~ 2,000万円/m², 23구가 모든 분할에 존재. 모두 통과하면 Markdown 리포트와 Metrics 를 기록하고, 아니면 태스크가 실패한다.</desc>
+  <desc id="qa-gate-desc">datasets/suumo/prepared/2026-11-13/ 의 train.parquet, val.parquet, test.parquet, chome.parquet 를 pyarrow fs.S3FileSystem 으로 읽어 검사 7개를 한다: 파일 4개 존재, 분할 간 chome_key 중복 0, 분할 간 物件ID 중복 0, 행 비율 75/15/10 ±2%p, 좌표 결측 0, 같은 구 중앙 단가의 10배 이하, 23구가 모든 분할에 존재. 모두 통과하면 Markdown 리포트와 Metrics 를 기록하고, 아니면 태스크가 실패한다.</desc>
   <defs>
     <marker id="m-line" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#C9C8C2" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
     <marker id="m-emph" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#0F6E56" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
@@ -43,7 +43,7 @@
   <path d="M480.0 196 L480.0 215 L612.0 215 L612.0 228" fill="none" stroke="#0F6E56" stroke-width="1.2" marker-end="url(#m-emph)"/>
   <path d="M612.0 274 L612.0 290 L480 290 L480 304" fill="none" stroke="#C9C8C2" stroke-width="1.2" marker-end="url(#m-line)"/>
   <rect x="683.0" y="230" width="122" height="44" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
-  <text x="744" y="252" text-anchor="middle" dominant-baseline="central" font-size="11" font-weight="600" fill="#444441">unit_price 범위</text>
+  <text x="744" y="252" text-anchor="middle" dominant-baseline="central" font-size="11" font-weight="600" fill="#444441">단가 10배 이하</text>
   <path d="M480.0 196 L480.0 215 L744.0 215 L744.0 228" fill="none" stroke="#0F6E56" stroke-width="1.2" marker-end="url(#m-emph)"/>
   <path d="M744.0 274 L744.0 290 L480 290 L480 304" fill="none" stroke="#C9C8C2" stroke-width="1.2" marker-end="url(#m-line)"/>
   <rect x="815.0" y="230" width="122" height="44" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>

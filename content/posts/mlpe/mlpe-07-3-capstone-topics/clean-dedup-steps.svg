@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="960" height="250" viewBox="0 0 960 250" font-family="'Pretendard','Noto Sans KR','Apple SD Gothic Neo',sans-serif" role="img" aria-labelledby="clean-dedup-steps-title clean-dedup-steps-desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="330" viewBox="0 0 960 330" font-family="'Pretendard','Noto Sans KR','Apple SD Gothic Neo',sans-serif" role="img" aria-labelledby="clean-dedup-steps-title clean-dedup-steps-desc">
   <title id="clean-dedup-steps-title">clean_dedup 처리 순서</title>
-  <desc id="clean-dedup-steps-desc">원본 32,593행 → 사용할 컬럼 15개만 남김 → 같은 매물 중복 제거(物件名, 住所, 価格, 面積, 所在階 기준) → 약 24,131행 → 준공 2027년 이후 매물 제외 → 構造 57종을 RC/SRC/S/기타로 정리 → 築年数 제거, 築年만 유지 → unit_price 추가(価格_万円 / 専有面積_m2).</desc>
+  <desc id="clean-dedup-steps-desc">원본 32,593행 → 사용할 컬럼 15개만 남김 → 같은 매물 중복 제거(物件名, 住所, 価格, 面積, 所在階 기준) → 약 24,131행 → 준공 2027년 이후 매물 제외 → 構造 57종을 RC/SRC/S/기타로 정리 → 築年数 제거, 築年만 유지 → unit_price 추가(価格_万円 / 専有面積_m2) → 같은 구 중앙 단가의 10배를 넘는 가격 오류 제외 → 24,117행.</desc>
   <defs>
     <marker id="m-line" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#C9C8C2" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
     <marker id="m-emph" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#0F6E56" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
@@ -8,7 +8,7 @@
     <marker id="m-warn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#EB6C36" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
     <marker id="m-alt" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#534AB7" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
   </defs>
-  <rect width="960" height="250" fill="#FFFFFF"/>
+  <rect width="960" height="330" fill="#FFFFFF"/>
   <rect x="30.0" y="24" width="200" height="64" rx="8" fill="#FFFFFF" stroke="#C9C8C2" stroke-width="0.75" stroke-dasharray="4 4"/>
   <text x="130" y="56" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#9C9B95">원본</text>
   <rect x="263.33333333333337" y="24" width="200" height="64" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
@@ -32,4 +32,10 @@
   <path d="M730.0 192.0 L698.6666666666667 192.0" fill="none" stroke="#C9C8C2" stroke-width="1.2" marker-end="url(#m-line)"/>
   <path d="M496.6666666666667 192.0 L465.33333333333337 192.0" fill="none" stroke="#C9C8C2" stroke-width="1.2" marker-end="url(#m-line)"/>
   <path d="M263.33333333333337 192.0 L232.0 192.0" fill="none" stroke="#C9C8C2" stroke-width="1.2" marker-end="url(#m-line)"/>
+  <rect x="30.0" y="260" width="200" height="50" rx="8" fill="#FDEEE6" stroke="#EB6C36" stroke-width="1.4"/>
+  <text x="130" y="285" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#EB6C36">가격 오류 제외</text>
+  <rect x="263.33333333333337" y="260" width="200" height="50" rx="8" fill="#FFFFFF" stroke="#C9C8C2" stroke-width="0.75" stroke-dasharray="4 4"/>
+  <text x="363.333" y="285" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#9C9B95">24,117행</text>
+  <path d="M130.0 224 L130.0 258" fill="none" stroke="#EB6C36" stroke-width="1.2" marker-end="url(#m-warn)"/>
+  <path d="M230.0 285.0 L261.33333333333337 285.0" fill="none" stroke="#C9C8C2" stroke-width="1.2" marker-end="url(#m-line)"/>
 </svg>

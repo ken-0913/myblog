@@ -201,8 +201,8 @@ def lab_a():
 # ---------------------------------------------------------------- 5. B 단계
 def lab_b():
     d = D("lab-b-types", 960, 330, "B 단계: 타입별 출력",
-          "importer 가 통합 CSV 를 prepare_dataset 에 넘기고, prepare_dataset 은 Dataset 과 Artifact(config.json)를 낸다. fit_baseline 이 Model 을, evaluate_baseline 이 Metrics(MAE, MAPE), ClassificationMetrics(가격대 혼동 행렬), SlicedClassificationMetrics(구별 가격대 지표), HTML(오차 분포 리포트), Markdown(데이터 카드)를 낸다.")
-    i = d.node(20, 40, 130, 56, "importer", ["통합 CSV"], "dim")
+          "prepare_dataset 이 S3 호환 버킷의 통합 CSV 를 읽고, prepare_dataset 은 Dataset 과 Artifact(config.json)를 낸다. fit_baseline 이 Model 을, evaluate_baseline 이 Metrics(MAE, MAPE), ClassificationMetrics(가격대 혼동 행렬), SlicedClassificationMetrics(구별 가격대 지표), HTML(오차 분포 리포트), Markdown(데이터 카드)를 낸다.")
+    i = d.node(20, 40, 130, 56, "S3 호환 버킷", ["통합 CSV"], "dim")
     p = d.node(200, 40, 160, 56, "prepare_dataset", kind="pipe")
     f = d.node(410, 40, 150, 56, "fit_baseline", kind="pipe")
     e = d.node(410, 180, 150, 56, "evaluate_baseline", kind="pipe")
@@ -241,11 +241,11 @@ def lab_c_pipe():
 # ---------------------------------------------------------------- 8. D 단계 파이프라인
 def lab_d_pipe():
     d = D("lab-d-pipeline", 960, 660, "D 단계: suumo-data-prep",
-          "왼쪽 열: importer(통합 CSV) → csv_to_parquet(utf-8-sig) → clean_dedup → geocode → split_dataset(丁目 그룹 75/15/10) → put_to_minio u2(train/val/test) → qa_data. 오른쪽 열: download_geo(位置参照情報 zip) → unzip_data → csv_to_parquet-2(cp932) → put_to_minio u1(chome.parquet). csv_to_parquet-2 의 출력은 geocode 에도 들어간다. split_dataset 은 eda_report 로도 간다. qa_data 는 u2 뒤에 .after(u2) 로 실행되며 고정 경로에서 읽는다.")
+          "왼쪽 열: download_raw(버킷의 통합 CSV) → csv_to_parquet(utf-8-sig) → clean_dedup → geocode → split_dataset(丁目 그룹 75/15/10) → put_to_minio u2(train/val/test) → qa_data. 오른쪽 열: download_geo(位置参照情報 zip) → unzip_data → csv_to_parquet-2(cp932) → put_to_minio u1(chome.parquet). csv_to_parquet-2 의 출력은 geocode 에도 들어간다. split_dataset 은 eda_report 로도 간다. qa_data 는 u1, u2 가 모두 끝난 뒤 .after(u1, u2) 로 실행되며 고정 경로에서 읽는다.")
     W, H, step = 220, 56, 84
     ax, bx = 110, 560
     ya = lambda r: 24 + r * step
-    imp = d.node(ax, ya(0), W, H, "importer", ["통합 CSV"], "dim")
+    imp = d.node(ax, ya(0), W, H, "download_raw", kind="pipe")
     p1 = d.node(ax, ya(1), W, H, "csv_to_parquet", ["utf-8-sig"], "pipe")
     cl = d.node(ax, ya(2), W, H, "clean_dedup", kind="pipe")
     ge = d.node(ax, ya(3), W, H, "geocode", kind="pipe")
@@ -259,7 +259,9 @@ def lab_d_pipe():
     ed = d.node(bx, ya(5), W, H, "eda_report", kind="pipe")
     for a, b in [(imp, p1), (p1, cl), (cl, ge), (ge, sp), (sp, u2), (dg, uz), (uz, p2), (p2, u1)]:
         d.edge([bottom(a), (top(b)[0], top(b)[1] - 2)], kind="pipe")
-    d.edge([bottom(u2), (top(qa)[0], top(qa)[1] - 2)], ".after(u2)", kind="emph", dashed=True, lpos=(ax + W / 2 + 50, ya(6) - 6))
+    d.edge([bottom(u2), (top(qa)[0], top(qa)[1] - 2)], ".after(u1, u2)", kind="emph", dashed=True, lpos=(ax + W / 2 + 62, ya(6) - 6))
+    qy = ya(6) + 16 + H / 2
+    d.edge([right(u1), (bx + W + 30, right(u1)[1]), (bx + W + 30, qy), (ax + W + 2, qy)], kind="emph", dashed=True)
     # csv_to_parquet-2 → geocode (대각)
     d.edge([left(p2), (bx - 60, left(p2)[1]), (bx - 60, ya(3) + H / 2), (ax + W + 2, ya(3) + H / 2)], kind="pipe")
     # split → eda_report
@@ -269,8 +271,8 @@ def lab_d_pipe():
 
 # ---------------------------------------------------------------- 9. clean_dedup
 def clean_steps():
-    d = D("clean-dedup-steps", 960, 250, "clean_dedup 처리 순서",
-          "원본 32,593행 → 사용할 컬럼 15개만 남김 → 같은 매물 중복 제거(物件名, 住所, 価格, 面積, 所在階 기준) → 약 24,131행 → 준공 2027년 이후 매물 제외 → 構造 57종을 RC/SRC/S/기타로 정리 → 築年数 제거, 築年만 유지 → unit_price 추가(価格_万円 / 専有面積_m2).")
+    d = D("clean-dedup-steps", 960, 330, "clean_dedup 처리 순서",
+          "원본 32,593행 → 사용할 컬럼 15개만 남김 → 같은 매물 중복 제거(物件名, 住所, 価格, 面積, 所在階 기준) → 약 24,131행 → 준공 2027년 이후 매물 제외 → 構造 57종을 RC/SRC/S/기타로 정리 → 築年数 제거, 築年만 유지 → unit_price 추가(価格_万円 / 専有面積_m2) → 같은 구 중앙 단가의 10배를 넘는 가격 오류 제외 → 24,117행.")
     r1 = [("원본", "32,593행"), ("컬럼 15개만 남김",), ("같은 매물 중복 제거", "물건명, 주소, 가격,", "면적, 층이 같으면 하나만"), ("약 24,131행",)]
     r2 = [("unit_price 추가", "가격_만엔 / 전용 면적"), ("건물 연식(築年数) 제거", "준공 연도(築年)만 유지"), ("구조(構造) 정리", "57종 → RC / SRC / S / 기타"), ("준공 2027년 이후 제외",)]
     top_boxes = hrow(d, 24, r1, 200, 64, x0=30, kind=["dim", "node", "emph", "dim"])
@@ -282,6 +284,10 @@ def clean_steps():
     d.edge([bottom(last), (top(bot[-1])[0], top(bot[-1])[1] - 2)])
     for i in range(3, 0, -1):
         d.edge([left(bot[i]), (right(bot[i - 1])[0] + 2, right(bot[i - 1])[1])])
+    pf = d.node(xs[0], 260, 200, 50, "가격 오류 제외", kind="warn")
+    fin = d.node(xs[1], 260, 200, 50, "24,117행", kind="dim")
+    d.edge([bottom(bot[0]), (top(pf)[0], top(pf)[1] - 2)], kind="warn")
+    d.edge([right(pf), (left(fin)[0] - 2, left(fin)[1])])
     d.write()
 
 
@@ -337,14 +343,14 @@ def split_compare():
 # ---------------------------------------------------------------- 12. QA 게이트
 def qa_gate():
     d = D("qa-gate", 960, 400, "qa_data 가 읽는 고정 경로와 검사",
-          "datasets/suumo/prepared/2026-11-13/ 의 train.parquet, val.parquet, test.parquet, chome.parquet 를 pyarrow fs.S3FileSystem 으로 읽어 검사 7개를 한다: 파일 4개 존재, 분할 간 chome_key 중복 0, 분할 간 物件ID 중복 0, 행 비율 75/15/10 ±2%p, 좌표 결측 0, unit_price 10 ~ 2,000万円/m², 23구가 모든 분할에 존재. 모두 통과하면 Markdown 리포트와 Metrics 를 기록하고, 아니면 태스크가 실패한다.")
+          "datasets/suumo/prepared/2026-11-13/ 의 train.parquet, val.parquet, test.parquet, chome.parquet 를 pyarrow fs.S3FileSystem 으로 읽어 검사 7개를 한다: 파일 4개 존재, 분할 간 chome_key 중복 0, 분할 간 物件ID 중복 0, 행 비율 75/15/10 ±2%p, 좌표 결측 0, 같은 구 중앙 단가의 10배 이하, 23구가 모든 분할에 존재. 모두 통과하면 Markdown 리포트와 Metrics 를 기록하고, 아니면 태스크가 실패한다.")
     d.group(20, 20, 920, 96, "고정 경로", "pipe")
     files = ["train.parquet", "val.parquet", "test.parquet", "chome.parquet"]
     for i, f in enumerate(files):
         d.node(50 + i * 220, 50, 200, 46, f, kind="pipe")
     q = d.node(400, 150, 160, 46, "qa_data", kind="emph")
     d.edge([(480, 116), (480, 148)], kind="pipe")
-    checks = ["파일 4개 존재", "chome_key 중복 0", "물건 ID 중복 0", "행 비율 ±2%p", "좌표 결측 0", "unit_price 범위", "23구 모두 존재"]
+    checks = ["파일 4개 존재", "chome_key 중복 0", "물건 ID 중복 0", "행 비율 ±2%p", "좌표 결측 0", "단가 10배 이하", "23구 모두 존재"]
     cw, cgap = 122, 10
     x0 = (960 - (7 * cw + 6 * cgap)) / 2
     for i, c in enumerate(checks):
