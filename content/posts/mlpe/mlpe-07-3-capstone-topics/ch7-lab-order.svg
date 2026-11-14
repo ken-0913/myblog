@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="130" viewBox="0 0 960 130" font-family="'Pretendard','Noto Sans KR','Apple SD Gothic Neo',sans-serif" role="img" aria-labelledby="ch7-lab-order-title ch7-lab-order-desc">
+  <title id="ch7-lab-order-title">7장 진행 단계</title>
+  <desc id="ch7-lab-order-desc">준비 하나와 본 단계 다섯 개가 왼쪽에서 오른쪽으로 이어진다. 0 준비: 데이터 적재. A 단계: 값과 경로 전달. B 단계: 아티팩트 타입. C 단계: 아티팩트로 잇는 파이프라인. D 단계: 고정 경로로 잇는 파이프라인. E 단계: target_image.</desc>
+  <defs>
+    <marker id="m-line" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#C9C8C2" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="m-emph" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#0F6E56" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="m-pipe" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#0E7C86" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="m-warn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#EB6C36" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="m-alt" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#534AB7" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  </defs>
+  <rect width="960" height="130" fill="#FFFFFF"/>
+  <rect x="20.0" y="30" width="136" height="70" rx="8" fill="#FFFFFF" stroke="#C9C8C2" stroke-width="0.75" stroke-dasharray="4 4"/>
+  <text x="88" y="65" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#9C9B95">준비</text>
+  <rect x="176.8" y="30" width="136" height="70" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="244.8" y="65" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#444441">A. 값과 경로</text>
+  <rect x="333.6" y="30" width="136" height="70" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="401.6" y="65" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#444441">B. 아티팩트 타입</text>
+  <rect x="490.40000000000003" y="30" width="136" height="70" rx="8" fill="#E3F4F4" stroke="#0E7C86" stroke-width="1.4"/>
+  <text x="558.4" y="65" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#0E7C86">C. 아티팩트 연결</text>
+  <rect x="647.2" y="30" width="136" height="70" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1.4"/>
+  <text x="715.2" y="65" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#0F6E56">D. 고정 경로 연결</text>
+  <rect x="804.0" y="30" width="136" height="70" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="872" y="65" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#444441">E. target_image</text>
+  <path d="M158.0 65.0 L174.8 65.0" fill="none" stroke="#C9C8C2" stroke-width="1.2" marker-end="url(#m-line)"/>
+  <path d="M314.8 65.0 L331.6 65.0" fill="none" stroke="#C9C8C2" stroke-width="1.2" marker-end="url(#m-line)"/>
+  <path d="M471.6 65.0 L488.40000000000003 65.0" fill="none" stroke="#C9C8C2" stroke-width="1.2" marker-end="url(#m-line)"/>
+  <path d="M628.4000000000001 65.0 L645.2 65.0" fill="none" stroke="#C9C8C2" stroke-width="1.2" marker-end="url(#m-line)"/>
+  <path d="M785.2 65.0 L802.0 65.0" fill="none" stroke="#C9C8C2" stroke-width="1.2" marker-end="url(#m-line)"/>
+</svg>

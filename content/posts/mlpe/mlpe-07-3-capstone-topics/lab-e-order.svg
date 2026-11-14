@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="110" viewBox="0 0 960 110" font-family="'Pretendard','Noto Sans KR','Apple SD Gothic Neo',sans-serif" role="img" aria-labelledby="lab-e-order-title lab-e-order-desc">
+  <title id="lab-e-order-title">E 단계 진행 순서</title>
+  <desc id="lab-e-order-desc">컴포넌트에 target_image 지정 → kfp component build 로 이미지 1개 빌드 → 레지스트리에 push → 컴파일 → run 실행 → D 단계와 비교.</desc>
+  <defs>
+    <marker id="m-line" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#C9C8C2" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="m-emph" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#0F6E56" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="m-pipe" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#0E7C86" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="m-warn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#EB6C36" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="m-alt" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#534AB7" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  </defs>
+  <rect width="960" height="110" fill="#FFFFFF"/>
+  <rect x="20.0" y="24" width="140" height="60" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="90" y="54" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#444441">target_image 지정</text>
+  <rect x="176.0" y="24" width="140" height="60" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1.4"/>
+  <text x="246" y="54" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#0F6E56">kfp component build</text>
+  <rect x="332.0" y="24" width="140" height="60" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="402" y="54" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#444441">레지스트리 push</text>
+  <rect x="488.0" y="24" width="140" height="60" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="558" y="54" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#444441">컴파일</text>
+  <rect x="644.0" y="24" width="140" height="60" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="714" y="54" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#444441">run 실행</text>
+  <rect x="800.0" y="24" width="140" height="60" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1.4"/>
+  <text x="870" y="54" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#0F6E56">D 단계와 비교</text>
+  <path d="M162.0 54.0 L174.0 54.0" fill="none" stroke="#C9C8C2" stroke-width="1.2" marker-end="url(#m-line)"/>
+  <path d="M318.0 54.0 L330.0 54.0" fill="none" stroke="#C9C8C2" stroke-width="1.2" marker-end="url(#m-line)"/>
+  <path d="M474.0 54.0 L486.0 54.0" fill="none" stroke="#C9C8C2" stroke-width="1.2" marker-end="url(#m-line)"/>
+  <path d="M630.0 54.0 L642.0 54.0" fill="none" stroke="#C9C8C2" stroke-width="1.2" marker-end="url(#m-line)"/>
+  <path d="M786.0 54.0 L798.0 54.0" fill="none" stroke="#C9C8C2" stroke-width="1.2" marker-end="url(#m-line)"/>
+</svg>

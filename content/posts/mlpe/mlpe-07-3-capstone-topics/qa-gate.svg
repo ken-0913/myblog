@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="400" viewBox="0 0 960 400" font-family="'Pretendard','Noto Sans KR','Apple SD Gothic Neo',sans-serif" role="img" aria-labelledby="qa-gate-title qa-gate-desc">
+  <title id="qa-gate-title">qa_data 가 읽는 고정 경로와 검사</title>
+  <desc id="qa-gate-desc">datasets/suumo/prepared/2026-11-13/ 의 train.parquet, val.parquet, test.parquet, chome.parquet 를 pyarrow fs.S3FileSystem 으로 읽어 검사 7개를 한다: 파일 4개 존재, 분할 간 chome_key 중복 0, 분할 간 物件ID 중복 0, 행 비율 75/15/10 ±2%p, 좌표 결측 0, unit_price 10 ~ 2,000万円/m², 23구가 모든 분할에 존재. 모두 통과하면 Markdown 리포트와 Metrics 를 기록하고, 아니면 태스크가 실패한다.</desc>
+  <defs>
+    <marker id="m-line" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#C9C8C2" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="m-emph" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#0F6E56" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="m-pipe" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#0E7C86" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="m-warn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#EB6C36" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="m-alt" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#534AB7" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  </defs>
+  <rect width="960" height="400" fill="#FFFFFF"/>
+  <rect x="20" y="20" width="920" height="96" rx="12" fill="#E3F4F4" fill-opacity="0.35" stroke="#0E7C86" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <text x="480" y="38" text-anchor="middle" font-size="12" font-weight="600" fill="#0E7C86">고정 경로</text>
+  <rect x="50" y="50" width="200" height="46" rx="8" fill="#E3F4F4" stroke="#0E7C86" stroke-width="1.4"/>
+  <text x="150" y="73" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#0E7C86">train.parquet</text>
+  <rect x="270" y="50" width="200" height="46" rx="8" fill="#E3F4F4" stroke="#0E7C86" stroke-width="1.4"/>
+  <text x="370" y="73" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#0E7C86">val.parquet</text>
+  <rect x="490" y="50" width="200" height="46" rx="8" fill="#E3F4F4" stroke="#0E7C86" stroke-width="1.4"/>
+  <text x="590" y="73" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#0E7C86">test.parquet</text>
+  <rect x="710" y="50" width="200" height="46" rx="8" fill="#E3F4F4" stroke="#0E7C86" stroke-width="1.4"/>
+  <text x="810" y="73" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#0E7C86">chome.parquet</text>
+  <rect x="400" y="150" width="160" height="46" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1.4"/>
+  <text x="480" y="173" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#0F6E56">qa_data</text>
+  <path d="M480 116 L480 148" fill="none" stroke="#0E7C86" stroke-width="1.2" marker-end="url(#m-pipe)"/>
+  <rect x="23.0" y="230" width="122" height="44" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="84" y="252" text-anchor="middle" dominant-baseline="central" font-size="11" font-weight="600" fill="#444441">파일 4개 존재</text>
+  <path d="M480.0 196 L480.0 215 L84.0 215 L84.0 228" fill="none" stroke="#0F6E56" stroke-width="1.2" marker-end="url(#m-emph)"/>
+  <path d="M84.0 274 L84.0 290 L480 290 L480 304" fill="none" stroke="#C9C8C2" stroke-width="1.2" marker-end="url(#m-line)"/>
+  <rect x="155.0" y="230" width="122" height="44" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="216" y="252" text-anchor="middle" dominant-baseline="central" font-size="11" font-weight="600" fill="#444441">chome_key 중복 0</text>
+  <path d="M480.0 196 L480.0 215 L216.0 215 L216.0 228" fill="none" stroke="#0F6E56" stroke-width="1.2" marker-end="url(#m-emph)"/>
+  <path d="M216.0 274 L216.0 290 L480 290 L480 304" fill="none" stroke="#C9C8C2" stroke-width="1.2" marker-end="url(#m-line)"/>
+  <rect x="287.0" y="230" width="122" height="44" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="348" y="252" text-anchor="middle" dominant-baseline="central" font-size="11" font-weight="600" fill="#444441">물건 ID 중복 0</text>
+  <path d="M480.0 196 L480.0 215 L348.0 215 L348.0 228" fill="none" stroke="#0F6E56" stroke-width="1.2" marker-end="url(#m-emph)"/>
+  <path d="M348.0 274 L348.0 290 L480 290 L480 304" fill="none" stroke="#C9C8C2" stroke-width="1.2" marker-end="url(#m-line)"/>
+  <rect x="419.0" y="230" width="122" height="44" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="480" y="252" text-anchor="middle" dominant-baseline="central" font-size="11" font-weight="600" fill="#444441">행 비율 ±2%p</text>
+  <path d="M480.0 196 L480.0 215 L480.0 215 L480.0 228" fill="none" stroke="#0F6E56" stroke-width="1.2" marker-end="url(#m-emph)"/>
+  <path d="M480.0 274 L480.0 290 L480 290 L480 304" fill="none" stroke="#C9C8C2" stroke-width="1.2" marker-end="url(#m-line)"/>
+  <rect x="551.0" y="230" width="122" height="44" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="612" y="252" text-anchor="middle" dominant-baseline="central" font-size="11" font-weight="600" fill="#444441">좌표 결측 0</text>
+  <path d="M480.0 196 L480.0 215 L612.0 215 L612.0 228" fill="none" stroke="#0F6E56" stroke-width="1.2" marker-end="url(#m-emph)"/>
+  <path d="M612.0 274 L612.0 290 L480 290 L480 304" fill="none" stroke="#C9C8C2" stroke-width="1.2" marker-end="url(#m-line)"/>
+  <rect x="683.0" y="230" width="122" height="44" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="744" y="252" text-anchor="middle" dominant-baseline="central" font-size="11" font-weight="600" fill="#444441">unit_price 범위</text>
+  <path d="M480.0 196 L480.0 215 L744.0 215 L744.0 228" fill="none" stroke="#0F6E56" stroke-width="1.2" marker-end="url(#m-emph)"/>
+  <path d="M744.0 274 L744.0 290 L480 290 L480 304" fill="none" stroke="#C9C8C2" stroke-width="1.2" marker-end="url(#m-line)"/>
+  <rect x="815.0" y="230" width="122" height="44" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="876" y="252" text-anchor="middle" dominant-baseline="central" font-size="11" font-weight="600" fill="#444441">23구 모두 존재</text>
+  <path d="M480.0 196 L480.0 215 L876.0 215 L876.0 228" fill="none" stroke="#0F6E56" stroke-width="1.2" marker-end="url(#m-emph)"/>
+  <path d="M876.0 274 L876.0 290 L480 290 L480 304" fill="none" stroke="#C9C8C2" stroke-width="1.2" marker-end="url(#m-line)"/>
+  <polygon points="480,307 565,335 480,363 395,335" fill="#FDEEE6" stroke="#EB6C36" stroke-width="1.4"/>
+  <text x="480" y="335" text-anchor="middle" dominant-baseline="central" font-size="12" font-weight="600" fill="#EB6C36">모두 통과?</text>
+  <rect x="620" y="312" width="220" height="46" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1.4"/>
+  <text x="730" y="335" text-anchor="middle" dominant-baseline="central" font-size="12" font-weight="600" fill="#0F6E56">Markdown 리포트, Metrics 기록</text>
+  <rect x="130" y="312" width="200" height="46" rx="8" fill="#FDEEE6" stroke="#EB6C36" stroke-width="1.4"/>
+  <text x="230" y="335" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#EB6C36">태스크 실패</text>
+  <path d="M565 335 L618 335" fill="none" stroke="#0F6E56" stroke-width="1.2" marker-end="url(#m-emph)"/>
+  <rect x="583.745" y="315.25" width="16.51" height="13.5" rx="3" fill="#FFFFFF"/>
+  <text x="592" y="322" text-anchor="middle" dominant-baseline="central" font-size="10.5" fill="#0F6E56">예</text>
+  <path d="M395 335 L332 335" fill="none" stroke="#EB6C36" stroke-width="1.2" marker-end="url(#m-warn)"/>
+  <rect x="347.235" y="315.25" width="29.53" height="13.5" rx="3" fill="#FFFFFF"/>
+  <text x="362" y="322" text-anchor="middle" dominant-baseline="central" font-size="10.5" fill="#EB6C36">아니오</text>
+</svg>

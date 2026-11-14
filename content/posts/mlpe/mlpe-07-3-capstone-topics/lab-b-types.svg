@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="330" viewBox="0 0 960 330" font-family="'Pretendard','Noto Sans KR','Apple SD Gothic Neo',sans-serif" role="img" aria-labelledby="lab-b-types-title lab-b-types-desc">
+  <title id="lab-b-types-title">B 단계: 타입별 출력</title>
+  <desc id="lab-b-types-desc">importer 가 통합 CSV 를 prepare_dataset 에 넘기고, prepare_dataset 은 Dataset 과 Artifact(config.json)를 낸다. fit_baseline 이 Model 을, evaluate_baseline 이 Metrics(MAE, MAPE), ClassificationMetrics(가격대 혼동 행렬), SlicedClassificationMetrics(구별 가격대 지표), HTML(오차 분포 리포트), Markdown(데이터 카드)를 낸다.</desc>
+  <defs>
+    <marker id="m-line" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#C9C8C2" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="m-emph" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#0F6E56" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="m-pipe" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#0E7C86" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="m-warn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#EB6C36" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="m-alt" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#534AB7" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  </defs>
+  <rect width="960" height="330" fill="#FFFFFF"/>
+  <rect x="20" y="40" width="130" height="56" rx="8" fill="#FFFFFF" stroke="#C9C8C2" stroke-width="0.75" stroke-dasharray="4 4"/>
+  <text x="85" y="68" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#9C9B95">importer</text>
+  <rect x="200" y="40" width="160" height="56" rx="8" fill="#E3F4F4" stroke="#0E7C86" stroke-width="1.4"/>
+  <text x="280" y="68" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#0E7C86">prepare_dataset</text>
+  <rect x="410" y="40" width="150" height="56" rx="8" fill="#E3F4F4" stroke="#0E7C86" stroke-width="1.4"/>
+  <text x="485" y="68" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#0E7C86">fit_baseline</text>
+  <rect x="410" y="180" width="150" height="56" rx="8" fill="#E3F4F4" stroke="#0E7C86" stroke-width="1.4"/>
+  <text x="485" y="208" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#0E7C86">evaluate_baseline</text>
+  <rect x="200" y="180" width="160" height="56" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="280" y="208" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#444441">config.json</text>
+  <path d="M150 68.0 L200 68.0" fill="none" stroke="#C9C8C2" stroke-width="1.2" marker-end="url(#m-line)"/>
+  <path d="M360 68.0 L410 68.0" fill="none" stroke="#0E7C86" stroke-width="1.2" marker-end="url(#m-pipe)"/>
+  <rect x="357.215" y="61.25" width="55.57" height="13.5" rx="3" fill="#FFFFFF"/>
+  <text x="385" y="68" text-anchor="middle" dominant-baseline="central" font-size="10.5" fill="#0E7C86">Dataset</text>
+  <path d="M280.0 96 L280.0 180" fill="none" stroke="#0E7C86" stroke-width="1.2" marker-end="url(#m-pipe)"/>
+  <rect x="248.96" y="131.25" width="62.08" height="13.5" rx="3" fill="#FFFFFF"/>
+  <text x="280" y="138" text-anchor="middle" dominant-baseline="central" font-size="10.5" fill="#0E7C86">Artifact</text>
+  <path d="M485.0 96 L485.0 180" fill="none" stroke="#0E7C86" stroke-width="1.2" marker-end="url(#m-pipe)"/>
+  <rect x="463.725" y="131.25" width="42.55" height="13.5" rx="3" fill="#FFFFFF"/>
+  <text x="485" y="138" text-anchor="middle" dominant-baseline="central" font-size="10.5" fill="#0E7C86">Model</text>
+  <path d="M310 96 L310 150 L385 150 L385 208 L408 208" fill="none" stroke="#0E7C86" stroke-width="1.2" marker-end="url(#m-pipe)"/>
+  <rect x="357.215" y="143.25" width="55.57" height="13.5" rx="3" fill="#FFFFFF"/>
+  <text x="385" y="150" text-anchor="middle" dominant-baseline="central" font-size="10.5" fill="#0E7C86">Dataset</text>
+  <rect x="700" y="30" width="240" height="46" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1.4"/>
+  <text x="820" y="53" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#0F6E56">Metrics</text>
+  <path d="M560 208.0 L620 208.0 L620 53 L698 53" fill="none" stroke="#0F6E56" stroke-width="1.2" marker-end="url(#m-emph)"/>
+  <rect x="700" y="88" width="240" height="46" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1.4"/>
+  <text x="820" y="111" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#0F6E56">ClassificationMetrics</text>
+  <path d="M560 208.0 L620 208.0 L620 111 L698 111" fill="none" stroke="#0F6E56" stroke-width="1.2" marker-end="url(#m-emph)"/>
+  <rect x="700" y="146" width="240" height="46" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1.4"/>
+  <text x="820" y="169" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#0F6E56">SlicedClassificationMetrics</text>
+  <path d="M560 208.0 L620 208.0 L620 169 L698 169" fill="none" stroke="#0F6E56" stroke-width="1.2" marker-end="url(#m-emph)"/>
+  <rect x="700" y="204" width="240" height="46" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1.4"/>
+  <text x="820" y="227" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#0F6E56">HTML</text>
+  <path d="M560 208.0 L620 208.0 L620 227 L698 227" fill="none" stroke="#0F6E56" stroke-width="1.2" marker-end="url(#m-emph)"/>
+  <rect x="700" y="262" width="240" height="46" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1.4"/>
+  <text x="820" y="285" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#0F6E56">Markdown</text>
+  <path d="M560 208.0 L620 208.0 L620 285 L698 285" fill="none" stroke="#0F6E56" stroke-width="1.2" marker-end="url(#m-emph)"/>
+</svg>
