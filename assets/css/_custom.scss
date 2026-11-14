@@ -788,6 +788,28 @@ html.dark .diagram {
 }
 
 // ==============================
+// 본문 링크 밑줄
+//  - 무채색(--sat: 0)에서는 링크 색(--primary)과 본문 색 차이가 작아 링크가 글자처럼 보인다.
+//  - 색은 그대로 두고 옅은 밑줄로 링크임을 알린다. 마우스를 올리면 밑줄이 진해진다.
+//  - 소제목의 앵커 링크와 확대 보기 이미지 링크는 제외한다.
+// ==============================
+.single .content a:not(.lightgallery):not(.header-mark) {
+    text-decoration-line: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.22em;
+    text-decoration-color: color-mix(in oklch, currentColor 40%, transparent);
+    transition: text-decoration-color 0.15s ease;
+
+    &:hover {
+        text-decoration-color: currentColor;
+    }
+}
+
+.single .content :is(h1, h2, h3, h4, h5, h6) a {
+    text-decoration: none;
+}
+
+// ==============================
 // 본문 이미지 확대 보기 (lightgallery)
 //  - layouts/_markup/render-image.html 이 모든 본문 이미지를 a.lightgallery 로 감싼다.
 //  - 누를 수 있다는 것을 커서로 알려 주고, 링크 밑줄·색이 이미지에 묻지 않게 한다.
