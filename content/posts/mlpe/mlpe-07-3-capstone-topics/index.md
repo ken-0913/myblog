@@ -34,6 +34,8 @@ featuredImage: images/banners/mlpe-07-3-capstone-topics-c1383d08.png
 | 어느 구(区)인지  | 그 구의 중앙값으로 찍는다 (미나토구(港区) 267, 세타가야구(世田谷区) 127, 아다치구(足立区) 70) | 48       |
 | 어느 동(町名)인지 | 그 동의 중앙값으로 찍는다 (미타(三田) 391, 코난(港南) 195, 타카나와(高輪) 272)        | 33       |
 
+> **핸즈온ML 보강**: [문제 정의(지도 학습, 회귀, 배치 학습)](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#problem-framing) · [RMSE와 MAE](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#rmse-mae) · [타깃 변환](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#transforms)
+
 
 ### 1.3 데이터 현황
 
@@ -84,6 +86,8 @@ featuredImage: images/banners/mlpe-07-3-capstone-topics-c1383d08.png
 
 
 주의할 점은 두 가지이다. 같은 매물이 여러 번 올라온 **중복이 26%** 이고, 주소 해상도는 대부분 **초메(丁目)까지**이다. 앞의 것은 정제 단계에서, 뒤의 것은 지오코딩과 분할 단계에서 다룬다.
+
+> **핸즈온ML 보강**: [데이터 구조 훑어보기](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#quick-look) · [상관관계와 이상한 수평선](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#correlation)
 
 ### 1.4 진행 단계
 
@@ -236,6 +240,8 @@ KFP 는 컴포넌트가 만든 결과물을 데이터셋, 모델, 지표, 리포
 
 결과물 중 기준선 모델과 그 오차는 8장에서 학습한 모델이 "구별 중앙값으로 찍는 것보다 얼마나 나은지" 비교하는 기준이 된다. 혼동 행렬 두 개는 회귀 문제에는 필요 없지만, 그 타입이 UI 에서 어떻게 보이는지 확인하려고 가격을 4구간으로 나눠 만든다.
 
+> **핸즈온ML 보강**: [RMSE와 MAE](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#rmse-mae) · [서브셋별 오차 분석](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#error-analysis)
+
 확인할 것은 두 가지이다.
 
 - UI 의 Visualization 탭에서 타입마다 보이는 방식(표, 그래프, 문서)이 다르다.
@@ -298,6 +304,8 @@ S3 호환 버킷(`mlpipeline`)에 남은 파일은 이렇다.
 | `metrics`, `cls_metrics`, `sliced_metrics` | | **없다**. 값은 MLMD 에만 있다 |
 
 기준선 오차는 학습에 쓴 같은 데이터로 잰 값이라 실제 성능보다 낙관적이다. 초메(丁目) 단위로 나눈 데이터로 다시 재는 것은 8장에서 한다.
+
+> **핸즈온ML 보강**: [데이터 스누핑 편향](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#data-snooping) · [k-폴드 교차 검증](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#cross-validation) · [테스트 세트로 평가](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#test-evaluation)
 
 ## 5. C 단계: 아티팩트로 잇는 파이프라인 (7.3.1)
 
@@ -476,6 +484,8 @@ run 전체는 112초가 걸렸고, Pod 7개는 모두 worker1-gpu 에 떴다.
 
 test 에 나온 초메(丁目) 1,378개 중 1,327개가 train 에도 있다. test 매물로 따지면 **98.3%** 가 같은 동네의 이웃 매물을 train 에서 이미 본 상태로 평가받는다. 무작위 분할로는 처음 보는 주소에 대한 성능을 잴 수 없다는 뜻이고, D 단계에서 초메 단위로 나누는 근거가 이 숫자다.
 
+> **핸즈온ML 보강**: [테스트 세트 만들기](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#test-set) · [시드와 해시 기반 분할](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#hash-split) · [계층적 샘플링](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#stratified)
+
 ## 6. D 단계: 고정 경로로 잇는 파이프라인 (7.3.2)
 
 본 파이프라인 구조 
@@ -510,6 +520,8 @@ test 에 나온 초메(丁目) 1,378개 중 1,327개가 train 에도 있다. tes
 
 모든 태스크에 `set_caching_options(False)` 를 두어 매번 새로 실행한다. `qa_data` 는 아티팩트를 입력으로 받지 않고 고정 경로에서 읽으므로 KFP 가 순서를 알 수 없다. 그래서 `.after(u1, u2)` 로 두 업로드가 모두 끝난 뒤에 실행되도록 직접 지정한다.
 
+> **핸즈온ML 보강**: [컴포넌트와 데이터 파이프라인](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#data-pipeline) · [사이킷런 Pipeline과 KFP 파이프라인](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#sklearn-pipeline)
+
 ### 6.2 Parquet 변환
 
 표 데이터는 CSV 대신 Parquet 으로 저장한다. 열 단위로 저장해 필요한 열만 읽을 수 있고, 압축되어 파일이 작고, 열 타입이 함께 저장된다. 변환 전후의 파일 크기와 읽기 시간을 재서 비교한다. 엔진은 `pyarrow` 하나로 고정하고 `index=False` 로 쓴다.
@@ -537,6 +549,8 @@ test 에 나온 초메(丁目) 1,378개 중 1,327개가 train 에도 있다. tes
 
 가격 입력 오류도 여기서 걸러낸다. 같은 구(区)의 m²당 중앙 단가보다 **10배를 넘게 비싼 매물**은 사이트에 가격이 잘못 올라온 것으로 보고 제외한다. 6.6 의 검사에서 찾은 2건이 이 기준에 걸리고, 도심 신축 고급 맨션(중앙 단가의 5 ~ 6배)은 남는다.
 
+> **핸즈온ML 보강**: [결측치 처리(SimpleImputer)](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#imputer) · [범주형 특성 인코딩](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#categorical) · [특성 조합](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#feature-combo)
+
 ### 6.4 주소 정규화와 지오코딩
 
 좌표 데이터의 동과 초메 이름(町丁目名)은 소토칸다 3초메(`外神田三丁目`)처럼 한자 숫자를 쓰고, 매물 주소는 소토칸다 3(`外神田３`)처럼 전각 숫자를 쓴다. 그래서 양쪽 표기를 맞춘 뒤 조인한다.
@@ -559,6 +573,8 @@ test 에 나온 초메(丁目) 1,378개 중 1,327개가 train 에도 있다. tes
 
 동(町名)까지도 맞지 않으면 구(区) 좌표로 대신하지 않고 버린다. 구 하나가 넓어 엉뚱한 이웃과 묶이기 때문이다. 이렇게 버려지는 행은 1건이다. 동까지만 맞은 6.8% 는 버리지 않고 동의 좌표를 쓰되, `geo_level` 컬럼에 초메인지 동인지 남겨 둔다.
 
+> **핸즈온ML 보강**: [지리적 산점도](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#geo-scatter) · [군집 유사도 변환기(ClusterSimilarity)](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#custom-transformer)
+
 ### 6.5 초메(丁目) 그룹 분할
 
 C 단계의 무작위 분할은 같은 초메(丁目)의 이웃 매물을 train 과 test 에 함께 넣는다. 처음 보는 주소에 대한 성능을 재려면 초메(丁目) 단위로 묶어서 나눠야 한다.
@@ -566,6 +582,8 @@ C 단계의 무작위 분할은 같은 초메(丁目)의 이웃 매물을 train 
 ![무작위 분할과 초메(丁目) 그룹 분할. C 단계의 무작위 분할은 소토칸다 3(外神田3) 의 매물 A 를 train, 매물 B 를 test 에 넣어 같은 초메(丁目) 가 양쪽에 들어간다. D 단계의 초메(丁目) 그룹 분할은 소토칸다 3(外神田3) 의 매물 A 와 B 를 모두 train 에, 타카나와 3(高輪3) 의 매물 C 를 test 에 넣는다.](split-random-vs-group.svg)
 
 `chome_key` 를 그룹으로 `GroupShuffleSplit` 을 두 번 적용한다. 출력은 **폴더 하나에 Parquet 세 개**를 담는다. 그룹 단위로 나누면 행 비율이 정확히 떨어지지 않으므로 QA 기준에 ±2%p 여유를 둔다.
+
+> **핸즈온ML 보강**: [계층적 샘플링](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#stratified) · [해시 기반 분할](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#hash-split)
 
 ### 6.6 업로드와 QA
 
@@ -616,6 +634,8 @@ C 단계의 무작위 분할은 같은 초메(丁目)의 이웃 매물을 train 
 - train 분할만 읽는다. validation, test 를 보고 판단을 바꾸면 평가가 낙관적이 되기 때문이다.
 - 구(区)별 단가 분포와 준공 연도(築年)에 따른 단가 변화를 그래프로 그려 `HTML` 로 남긴다.
 - 검사와 달리 통과·실패가 없는 참고용 결과물이다.
+
+> **핸즈온ML 보강**: [데이터 스누핑 편향](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#data-snooping) · [탐색과 시각화](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#explore) · [특성 조합](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#feature-combo)
 
 ### 6.7 SDK 로 등록하고 실행하기
 
@@ -777,6 +797,8 @@ Pod 가 뜰 때 일어나는 일은 이렇게 다르다.
 - E 처럼 이미지를 빌드하면 프로젝트 폴더가 이미지에 들어가므로, 정규화 함수를 `address.py` 하나로 빼고 두 컴포넌트가 `from address import normalize` 로 같은 코드를 공유할 수 있다.
 - 이것이 이미지 방식의 실질적인 이점이라 직접 바꿔 본다.
 
+> **핸즈온ML 보강**: [모델 저장과 사용자 정의 코드 import](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#model-serving)
+
 ### 7.1 실행 결과
 
 코드는 `07-suumo/e_components/`(이미지에 들어가는 폴더)와 `e_data_prep.py`(파이프라인 정의)이다. 컴포넌트 10개는 D 의 코드에 `target_image` 만 붙였고, 주소 정규화는 `address.py` 로 뺐다. 결과는 D 를 덮어쓰지 않도록 `suumo/prepared/2026-11-13-e/` 에 쓴다.
@@ -884,6 +906,8 @@ run_id=b49b8e5b-79f2-44af-8e69-6f15e5a03ea8 FINAL=SUCCEEDED took=161s
 ```
 
 코드만 바뀐 두 번째 빌드부터는 pip 층을 캐시로 재사용해 25초 만에 끝났다. 코드를 고칠 때마다 태그를 올리는 것을 규칙으로 둔다.
+
+> **핸즈온ML 보강**: [재현 가능하게 남기기](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#reproducibility) · [모니터링과 재학습](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#monitoring)
 
 **QA 결과**
 
