@@ -5,6 +5,7 @@ draft: true
 tags: ["MLOps", "MLPE", "Kubeflow", "Kubeflow Pipelines", "KFP", "Artifact", "Regression", "Geocoding", "Capstone"]
 categories: ["MLOps"]
 series: ["MLPE 4주차"]
+featuredImage: images/banners/mlpe-07-3-capstone-topics-c1383d08.png
 ---
 `Machine Learning Platform Engineering`의 7.2 ~ 7.3절 데이터 준비 파이프라인을 실제 **도쿄 23구 중고 맨션 매물 데이터**로 학습한 과정이다.
 
