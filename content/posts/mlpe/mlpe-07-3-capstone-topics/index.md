@@ -858,6 +858,29 @@ E 가 만든 Parquet 4개를 D 의 파일과 노트북에서 비교했다.
 
 pandas, pyarrow, scikit-learn, kfp 가 기본 이미지에 약 0.9GB 를 더했다.
 
+**태그를 그대로 두고 코드를 고치면**
+
+`clean_dedup` 의 로그 줄에 `price_removed=` 를 덧붙이고 두 가지로 다시 돌렸다. 먼저 같은 태그 `1.0.0` 으로 다시 빌드해 push 했고, 그다음 태그를 `1.0.1` 로 올렸다.
+
+| run | 태그 | 레지스트리의 digest | Pod 가 실제로 쓴 digest | `clean_dedup` 로그 |
+| --- | --- | --- | --- | --- |
+| `suumo-e-image` | `1.0.0` | `1bf7f84…` | `1bf7f84…` | `… price=24117` |
+| `suumo-e-same-tag` | `1.0.0` (다시 push) | `0817106…` | **`1bf7f84…`** | `… price=24117` (고친 줄 없음) |
+| `suumo-e-tag-1.0.1` | `1.0.1` | `9ca15c1…` | `9ca15c1…` | `… price=24117 price_removed=2` |
+
+KFP 가 만든 Pod 의 `imagePullPolicy` 는 `IfNotPresent` 다. 그래서 노드에 같은 이름의 이미지가 있으면 레지스트리가 바뀌어도 다시 받지 않는다. 태그를 올리자 노드가 새 이미지를 받았고, 바뀐 마지막 층(`COPY . .`)만 받아 3.9초가 걸렸다.
+
+```terminal {title="개발 PC: 태그 올리기"}
+$ sed -i '' 's/suumo-prep:1.0.0/suumo-prep:1.0.1/' e_components/components.py
+$ kfp component build e_components --component-filepattern components.py --platform linux/amd64 --no-push-image
+$ docker push docker.io/hyeonjae0913/suumo-prep:1.0.1
+$ python e_data_prep.py
+$ KFP_HOST=http://192.168.0.242 python run_registered.py e_data_prep.yaml suumo-data-prep-e suumo-e-tag-1.0.1
+run_id=b49b8e5b-79f2-44af-8e69-6f15e5a03ea8 FINAL=SUCCEEDED took=161s
+```
+
+코드만 바뀐 두 번째 빌드부터는 pip 층을 캐시로 재사용해 25초 만에 끝났다. 코드를 고칠 때마다 태그를 올리는 것을 규칙으로 둔다.
+
 **QA 결과**
 
 `address.py` 를 쓰는 8번째 검사까지 모두 통과했다.
