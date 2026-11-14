@@ -5,6 +5,7 @@ draft: false
 tags: ["Machine Learning", "핸즈온 머신러닝", "Scikit-Learn", "pandas", "Cross Validation", "Pipeline", "독서기록"]
 categories: ["Machine Learning"]
 series: ["핸즈온ML 2주차"]
+featuredImage: images/banners/hands-on-ml-02-2-split-to-launch-4de916e9.png
 ---
 `핸즈온 머신러닝 with 사이킷런, 파이토치` 2장에서 [2.5.3절](../hands-on-ml-02-end-to-end-project/)을 뺀 나머지를 정리한 글이다. 캘리포니아 주택 가격 예제를 따라가되, 절마다 [MLPE 4주차 캡스톤](../../mlpe/mlpe-07-3-capstone-topics/)(도쿄 23구 중고 맨션 단가 회귀)과 이어지는 지점을 함께 적는다.
 
