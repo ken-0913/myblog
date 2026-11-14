@@ -1,0 +1,497 @@
+{{- /*
+  hml-demo shortcode — 핸즈온 머신러닝 2장(프로젝트 처음부터 끝까지)의 개념을 보여 주는 작은 인터랙티브 위젯 모음.
+  사용법:  {{< hml-demo norm >}}
+  종류:    pipeline(컴포넌트와 저장소) · norm(오차 벡터의 노름) · rmse(이상치와 RMSE/MAE) · hist(히스토그램 구간)
+           split(시드와 해시 분할) · stratify(계층적 샘플링) · geo(산점도 투명도) · corr(상관계수)
+           impute(결측치 처리) · onehot(범주형 인코딩) · cluster(k-평균과 RBF 유사도) · fit(과소·과대적합)
+           kfold(k-폴드 교차 검증) · search(그리드와 랜덤 서치) · drift(입력 분포 감시)
+  스타일과 스크립트는 페이지당 한 번만 출력한다. 모양은 scaling-demo 와 맞췄고 색은 사이트 토큰(--surface, --line 등)을 따른다.
+  위젯의 숫자는 원리를 보여 주려고 만든 예시 값이다.
+*/ -}}
+{{- $kind := .Get 0 | default "norm" -}}
+{{- if not (.Page.Store.Get "hml-demo-assets") -}}
+{{- .Page.Store.Set "hml-demo-assets" true -}}
+<style>
+  .hd {
+    --hd-a: #2a78d6; --hd-b: #e34948; --hd-c: #b7791f;
+    --hd-ink: #1d1c1a; --hd-muted: #6b6f76; --hd-panel: var(--surface, #fff);
+    --hd-panel2: var(--surface-2, #f3f4f6); --hd-line: var(--line, #e2e4e8);
+    margin: 1.6rem 0; padding: 16px; border: 1px solid var(--hd-line); border-radius: 12px;
+    background: var(--hd-panel); color: var(--hd-ink); font-size: 14px; line-height: 1.5;
+  }
+  html.dark .hd, body[theme="dark"] .hd {
+    --hd-a: #6aa5f0; --hd-b: #ff7b7a; --hd-c: #f0b955; --hd-ink: #ecebe8; --hd-muted: #a0a4ab;
+  }
+  .hd * { box-sizing: border-box; }
+  .hd-title { font-weight: 600; margin: 0 0 4px; }
+  .hd-sub { color: var(--hd-muted); font-size: 13px; margin: 0 0 14px; }
+  .hd-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+  .hd-ctl label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; min-height: 32px; }
+  .hd-ctl label.hd-sl { flex: 1 1 220px; }
+  .hd-ctl label.hd-sl b { min-width: 3.2em; text-align: right; font-variant-numeric: tabular-nums; }
+  .hd input[type="range"] { flex: 1; min-width: 120px; accent-color: var(--hd-a); }
+  .hd-btn {
+    font: inherit; color: inherit; cursor: pointer; min-height: 32px; padding: 4px 12px; border-radius: 8px;
+    border: 1px solid var(--hd-line); background: var(--hd-panel2);
+  }
+  .hd-btn[aria-pressed="true"] { border-color: var(--hd-a); color: var(--hd-a); font-weight: 600; }
+  .hd-btn:focus-visible, .hd input:focus-visible { outline: 2px solid var(--hd-a); outline-offset: 2px; }
+  .hd-legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--hd-muted); margin: 0 0 14px; }
+  .hd-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--hd-a); margin-right: 5px; }
+  .hd-legend i.b { background: var(--hd-b); }
+  .hd-legend i.c { background: var(--hd-c); }
+  .hd-legend i.g { background: var(--hd-muted); opacity: .5; }
+  .hd-legend i.l1, .hd-legend i.l2 { border-radius: 0; height: 3px; width: 16px; vertical-align: middle; }
+  .hd-legend i.l1 { background: var(--hd-c); }
+  .hd-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .hd-stat { background: var(--hd-panel2); border-radius: 8px; padding: 10px 12px; min-width: 0; }
+  .hd-stat span { display: block; font-size: 12px; color: var(--hd-muted); }
+  .hd-stat b { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  .hd-stat b.small { font-size: 13px; }
+
+  /* SVG 그림 */
+  .hd-svg { display: block; width: 100%; max-width: 460px; height: auto; margin: 0 auto 12px; overflow: visible; }
+  .hd-svg text { font-size: 11px; fill: var(--hd-muted); }
+  .hd-svg .ax { stroke: var(--hd-line); stroke-width: 1; fill: none; }
+  .hd-pt { fill: var(--hd-a); transition: transform .6s ease, opacity .4s, fill .4s; }
+  .hd-pt.val { fill: none; stroke: var(--hd-c); stroke-width: 2; }
+  .hd-curve { fill: none; stroke: var(--hd-b); stroke-width: 2; }
+  .hd-l1 { fill: none; stroke: var(--hd-c); stroke-width: 3; stroke-linejoin: round; }
+  .hd-l2 { stroke: var(--hd-a); stroke-width: 3; }
+  .hd-tip { fill: var(--hd-ink); }
+  .hd-svg text.hd-x { font-size: 22px; font-weight: 700; fill: var(--hd-b); transition: transform .6s ease; }
+  .hd-proj { stroke: var(--hd-a); stroke-width: 1; stroke-dasharray: 2 3; opacity: .5; }
+
+  /* 막대 */
+  .hd-bars { display: flex; align-items: flex-end; gap: 1px; height: 140px; border-bottom: 1px solid var(--hd-line); }
+  .hd-bars div { flex: 1; min-width: 0; background: var(--hd-a); border-radius: 2px 2px 0 0; transition: height .5s; }
+  .hd-bars div.out { background: var(--hd-b); }
+  .hd-xlab { display: flex; justify-content: space-between; font-size: 11px; color: var(--hd-muted); margin: 4px 0 14px; }
+  .hd-row-label { font-size: 12px; color: var(--hd-muted); margin: 0 0 4px; }
+  .hd-hbar { position: relative; height: 20px; margin: 0 0 8px; background: var(--hd-panel2); border-radius: 4px; }
+  .hd-hbar div { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: var(--hd-a); min-width: 2px; transition: width .4s; }
+  .hd-hbar div.alt { background: var(--hd-c); }
+  .hd-layers { position: relative; height: 140px; margin-bottom: 0; }
+  .hd-layers .hd-bars { position: absolute; inset: 0; }
+  .hd-layers .ref div { background: var(--hd-muted); opacity: .35; }
+  .hd-layers .live div { opacity: .75; }
+
+  /* 흐름(파이프라인) */
+  .hd-flow { display: flex; flex-wrap: wrap; gap: 6px; align-items: stretch; margin-bottom: 14px; }
+  .hd-node { flex: 1 1 110px; padding: 8px 10px; border: 1px solid var(--hd-line); border-radius: 8px; background: var(--hd-panel2); transition: border-color .3s, background .3s, opacity .3s; }
+  .hd-node.store { border-radius: 18px; border-style: dashed; }
+  .hd-node.on { border-color: var(--hd-a); background: color-mix(in srgb, var(--hd-a) 14%, var(--hd-panel2)); }
+  .hd-node.down { border-color: var(--hd-b); opacity: .6; }
+  .hd-node small { display: block; font-size: 11px; color: var(--hd-muted); }
+  .hd-node b { font-variant-numeric: tabular-nums; }
+
+  /* 번호 붙은 점(분할) */
+  .hd-dots { display: grid; grid-template-columns: repeat(auto-fill, minmax(34px, 1fr)); gap: 6px; margin-bottom: 12px; }
+  .hd-dotn { height: 30px; display: grid; place-items: center; border-radius: 15px; font-size: 12px; font-variant-numeric: tabular-nums; color: #fff; background: var(--hd-a); border: 3px solid transparent; }
+  .hd-dotn.test { background: var(--hd-b); }
+  .hd-dotn.moved { border-color: var(--hd-ink); }
+  .hd-dotn.new { border-style: dashed; border-color: var(--hd-c); }
+
+  /* 비율 비교(계층) */
+  .hd-pair { display: grid; grid-template-columns: 5.5em 1fr 4.5em; gap: 8px; align-items: center; margin-bottom: 8px; font-size: 12px; }
+  .hd-pair-l { color: var(--hd-muted); }
+  .hd-pair-b { position: relative; height: 20px; background: var(--hd-panel2); border-radius: 4px; }
+  .hd-pair-b div { position: absolute; left: 0; height: 8px; border-radius: 3px; transition: width .5s; }
+  .hd-pair-b .ref { top: 1px; background: var(--hd-muted); opacity: .45; }
+  .hd-pair-b .val { top: 11px; background: var(--hd-a); }
+  .hd-pair-e { text-align: right; font-variant-numeric: tabular-nums; }
+  .hd-pair-e.bad { color: var(--hd-b); font-weight: 600; }
+
+  /* 표 */
+  .hd-scroll { overflow-x: auto; margin-bottom: 12px; }
+  .hd table.hd-table { width: auto; min-width: 60%; margin: 0 0 12px; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; background: none; }
+  .hd table.hd-table th, .hd table.hd-table td { padding: 5px 12px; border: 1px solid var(--hd-line); text-align: right; background: none; transition: opacity .4s, background .4s, color .4s; white-space: nowrap; }
+  .hd table.hd-table th { color: var(--hd-muted); font-weight: 500; background: var(--hd-panel2); }
+  .hd table.hd-table td:first-child, .hd table.hd-table th:first-child { text-align: left; }
+  .hd-table .gone, .hd-table tr.gone td { opacity: .22; text-decoration: line-through; }
+  .hd-table td.nan { color: var(--hd-b); }
+  .hd-table td.fill { background: color-mix(in srgb, var(--hd-a) 18%, transparent); color: var(--hd-a); font-weight: 600; }
+  .hd-table td.zero { color: var(--hd-muted); }
+  .hd-table tr.unk td:first-child { color: var(--hd-b); font-weight: 600; }
+
+  /* 폴드 */
+  .hd-folds { margin-bottom: 12px; }
+  .hd-fold { display: grid; grid-template-columns: 4.5em 1fr 4.5em; gap: 8px; align-items: center; margin-bottom: 4px; font-size: 12px; opacity: .3; transition: opacity .3s; }
+  .hd-fold.on { opacity: 1; }
+  .hd-fold-l { color: var(--hd-muted); }
+  .hd-fold-c { display: flex; gap: 2px; }
+  .hd-fold-c i { flex: 1; height: 14px; border-radius: 2px; background: var(--hd-panel2); border: 1px solid var(--hd-line); }
+  .hd-fold-c i.val { background: var(--hd-a); border-color: var(--hd-a); }
+  .hd-fold.cur .hd-fold-c i.val { background: var(--hd-b); border-color: var(--hd-b); }
+  .hd-fold-s { text-align: right; font-variant-numeric: tabular-nums; }
+  @media (prefers-reduced-motion: reduce) { .hd * { transition: none !important; } }
+</style>
+<script>
+window.hdInit = (function () {
+  const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
+  const S = (tag, attrs) => { const e = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
+  const svg = (w, h, label) => S('svg', { viewBox: '0 0 ' + w + ' ' + h, class: 'hd-svg', role: 'img', 'aria-label': label || '' });
+  const stext = (s, x, y, t, anchor) => { const e = S('text', { x, y, 'text-anchor': anchor || 'middle' }); e.textContent = t; s.append(e); return e; };
+  const fmt = (v, d = 2) => v.toFixed(d);
+  const num = (v) => Math.round(v).toLocaleString('en-US');
+  // 재현 가능한 난수(시드 고정)와 정규 난수
+  const rng = (seed) => { seed = seed >>> 0; return () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296; };
+  const normal = (r) => Math.sqrt(-2 * Math.log(r() + 1e-12)) * Math.cos(2 * Math.PI * r());
+  const histo = (xs, lo, hi, n) => { const h = Array(n).fill(0); xs.forEach((x) => { const i = Math.min(n - 1, Math.max(0, Math.floor(((x - lo) / (hi - lo)) * n))); h[i]++; }); return h; };
+  const head = (root, t, sub) => root.append(el('p', 'hd-title', t), el('p', 'hd-sub', sub));
+  const buttons = (root, labels, on) => {
+    const c = el('div', 'hd-ctl');
+    const bs = labels.map((l, i) => { const b = el('button', 'hd-btn', l); b.type = 'button'; b.onclick = () => on(i); c.append(b); return b; });
+    root.append(c); return { bs, set: (i) => bs.forEach((b, k) => b.setAttribute('aria-pressed', k === i)) };
+  };
+  const slider = (parent, label, min, max, step, val, on) => {
+    const l = el('label', 'hd-sl'); const s = el('input'); s.type = 'range'; s.min = min; s.max = max; s.step = step; s.value = val;
+    const o = el('b'); l.append(document.createTextNode(label), s, o); parent.append(l); s.oninput = () => on(+s.value); return { s, o };
+  };
+  const stats = (root, labels) => {
+    const g = el('div', 'hd-stats');
+    const vs = labels.map((l) => { const c = el('div', 'hd-stat'); c.append(el('span', '', l)); const b = el('b'); c.append(b); g.append(c); return b; });
+    root.append(g); return vs;
+  };
+
+  const demos = {
+    // 1.2 컴포넌트와 데이터 파이프라인
+    pipeline(root) {
+      head(root, '컴포넌트는 저장소로만 이어진다', '각 컴포넌트는 앞 저장소의 최신 데이터를 읽어 결과를 다음 저장소에 쓴다. 가운데 컴포넌트를 멈춰도 뒤 컴포넌트는 마지막 출력으로 계속 돈다.');
+      let run = false, stopped = false, timer; const ver = [0, 0, 0];
+      const ctl = buttons(root, ['재생', '정제 컴포넌트 중단'], (i) => { if (i === 0) run = !run; else stopped = !stopped; sync(); });
+      const flow = el('div', 'hd-flow');
+      const nodes = [['comp', '수집 컴포넌트'], ['store', '저장소 A'], ['comp', '정제 컴포넌트'], ['store', '저장소 B'], ['comp', '학습 컴포넌트'], ['store', '모델 저장소']].map(([k, n]) => {
+        const d = el('div', 'hd-node ' + k); d.append(el('small', '', n)); const b = el('b', '', '-'); d.append(b); flow.append(d); return { d, b };
+      });
+      root.append(flow);
+      const [v1, v2] = stats(root, ['학습 컴포넌트가 읽는 데이터의 나이', '상태']);
+      const flash = (...ns) => ns.forEach((i) => { nodes[i].d.classList.add('on'); setTimeout(() => nodes[i].d.classList.remove('on'), 450); });
+      const draw = () => {
+        nodes[0].b.textContent = '실행 중'; nodes[1].b.textContent = 'v' + ver[0];
+        nodes[2].b.textContent = stopped ? '중단' : '실행 중'; nodes[2].d.classList.toggle('down', stopped);
+        nodes[3].b.textContent = 'v' + ver[1]; nodes[4].b.textContent = '실행 중'; nodes[5].b.textContent = 'v' + ver[2] + ' 로 학습';
+        const age = ver[0] - ver[1];
+        v1.textContent = age === 0 ? '최신' : age + '회차 전'; v2.textContent = age === 0 ? '정상' : age < 4 ? '동작하지만 낡는 중' : '낡은 데이터. 감시가 필요하다';
+      };
+      const tick = () => { ver[0]++; flash(0, 1); if (!stopped) { ver[1] = ver[0]; flash(2, 3); } ver[2] = ver[1]; flash(4, 5); draw(); };
+      const sync = () => {
+        ctl.bs[0].textContent = run ? '일시 정지' : '재생'; ctl.bs[0].setAttribute('aria-pressed', run);
+        ctl.bs[1].textContent = stopped ? '정제 컴포넌트 재개' : '정제 컴포넌트 중단'; ctl.bs[1].setAttribute('aria-pressed', stopped);
+        clearInterval(timer); if (run) timer = setInterval(tick, 900); draw();
+      };
+      sync();
+    },
+
+    // 2. 오차 벡터의 노름
+    norm(root) {
+      head(root, '오차 벡터의 길이를 재는 방법', '슬라이더로 두 샘플의 오차를 바꾼다. ℓ2 는 원점에서 끝점까지의 직선 거리이고, ℓ1 은 직각으로만 움직인 거리다. 한쪽 오차만 키우면 ℓ2 는 그 값에 끌려간다.');
+      const ctl = el('div', 'hd-ctl'); root.append(ctl);
+      const W = 300, H = 250, ox = 44, oy = 212, u = 19; const s = svg(W, H, '오차 벡터와 두 가지 거리');
+      s.append(S('line', { x1: ox, y1: oy, x2: ox + u * 10 + 10, y2: oy, class: 'ax' }), S('line', { x1: ox, y1: oy, x2: ox, y2: oy - u * 10 - 10, class: 'ax' }));
+      stext(s, ox, oy + 15, '0'); stext(s, ox + u * 10, oy + 15, '10'); stext(s, ox - 6, oy - u * 10 + 4, '10', 'end');
+      stext(s, ox + u * 5, oy + 32, '샘플 1의 오차 e1'); stext(s, 14, oy - u * 5, '샘플 2의 오차 e2').setAttribute('transform', 'rotate(-90 14 ' + (oy - u * 5) + ')');
+      const l1 = S('polyline', { class: 'hd-l1' }), l2 = S('line', { class: 'hd-l2', x1: ox, y1: oy }), tip = S('circle', { r: 5, class: 'hd-tip' }); s.append(l1, l2, tip); root.append(s);
+      root.append(el('div', 'hd-legend', '<span><i class="l2"></i>ℓ2 노름 (RMSE 가 쓰는 거리)</span><span><i class="l1"></i>ℓ1 노름 (MAE 가 쓰는 거리)</span>'));
+      const [a, b, c, d] = stats(root, ['ℓ1 = |e1| + |e2|', 'ℓ2 = √(e1² + e2²)', 'ℓ∞ = 가장 큰 오차', 'ℓ2 제곱에서 큰 오차의 몫']);
+      const e = [6, 3];
+      const draw = () => {
+        const x = ox + e[0] * u, y = oy - e[1] * u; l1.setAttribute('points', ox + ',' + oy + ' ' + x + ',' + oy + ' ' + x + ',' + y);
+        l2.setAttribute('x2', x); l2.setAttribute('y2', y); tip.setAttribute('cx', x); tip.setAttribute('cy', y);
+        const n2 = Math.hypot(e[0], e[1]), m = Math.max(e[0], e[1]);
+        a.textContent = fmt(e[0] + e[1], 1); b.textContent = fmt(n2); c.textContent = fmt(m, 1); d.textContent = n2 ? fmt((100 * m * m) / (n2 * n2), 0) + '%' : '-';
+        s1.o.textContent = fmt(e[0], 1); s2.o.textContent = fmt(e[1], 1);
+      };
+      const s1 = slider(ctl, 'e1', 0, 10, 0.5, e[0], (v) => { e[0] = v; draw(); }); const s2 = slider(ctl, 'e2', 0, 10, 0.5, e[1], (v) => { e[1] = v; draw(); }); draw();
+    },
+
+    // 2. 이상치 하나와 RMSE, MAE
+    rmse(root) {
+      head(root, '큰 오차 하나에 대한 두 지표의 반응', '샘플 여섯 개 가운데 마지막 하나의 오차를 키운다. RMSE 는 오차를 제곱하므로 MAE 보다 빨리 커진다.');
+      const ctl = el('div', 'hd-ctl'); root.append(ctl);
+      const base = [2, 1, 3, 2, 1]; let out = 3;
+      const bars = el('div', 'hd-bars'); const bs = [...base, 0].map((v, i) => { const b = el('div', i === 5 ? 'out' : ''); bars.append(b); return b; }); root.append(bars);
+      root.append(el('div', 'hd-xlab', '<span>샘플 1</span><span>샘플별 오차 크기 (세로축 최대 40)</span><span>샘플 6</span>'));
+      const mk = (name, cls) => { root.append(el('div', 'hd-row-label', name)); const h = el('div', 'hd-hbar'); const bar = el('div', cls); h.append(bar); root.append(h); return bar; };
+      const br = mk('RMSE', ''), bm = mk('MAE', 'alt');
+      const [v1, v2, v3] = stats(root, ['RMSE', 'MAE', 'RMSE ÷ MAE']);
+      const draw = () => {
+        const es = [...base, out]; bs.forEach((b, i) => (b.style.height = (es[i] / 40) * 100 + '%'));
+        const r = Math.sqrt(es.reduce((p, x) => p + x * x, 0) / 6), m = es.reduce((p, x) => p + x, 0) / 6;
+        br.style.width = (r / 18) * 100 + '%'; bm.style.width = (m / 18) * 100 + '%';
+        v1.textContent = fmt(r, 1); v2.textContent = fmt(m, 1); v3.textContent = fmt(r / m); sl.o.textContent = out;
+      };
+      const sl = slider(ctl, '샘플 6의 오차', 0, 40, 1, out, (v) => { out = v; draw(); }); draw();
+    },
+
+    // 3. 히스토그램 구간 수
+    hist(root) {
+      head(root, '구간 수에 따라 달라지는 히스토그램', '중간 주택 가격의 예시 분포다. 구간(bins)을 늘리면 오른쪽 끝에 상한 50만 달러에서 잘린 값이 기둥으로 드러난다.');
+      const r = rng(5); const raw = Array.from({ length: 5000 }, () => Math.min(500001, Math.exp(12.05 + 0.57 * normal(r))));
+      const ctl = el('div', 'hd-ctl'); root.append(ctl);
+      const bars = el('div', 'hd-bars'); root.append(bars, el('div', 'hd-xlab', '<span>0</span><span>중간 주택 가격 (달러)</span><span>500,000</span>'));
+      const [v1, v2] = stats(root, ['마지막 구간에 든 구역의 비율', '남은 구역 수']);
+      let n = 10; const lab = el('label'); const cb = el('input'); cb.type = 'checkbox'; lab.append(cb, document.createTextNode('상한에서 잘린 구역 제거'));
+      const draw = () => {
+        const xs = cb.checked ? raw.filter((x) => x < 500000) : raw; const h = histo(xs, 0, 500001, n); const top = Math.max(...h);
+        bars.replaceChildren(...h.map((c, i) => { const b = el('div', !cb.checked && i === n - 1 ? 'out' : ''); b.style.height = (c / top) * 100 + '%'; return b; }));
+        v1.textContent = fmt((h[n - 1] / xs.length) * 100, 1) + '%'; v2.textContent = num(xs.length); sl.o.textContent = n;
+      };
+      const sl = slider(ctl, 'bins', 5, 60, 1, n, (v) => { n = v; draw(); }); ctl.append(lab); cb.onchange = draw; draw();
+    },
+
+    // 4.2 시드와 해시 기반 분할
+    split(root) {
+      head(root, '다시 실행하거나 데이터가 늘면 테스트 세트는 어떻게 되나', '빨간 점이 테스트 세트(약 20%)다. 방식을 고른 뒤 "다시 실행" 과 "새 데이터 추가" 를 눌러 본다. 테두리가 굵은 점은 직전 실행과 소속이 바뀐 샘플이다.');
+      let mode = 0, n = 25, run = 0, prev = null, seen = new Set();
+      const mb = buttons(root, ['시드 없이 무작위', '시드 고정 (42)', 'ID 해시'], (i) => { mode = i; reset(); });
+      buttons(root, ['다시 실행', '새 데이터 5개 추가', '처음으로'], (i) => { if (i === 2) return reset(); if (i === 1 && n < 60) n += 5; run++; draw(); });
+      const grid = el('div', 'hd-dots'); root.append(grid);
+      root.append(el('div', 'hd-legend', '<span><i></i>훈련 세트</span><span><i class="b"></i>테스트 세트</span><span><i class="c"></i>점선 테두리는 새로 추가된 샘플</span>'));
+      const [v1, v2, v3] = stats(root, ['테스트 세트 크기', '직전 실행과 소속이 바뀐 샘플', '한 번이라도 테스트 세트였던 샘플']);
+      const hash = (id) => (Math.imul(id, 2654435761) >>> 0) / 4294967296;
+      const pick = () => {
+        const ids = Array.from({ length: n }, (_, i) => i + 1);
+        if (mode === 2) return new Set(ids.filter((id) => hash(id) < 0.2));
+        const r = rng(mode === 1 ? 42 : 1000 + run * 7919 + n); for (let k = 0; k < 5; k++) r();
+        for (let i = n - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
+        return new Set(ids.slice(0, Math.round(n * 0.2)));
+      };
+      const draw = () => {
+        const t = pick(); let moved = 0; grid.replaceChildren();
+        for (let id = 1; id <= n; id++) {
+          const d = el('div', 'hd-dotn' + (t.has(id) ? ' test' : ''), id);
+          if (prev && id <= prev.n && prev.t.has(id) !== t.has(id)) { d.classList.add('moved'); moved++; }
+          if (prev && id > prev.n) d.classList.add('new');
+          grid.append(d);
+        }
+        t.forEach((id) => seen.add(id));
+        v1.textContent = t.size + ' / ' + n; v2.textContent = prev ? moved + '개' : '-'; v3.textContent = seen.size + ' / ' + n; prev = { t, n }; mb.set(mode);
+      };
+      const reset = () => { n = 25; run = 0; prev = null; seen = new Set(); draw(); }; reset();
+    },
+
+    // 4.3 계층적 샘플링
+    stratify(root) {
+      head(root, '계층 비율이 테스트 세트에서도 유지되는가', '소득 카테고리 다섯 개의 전체 비율(회색)과 테스트 세트 비율(파랑)을 비교한다. 무작위로 여러 번 뽑아 보고, 테스트 세트를 작게도 만들어 본다.');
+      const P = [3.98, 31.88, 35.06, 17.63, 11.44]; let n = 400, mode = 0, seed = 1;
+      const ctl = el('div', 'hd-ctl'); root.append(ctl);
+      const bt = buttons(root, ['무작위로 다시 뽑기', '계층적 샘플링'], (i) => { mode = i; if (i === 0) seed++; draw(); });
+      const rows = P.map((p, i) => {
+        const row = el('div', 'hd-pair'); row.append(el('span', 'hd-pair-l', '카테고리 ' + (i + 1))); const box = el('div', 'hd-pair-b');
+        const a = el('div', 'ref'), b = el('div', 'val'); a.style.width = (p / 42) * 100 + '%'; box.append(a, b); const e = el('span', 'hd-pair-e'); row.append(box, e); root.append(row); return { b, e };
+      });
+      root.append(el('div', 'hd-legend', '<span><i class="g"></i>전체 데이터의 비율</span><span><i></i>테스트 세트의 비율</span><span>오른쪽 숫자는 비율 오차</span>'));
+      const [v1, v2] = stats(root, ['가장 크게 어긋난 카테고리의 비율 오차', '테스트 세트 크기']);
+      const draw = () => {
+        let c;
+        if (mode === 1) c = P.map((p) => Math.round((n * p) / 100));
+        else { const r = rng(seed * 7919 + n); for (let k = 0; k < 5; k++) r(); c = [0, 0, 0, 0, 0]; for (let k = 0; k < n; k++) { let u = r() * 100, i = 0; while (i < 4 && u >= P[i]) { u -= P[i]; i++; } c[i]++; } }
+        const tot = c.reduce((p, q) => p + q, 0); let worst = 0;
+        rows.forEach((row, i) => {
+          const q = (c[i] / tot) * 100, err = (q / P[i] - 1) * 100; row.b.style.width = (Math.min(42, q) / 42) * 100 + '%';
+          row.e.textContent = (err >= 0 ? '+' : '') + fmt(err, 1) + '%'; row.e.classList.toggle('bad', Math.abs(err) > 5); worst = Math.max(worst, Math.abs(err));
+        });
+        v1.textContent = fmt(worst, 1) + '%'; v2.textContent = num(n) + '개'; bt.set(mode); sl.o.textContent = num(n);
+      };
+      const sl = slider(ctl, '테스트 세트 크기', 100, 4100, 100, n, (v) => { n = v; draw(); }); draw();
+    },
+
+    // 5.1 지리적 산점도
+    geo(root) {
+      head(root, '겹친 점은 투명도로 밀도를 드러낸다', '예시로 만든 구역 900개다. alpha 를 낮추면 점이 많이 겹친 곳만 진하게 남는다. 색을 켜면 가격이 높은 곳이 붉게 보인다.');
+      const r = rng(3); const C = [[85, 70, 16, 0.42], [215, 150, 20, 0.36], [150, 110, 62, 0.22]];
+      const W = 300, H = 220; const s = svg(W, H, '구역 위치 산점도'); s.append(S('rect', { x: 1, y: 1, width: W - 2, height: H - 2, class: 'ax', rx: 6 }));
+      const pts = Array.from({ length: 900 }, () => {
+        let u = r(), c = C[0]; for (const q of C) { if (u < q[3]) { c = q; break; } u -= q[3]; }
+        const x = Math.min(W - 6, Math.max(6, c[0] + c[2] * normal(r))), y = Math.min(H - 6, Math.max(6, c[1] + c[2] * 0.75 * normal(r)));
+        const d = Math.min(Math.hypot(x - C[0][0], y - C[0][1]), Math.hypot(x - C[1][0], y - C[1][1]));
+        const el2 = S('circle', { cx: x.toFixed(1), cy: y.toFixed(1), r: 2.6, class: 'hd-pt' }); s.append(el2);
+        return { el2, price: Math.max(0, Math.min(100, 100 * Math.exp(-(d * d) / 1400) + 8 * normal(r))) };
+      });
+      const ctl = el('div', 'hd-ctl'); root.append(ctl, s);
+      root.append(el('div', 'hd-xlab', '<span>경도</span><span>점 하나가 구역 하나</span><span>위도는 세로축</span>'));
+      let alpha = 1; const lab = el('label'); const cb = el('input'); cb.type = 'checkbox'; lab.append(cb, document.createTextNode('색으로 가격 표시 (c=, cmap)'));
+      const draw = () => { pts.forEach((p) => { p.el2.style.opacity = alpha; p.el2.style.fill = cb.checked ? 'color-mix(in srgb, var(--hd-b) ' + p.price.toFixed(0) + '%, var(--hd-a))' : ''; }); sl.o.textContent = fmt(alpha); };
+      const sl = slider(ctl, 'alpha', 0.05, 1, 0.05, alpha, (v) => { alpha = v; draw(); }); ctl.append(lab); cb.onchange = draw; draw();
+    },
+
+    // 5.2 상관계수
+    corr(root) {
+      head(root, '상관계수는 직선 관계만 잰다', '슬라이더로 r 을 바꾸면 점들이 직선에 붙거나 흩어진다. U자형과 원형은 관계가 뚜렷한데도 r 이 0 에 가깝다.');
+      const rr = rng(9), N = 160; const zx = Array.from({ length: N }, () => normal(rr)), zy = Array.from({ length: N }, () => normal(rr)), th = Array.from({ length: N }, () => rr() * 2 * Math.PI);
+      let shape = 0, rho = 0.7;
+      const bt = buttons(root, ['선형', 'U자형', '원형'], (i) => { shape = i; draw(); }); const ctl = el('div', 'hd-ctl'); root.append(ctl);
+      const W = 300, H = 230; const s = svg(W, H, '두 특성의 산점도'); s.append(S('rect', { x: 1, y: 1, width: W - 2, height: H - 2, class: 'ax', rx: 6 }), S('line', { x1: W / 2, y1: 8, x2: W / 2, y2: H - 8, class: 'ax' }), S('line', { x1: 8, y1: H / 2, x2: W - 8, y2: H / 2, class: 'ax' }));
+      const cs = zx.map(() => { const c = S('circle', { r: 3, class: 'hd-pt' }); c.style.opacity = 0.7; s.append(c); return c; }); root.append(s);
+      const [v1, v2] = stats(root, ['표본 상관계수 r', '읽는 법']); v2.classList.add('small');
+      const draw = () => {
+        let xs, ys;
+        if (shape === 0) { xs = zx; ys = zx.map((x, i) => rho * x + Math.sqrt(1 - rho * rho) * zy[i]); }
+        else if (shape === 1) { xs = zx; ys = zx.map((x, i) => x * x - 1.2 + 0.25 * zy[i]); }
+        else { xs = th.map((t, i) => 1.7 * Math.cos(t) + 0.12 * zx[i]); ys = th.map((t, i) => 1.7 * Math.sin(t) + 0.12 * zy[i]); }
+        cs.forEach((c, i) => { const px = W / 2 + Math.max(-3, Math.min(3, xs[i])) * 46, py = H / 2 - Math.max(-2.4, Math.min(2.4, ys[i])) * 43; c.style.transform = 'translate(' + px.toFixed(1) + 'px,' + py.toFixed(1) + 'px)'; });
+        const mean = (a) => a.reduce((p, q) => p + q, 0) / a.length; const mx = mean(xs), my = mean(ys); let sxy = 0, sxx = 0, syy = 0;
+        xs.forEach((x, i) => { sxy += (x - mx) * (ys[i] - my); sxx += (x - mx) ** 2; syy += (ys[i] - my) ** 2; }); const rv = sxy / Math.sqrt(sxx * syy);
+        v1.textContent = fmt(rv); v2.textContent = shape ? '관계는 뚜렷하지만 직선이 아니라 r 이 잡지 못한다' : Math.abs(rv) > 0.7 ? '강한 선형 관계' : Math.abs(rv) > 0.3 ? '약한 선형 관계' : '선형 관계가 거의 없다';
+        bt.set(shape); sl.s.disabled = shape !== 0; sl.o.textContent = fmt(rho);
+      };
+      const sl = slider(ctl, '목표 r', -1, 1, 0.05, rho, (v) => { rho = v; draw(); }); draw();
+    },
+
+    // 6.1 결측치 처리
+    impute(root) {
+      head(root, '빈 값을 처리하는 세 가지 방법', 'total_bedrooms 가 빈 구역이 둘 있는 예시 표다. 방법마다 무엇이 사라지고 무엇이 남는지 본다.');
+      const data = [[1, 880, 129], [2, 7099, 1106], [3, 1467, null], [4, 1274, 235], [5, 1627, 280], [6, 919, null], [7, 2535, 489]];
+      const bt = buttons(root, ['원본', '행 제거 (dropna)', '열 삭제 (drop)', '중간값 대체 (SimpleImputer)'], (i) => draw(i));
+      const wrap = el('div', 'hd-scroll'); const tb = el('table', 'hd-table'); tb.innerHTML = '<thead><tr><th>구역</th><th>total_rooms</th><th>total_bedrooms</th></tr></thead>'; const body = el('tbody'); tb.append(body); wrap.append(tb); root.append(wrap);
+      const th3 = tb.querySelectorAll('th')[2];
+      const cells = data.map(([id, rooms, beds]) => { const tr = el('tr'); const c = [el('td', '', id), el('td', '', num(rooms)), el('td')]; tr.append(...c); body.append(tr); return { tr, c, beds }; });
+      const [v1, v2, v3] = stats(root, ['남은 구역', '남은 특성', '채운 값']);
+      const draw = (m) => {
+        bt.set(m); th3.classList.toggle('gone', m === 2);
+        cells.forEach(({ tr, c, beds }) => {
+          tr.classList.toggle('gone', m === 1 && beds == null); c[2].classList.toggle('gone', m === 2);
+          c[2].classList.toggle('fill', m === 3 && beds == null); c[2].classList.toggle('nan', m !== 3 && beds == null);
+          c[2].textContent = beds == null ? (m === 3 ? '280' : 'NaN') : num(beds);
+        });
+        v1.textContent = (m === 1 ? 5 : 7) + ' / 7'; v2.textContent = (m === 2 ? 1 : 2) + ' / 2'; v3.textContent = m === 3 ? '2개 (중간값 280)' : '없음';
+      };
+      draw(0);
+    },
+
+    // 6.3 범주형 인코딩
+    onehot(root) {
+      head(root, '범주를 숫자로 바꾸는 두 방법', 'OrdinalEncoder 는 카테고리에 번호를 매겨 원래 없던 순서와 거리를 만든다. OneHotEncoder 는 카테고리마다 열을 하나씩 둔다.');
+      const cats = ['<1H OCEAN', 'INLAND', 'ISLAND', 'NEAR BAY', 'NEAR OCEAN'], rows = ['NEAR BAY', '<1H OCEAN', 'INLAND', 'ISLAND', 'INLAND'];
+      const notes = ['번호 0 과 1 은 가깝고 0 과 4 는 멀다고 모델이 받아들인다. 실제 카테고리에는 그런 순서가 없다.', '행마다 1 은 하나뿐이다. 열 구성은 fit 할 때 본 카테고리로 고정된다.', 'handle_unknown="ignore" 이면 처음 보는 값은 모든 열이 0 이 된다. get_dummies 는 이 값으로 새 열을 만들어 학습 때와 열 구성이 달라진다.'];
+      const bt = buttons(root, ['OrdinalEncoder', 'OneHotEncoder', '처음 보는 카테고리 입력'], (i) => draw(i));
+      const wrap = el('div', 'hd-scroll'); const tb = el('table', 'hd-table'); wrap.append(tb); root.append(wrap); const note = el('p', 'hd-sub'); note.style.margin = '0'; root.append(note);
+      const esc = (t) => t.replace('<', '&lt;');
+      const draw = (m) => {
+        bt.set(m); const rs = m === 2 ? [...rows, '<2H OCEAN'] : rows;
+        let h = '<thead><tr><th>ocean_proximity</th>' + (m === 0 ? '<th>인코딩 결과</th>' : cats.map((c) => '<th>' + esc(c) + '</th>').join('')) + '</tr></thead><tbody>';
+        rs.forEach((v) => { const k = cats.indexOf(v); h += '<tr' + (k < 0 ? ' class="unk"' : '') + '><td>' + esc(v) + '</td>' + (m === 0 ? '<td class="fill">' + k + '</td>' : cats.map((c, i) => '<td class="' + (i === k ? 'fill' : 'zero') + '">' + (i === k ? 1 : 0) + '</td>').join('')) + '</tr>'; });
+        tb.innerHTML = h + '</tbody>'; note.textContent = notes[m];
+      };
+      draw(0);
+    },
+
+    // 8.2 k-평균과 RBF 유사도 (ClusterSimilarity)
+    cluster(root) {
+      head(root, 'k-평균으로 군집 중심을 찾고 유사도를 잰다', '× 가 군집 중심이다. "한 단계" 를 누르면 중심이 자기 군집의 평균 위치로 옮겨 간다. 점의 진하기는 가장 가까운 중심과의 가우스 RBF 유사도이다.');
+      const r0 = rng(21); const pts = []; [[70, 60, 16], [200, 70, 20], [120, 150, 18], [235, 170, 14], [60, 170, 12]].forEach(([cx, cy, sd]) => { for (let i = 0; i < 45; i++) pts.push([cx + sd * normal(r0), cy + sd * normal(r0)]); });
+      let k = 5, g = 1, it = 0, cen = [], timer; const KS = [3, 5, 8];
+      const kb = buttons(root, KS.map((v) => '군집 ' + v + '개'), (i) => { k = KS[i]; init(); });
+      buttons(root, ['한 단계', '자동 재생', '초기화'], (i) => { clearInterval(timer); if (i === 0) step(); else if (i === 1) timer = setInterval(() => { if (!step()) clearInterval(timer); }, 750); else init(); });
+      const ctl = el('div', 'hd-ctl'); root.append(ctl);
+      const W = 300, H = 230; const s = svg(W, H, '구역 위치와 군집 중심'); s.append(S('rect', { x: 1, y: 1, width: W - 2, height: H - 2, class: 'ax', rx: 6 }));
+      const cs = pts.map(([x, y]) => { const c = S('circle', { cx: x.toFixed(1), cy: y.toFixed(1), r: 3, class: 'hd-pt' }); s.append(c); return c; });
+      const marks = Array.from({ length: 8 }, () => { const t = S('text', { class: 'hd-x', 'text-anchor': 'middle', dy: '0.35em' }); t.textContent = '×'; s.append(t); return t; }); root.append(s);
+      const [v1, v2, v3] = stats(root, ['반복 횟수', '관성 (중심까지 거리 제곱의 합)', '첫 번째 점의 유사도 벡터']); v3.classList.add('small');
+      const d2 = (p, c) => (p[0] - c[0]) ** 2 + (p[1] - c[1]) ** 2;
+      const near = (p) => { let b = 0; cen.forEach((c, i) => { if (d2(p, c) < d2(p, cen[b])) b = i; }); return b; };
+      const draw = () => {
+        const sc = g / 6000; let inertia = 0;
+        pts.forEach((p, i) => { const d = d2(p, cen[near(p)]); inertia += d; cs[i].style.opacity = 0.1 + 0.9 * Math.exp(-sc * d); });
+        marks.forEach((m, i) => { m.style.display = i < k ? '' : 'none'; if (i < k) m.style.transform = 'translate(' + cen[i][0].toFixed(1) + 'px,' + cen[i][1].toFixed(1) + 'px)'; });
+        v1.textContent = it; v2.textContent = num(inertia); v3.textContent = '[' + cen.map((c) => fmt(Math.exp(-sc * d2(pts[0], c)))).join(', ') + ']'; sl.o.textContent = fmt(g, 1);
+      };
+      const step = () => {
+        const sum = cen.map(() => [0, 0, 0]); pts.forEach((p) => { const b = near(p); sum[b][0] += p[0]; sum[b][1] += p[1]; sum[b][2]++; });
+        let moved = 0; cen = cen.map((c, i) => { if (!sum[i][2]) return c; const n = [sum[i][0] / sum[i][2], sum[i][1] / sum[i][2]]; moved += d2(n, c); return n; });
+        if (moved > 0.01) it++; draw(); return moved > 0.01;
+      };
+      const init = () => { clearInterval(timer); it = 0; const r = rng(4); for (let i = 0; i < 5; i++) r(); cen = Array.from({ length: k }, () => [40 + r() * 220, 30 + r() * 170]); kb.set(KS.indexOf(k)); draw(); };
+      const sl = slider(ctl, 'γ (gamma)', 0.2, 5, 0.2, g, (v) => { g = v; draw(); }); init();
+    },
+
+    // 9.1 과소적합과 과대적합
+    fit(root) {
+      head(root, '모델 복잡도와 두 가지 오차', '다항식의 차수를 올리면 훈련 오차는 계속 줄지만, 검증 오차는 어느 지점부터 다시 커진다.');
+      const r = rng(12); for (let i = 0; i < 5; i++) r(); const f = (x) => Math.sin(3.2 * x);
+      const mk = (n) => Array.from({ length: n }, () => { const x = -1 + 2 * r(); return [x, f(x) + 0.22 * normal(r)]; }); const tr = mk(16), va = mk(16);
+      const solve = (deg) => {
+        const m = deg + 1; const A = Array.from({ length: m }, () => Array(m + 1).fill(0));
+        tr.forEach(([x, y]) => { const pw = [1]; for (let i = 1; i < 2 * m; i++) pw.push(pw[i - 1] * x); for (let i = 0; i < m; i++) { for (let j = 0; j < m; j++) A[i][j] += pw[i + j]; A[i][m] += pw[i] * y; } });
+        for (let i = 0; i < m; i++) A[i][i] += 1e-9;
+        for (let i = 0; i < m; i++) { let p = i; for (let q = i + 1; q < m; q++) if (Math.abs(A[q][i]) > Math.abs(A[p][i])) p = q; [A[i], A[p]] = [A[p], A[i]]; for (let q = i + 1; q < m; q++) { const t = A[q][i] / A[i][i]; for (let c = i; c <= m; c++) A[q][c] -= t * A[i][c]; } }
+        const w = Array(m).fill(0); for (let i = m - 1; i >= 0; i--) { let sum = A[i][m]; for (let j = i + 1; j < m; j++) sum -= A[i][j] * w[j]; w[i] = sum / A[i][i]; } return w;
+      };
+      const pred = (w, x) => w.reduceRight((a, c) => a * x + c, 0);
+      const err = (w, d) => Math.sqrt(d.reduce((a, [x, y]) => a + (pred(w, x) - y) ** 2, 0) / d.length);
+      const ctl = el('div', 'hd-ctl'); root.append(ctl);
+      const W = 300, H = 220, X = (x) => 150 + x * 135, Y = (y) => 110 - Math.max(-1.75, Math.min(1.75, y)) * 58; const s = svg(W, H, '데이터와 다항식 곡선');
+      s.append(S('rect', { x: 1, y: 1, width: W - 2, height: H - 2, class: 'ax', rx: 6 })); const path = S('path', { class: 'hd-curve' }); s.append(path);
+      tr.forEach(([x, y]) => s.append(S('circle', { cx: X(x), cy: Y(y), r: 3.5, class: 'hd-pt' }))); va.forEach(([x, y]) => s.append(S('circle', { cx: X(x), cy: Y(y), r: 3.5, class: 'hd-pt val' }))); root.append(s);
+      root.append(el('div', 'hd-legend', '<span><i></i>훈련 샘플</span><span><i class="c"></i>검증 샘플</span><span><i class="b"></i>학습한 곡선</span>'));
+      const [v1, v2, v3] = stats(root, ['훈련 RMSE', '검증 RMSE', '판단']); let deg = 1;
+      const draw = () => {
+        const w = solve(deg); let d = ''; for (let x = -1; x <= 1.0001; x += 0.02) d += (d ? 'L' : 'M') + X(x).toFixed(1) + ' ' + Y(pred(w, x)).toFixed(1); path.setAttribute('d', d);
+        const a = err(w, tr), b = err(w, va); v1.textContent = fmt(a); v2.textContent = fmt(b); v3.textContent = a > 0.35 ? '과소적합' : b > 1.6 * a ? '과대적합' : '적절'; sl.o.textContent = deg + '차';
+      };
+      const sl = slider(ctl, '다항식 차수', 1, 8, 1, deg, (v) => { deg = v; draw(); }); draw();
+    },
+
+    // 9.2 k-폴드 교차 검증
+    kfold(root) {
+      head(root, 'k-폴드 교차 검증 (k = 10)', '재생을 누르면 검증 폴드(색칠한 칸)가 한 칸씩 옮겨 가며 모델을 10번 학습하고 평가한다. 점수는 예시 값이다.');
+      const sc = [66826, 64608, 66204, 68532, 66388, 67010, 65950, 66420, 67330, 66470]; let timer;
+      buttons(root, ['재생', '모두 보기'], (i) => { clearInterval(timer); if (i === 1) return show(10); let n = 0; show(0); timer = setInterval(() => { show(++n); if (n >= 10) clearInterval(timer); }, 650); });
+      const g = el('div', 'hd-folds');
+      const rows = sc.map((v, i) => { const row = el('div', 'hd-fold'); row.append(el('span', 'hd-fold-l', '분할 ' + (i + 1))); const cells = el('div', 'hd-fold-c'); for (let j = 0; j < 10; j++) cells.append(el('i', j === i ? 'val' : '')); const out = el('span', 'hd-fold-s'); row.append(cells, out); g.append(row); return { row, out }; });
+      root.append(g, el('div', 'hd-legend', '<span><i></i>검증 폴드</span><span>나머지 9칸은 훈련 폴드, 오른쪽 숫자는 그 분할의 RMSE</span>'));
+      const [v1, v2, v3] = stats(root, ['끝난 학습 횟수', 'RMSE 평균', 'RMSE 표준 편차']);
+      const show = (n) => {
+        rows.forEach((r, i) => { r.row.classList.toggle('on', i < n); r.row.classList.toggle('cur', i === n - 1 && n < 10); r.out.textContent = i < n ? num(sc[i]) : ''; });
+        const d = sc.slice(0, n), m = d.reduce((a, b) => a + b, 0) / (n || 1);
+        v1.textContent = n + ' / 10'; v2.textContent = n ? num(m) : '-'; v3.textContent = n > 1 ? num(Math.sqrt(d.reduce((a, b) => a + (b - m) ** 2, 0) / (n - 1))) : '-';
+      };
+      show(10);
+    },
+
+    // 9.3 그리드 서치와 랜덤 서치
+    search(root) {
+      head(root, '같은 9번이라도 시도하는 값의 수가 다르다', '가로축 하이퍼파라미터만 점수에 영향을 준다고 가정한 예시다. 그리드 서치는 가로축에서 값 3개만 시도하고, 랜덤 서치는 9개를 시도한다.');
+      let mode = 0, seed = 1; const f = (u) => Math.exp(-(((u - 0.64) / 0.13) ** 2));
+      const bt = buttons(root, ['그리드 서치 (3 × 3)', '랜덤 서치 (누를 때마다 다시 뽑기)'], (i) => { mode = i; if (i === 1) seed++; draw(); });
+      const W = 300, H = 270, x0 = 40, x1 = 285, X = (u) => x0 + u * (x1 - x0), Yc = (v) => 72 - v * 58, Yb = (u) => 235 - u * 135; const s = svg(W, H, '하이퍼파라미터 공간과 점수 곡선');
+      let d = ''; for (let u = 0; u <= 1.001; u += 0.01) d += (d ? 'L' : 'M') + X(u).toFixed(1) + ' ' + Yc(f(u)).toFixed(1);
+      s.append(S('path', { d, class: 'hd-curve' }), S('line', { x1: x0, y1: 72, x2: x1, y2: 72, class: 'ax' }), S('rect', { x: x0, y: 100, width: x1 - x0, height: 135, class: 'ax' }));
+      stext(s, x0 - 6, 20, '점수', 'end'); stext(s, (x0 + x1) / 2, 256, '중요한 하이퍼파라미터'); stext(s, 14, 168, '덜 중요한 하이퍼파라미터').setAttribute('transform', 'rotate(-90 14 168)');
+      const items = Array.from({ length: 9 }, () => { const l = S('line', { class: 'hd-proj' }), a = S('circle', { r: 4, class: 'hd-pt' }), b = S('circle', { r: 3.5, class: 'hd-pt' }); s.append(l, a, b); return { l, a, b }; }); root.append(s);
+      const [v1, v2] = stats(root, ['가로축에서 시도한 서로 다른 값', '찾은 최고 점수 (최대 1.00)']);
+      const draw = () => {
+        const G = [1 / 6, 0.5, 5 / 6]; const r = rng(seed * 7919); for (let i = 0; i < 5; i++) r();
+        const P = mode ? Array.from({ length: 9 }, () => [r(), r()]) : G.flatMap((a) => G.map((b) => [a, b]));
+        items.forEach((it, i) => { const [u, w] = P[i]; it.a.style.transform = 'translate(' + X(u).toFixed(1) + 'px,' + Yb(w).toFixed(1) + 'px)'; it.b.style.transform = 'translate(' + X(u).toFixed(1) + 'px,' + Yc(f(u)).toFixed(1) + 'px)'; it.l.setAttribute('x1', X(u)); it.l.setAttribute('x2', X(u)); it.l.setAttribute('y1', Yc(f(u))); it.l.setAttribute('y2', Yb(w)); });
+        v1.textContent = new Set(P.map((p) => p[0].toFixed(4))).size + '개'; v2.textContent = fmt(Math.max(...P.map((p) => f(p[0])))); bt.set(mode);
+      };
+      draw();
+    },
+
+    // 10.3 입력 분포 감시
+    drift(root) {
+      head(root, '입력 분포가 훈련 때와 멀어지는지 감시한다', '회색은 훈련 세트의 특성 분포, 파랑은 운영 중 들어오는 입력의 분포다. 시간을 흘리면 평균이 서서히 옮겨 가고, 기준을 넘으면 경보가 뜬다.');
+      let m = 0, timer; const NB = 40, lo = -4, hi = 6; const pdf = (x, mu, sd) => Math.exp(-0.5 * ((x - mu) / sd) ** 2) / sd;
+      const bt = buttons(root, ['시간 흘리기'], () => { if (timer) { clearInterval(timer); timer = null; } else { if (m >= 24) m = 0; timer = setInterval(() => { m++; sl.s.value = m; draw(); if (m >= 24) { clearInterval(timer); timer = null; draw(); } }, 350); } draw(); });
+      const ctl = el('div', 'hd-ctl'); root.append(ctl);
+      const layers = el('div', 'hd-layers'); const mkL = (cls) => { const b = el('div', 'hd-bars ' + cls); const ds = Array.from({ length: NB }, () => { const d = el('div'); b.append(d); return d; }); layers.append(b); return ds; };
+      const ref = mkL('ref'), live = mkL('live'); root.append(layers, el('div', 'hd-xlab', '<span>작다</span><span>특성 값</span><span>크다</span>'));
+      root.append(el('div', 'hd-legend', '<span><i class="g"></i>훈련 세트</span><span><i></i>운영 입력</span>'));
+      const [v1, v2, v3] = stats(root, ['평균 이동 (훈련 표준 편차 단위)', '표준 편차 비율', '상태']);
+      const xs = Array.from({ length: NB }, (_, i) => lo + ((i + 0.5) / NB) * (hi - lo)); ref.forEach((d, i) => (d.style.height = pdf(xs[i], 0, 1) * 100 + '%'));
+      const draw = () => {
+        const mu = 0.07 * m, sd = 1 + 0.012 * m; live.forEach((d, i) => (d.style.height = pdf(xs[i], mu, sd) * 100 + '%'));
+        v1.textContent = fmt(mu); v2.textContent = fmt(sd); v3.textContent = mu < 0.5 ? '정상' : mu < 1 ? '주의' : '경보. 재학습을 검토한다'; v3.style.color = mu < 0.5 ? '' : mu < 1 ? 'var(--hd-c)' : 'var(--hd-b)';
+        sl.o.textContent = m + '개월'; bt.bs[0].textContent = timer ? '멈춤' : '시간 흘리기'; bt.bs[0].setAttribute('aria-pressed', !!timer);
+      };
+      const sl = slider(ctl, '배포 후 지난 시간', 0, 24, 1, m, (v) => { m = v; draw(); }); draw();
+    },
+  };
+  return (root) => { const fn = demos[root.dataset.hd]; if (fn && !root.dataset.ready) { root.dataset.ready = '1'; fn(root); } };
+})();
+</script>
+{{- end }}
+<div class="hd" data-hd="{{ $kind }}"></div>
+<script>window.hdInit(document.currentScript.previousElementSibling);</script>
