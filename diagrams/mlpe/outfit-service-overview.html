@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>메이플스토리 코디 추천 시스템 전체 흐름</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Geist', system-ui, sans-serif; background: #f5f5f5; color: #2d3142; min-height: 100vh;
+      display: flex; align-items: center; justify-content: center; padding: 3rem 2rem; }
+    .frame { max-width: 1200px; width: 100%; }
+    .eyebrow { font-family: 'Geist Mono', monospace; font-size: 0.66rem; font-weight: 500; letter-spacing: 0.18em;
+      text-transform: uppercase; color: #4f5d75; margin-bottom: 0.5rem; }
+    h1 { font-family: 'Instrument Serif', serif; font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem); font-weight: 400;
+      letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 1.5rem; }
+    svg { width: 100%; min-width: 960px; display: block; }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Architecture · MLPE 4주차</p>
+    <h1>메이플스토리 코디 추천 시스템 전체 흐름</h1>
+<svg viewBox="0 0 960 344" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="outfit-service-overview-title outfit-service-overview-desc">
+<title id="outfit-service-overview-title">메이플스토리 코디 추천 시스템 전체 흐름</title>
+<desc id="outfit-service-overview-desc">메이플스토리 Open API에서 시작해 Ch7 데이터 준비 파이프라인(KFP)과 RustFS(Parquet)를 거쳐 Ch8~9 학습·검증과 MLflow 모델 레지스트리로 이어지고, 추천 API(Go backend)와 웹 화면(Vue)으로 서비스하는 전체 흐름. 이번 글은 Ch7 데이터 준비와 서비스 뼈대(추천 API·웹 화면)를 만들고, 가운데 학습과 레지스트리는 다음 글에서 채운다.</desc>
+<defs>
+<style>@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap');</style>
+<marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+<marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker>
+</defs>
+<rect width="100%" height="100%" fill="#f5f5f5"/>
+<rect x="224" y="34" width="464" height="114" rx="8" fill="rgba(235,108,54,0.03)" stroke="rgba(235,108,54,0.45)" stroke-width="1.0"/>
+<rect x="236" y="28" width="142" height="12" rx="2" fill="#f5f5f5"/>
+<text x="307" y="37" fill="#eb6c36" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.12em">CH7 데이터 준비 (이번 글)</text>
+<rect x="704" y="34" width="234" height="248" rx="8" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.16)" stroke-width="0.8"/>
+<rect x="716" y="28" width="172" height="12" rx="2" fill="#f5f5f5"/>
+<text x="802" y="37" fill="rgba(45,49,66,0.55)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.12em">CH8 ~ 9 모델 학습·등록 (다음 글)</text>
+<rect x="224" y="170" width="464" height="112" rx="8" fill="rgba(235,108,54,0.03)" stroke="rgba(235,108,54,0.45)" stroke-width="1.0"/>
+<rect x="236" y="164" width="128" height="12" rx="2" fill="#f5f5f5"/>
+<text x="300" y="173" fill="#eb6c36" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.12em">서비스 뼈대 (이번 글)</text>
+<path d="M 202,94 H 244" fill="none" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+<path d="M 442,94 H 484" fill="none" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+<path d="M 672,94 H 718" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<path d="M 821,132 V 190" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<path d="M 720,228 H 674" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<path d="M 464,228 H 422" fill="none" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+<path d="M 118,132 V 296 H 568 V 268" fill="none" stroke="#4f5d75" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<rect x="207" y="74" width="32" height="12" rx="2" fill="#f5f5f5"/>
+<text x="223" y="83" fill="#eb6c36" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">수집</text>
+<rect x="440" y="74" width="46" height="12" rx="2" fill="#f5f5f5"/>
+<text x="463" y="83" fill="#eb6c36" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">Parquet</text>
+<rect x="676" y="74" width="38" height="12" rx="2" fill="#f5f5f5"/>
+<text x="695" y="83" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">학습</text>
+<rect x="804" y="154" width="34" height="12" rx="2" fill="#f5f5f5"/>
+<text x="821" y="163" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">등록</text>
+<rect x="671" y="208" width="52" height="12" rx="2" fill="#f5f5f5"/>
+<text x="697" y="217" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">모델 로드</text>
+<rect x="419" y="208" width="48" height="12" rx="2" fill="#f5f5f5"/>
+<text x="443" y="217" fill="#eb6c36" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">JSON</text>
+<rect x="273" y="290" width="134" height="12" rx="2" fill="#f5f5f5"/>
+<text x="340" y="299" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.02em">실시간 조회 · 캐릭터 현재 코디</text>
+<rect x="34" y="58" width="168" height="72" rx="6" fill="#f5f5f5"/>
+<rect x="34" y="58" width="168" height="72" rx="6" fill="rgba(79,93,117,0.10)" stroke="#7a8399" stroke-width="1"/>
+<rect x="42" y="64" width="43" height="12" rx="2" fill="transparent" stroke="#7a8399" stroke-opacity="0.55" stroke-width="0.8"/>
+<text x="63.5" y="73" fill="#7a8399" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">SOURCE</text>
+<text x="118" y="94" fill="#2d3142" font-size="11" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">메이플스토리 Open API</text>
+<text x="118" y="109" fill="#4f5d75" font-size="8.5" font-family="'Geist Mono', monospace" text-anchor="middle">ranking · id · cash · beauty</text>
+<rect x="246" y="58" width="196" height="72" rx="6" fill="#f5f5f5"/>
+<rect x="246" y="58" width="196" height="72" rx="6" fill="#ffffff" stroke="#eb6c36" stroke-width="1.5"/>
+<rect x="254" y="64" width="59.5" height="12" rx="2" fill="transparent" stroke="#eb6c36" stroke-opacity="0.55" stroke-width="0.8"/>
+<text x="283.75" y="73" fill="#eb6c36" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">KFP · CH7</text>
+<svg x="418" y="64" width="16" height="16" viewBox="0 0 18.035334 17.500378" aria-hidden="true"><g id="k8s-pod-1-layer1" transform="translate(-0.99262638,-1.174181)"><g id="k8s-pod-1-g70" transform="matrix(1.0148887,0,0,1.0148887,16.902146,-2.698726)"><path id="k8s-pod-1-path3055" d="m -6.8492015,4.2724668 a 1.1191255,1.1099671 0 0 0 -0.4288818,0.1085303 l -5.8524037,2.7963394 a 1.1191255,1.1099671 0 0 0 -0.605524,0.7529759 l -1.443828,6.2812846 a 1.1191255,1.1099671 0 0 0 0.151943,0.851028 1.1191255,1.1099671 0 0 0 0.06362,0.08832 l 4.0508,5.036555 a 1.1191255,1.1099671 0 0 0 0.874979,0.417654 l 6.4961011,-0.0015 a 1.1191255,1.1099671 0 0 0 0.8749788,-0.416906 L 1.3818872,15.149453 A 1.1191255,1.1099671 0 0 0 1.5981986,14.210104 L 0.15212657,7.9288154 A 1.1191255,1.1099671 0 0 0 -0.45339794,7.1758396 L -6.3065496,4.3809971 A 1.1191255,1.1099671 0 0 0 -6.8492015,4.2724668 Z" style="fill:#326ce5;fill-opacity:1;stroke:none;stroke-width:0;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"/><path id="k8s-pod-1-path3054-2-9" d="M -6.8523435,3.8176372 A 1.1814304,1.171762 0 0 0 -7.3044284,3.932904 l -6.1787426,2.9512758 a 1.1814304,1.171762 0 0 0 -0.639206,0.794891 l -1.523915,6.6308282 a 1.1814304,1.171762 0 0 0 0.160175,0.89893 1.1814304,1.171762 0 0 0 0.06736,0.09281 l 4.276094,5.317236 a 1.1814304,1.171762 0 0 0 0.92363,0.440858 l 6.8576188,-0.0015 a 1.1814304,1.171762 0 0 0 0.9236308,-0.44011 l 4.2745966,-5.317985 a 1.1814304,1.171762 0 0 0 0.228288,-0.990993 L 0.53894439,7.6775738 A 1.1814304,1.171762 0 0 0 -0.10026101,6.8834313 L -6.2790037,3.9321555 A 1.1814304,1.171762 0 0 0 -6.8523435,3.8176372 Z m 0.00299,0.4550789 a 1.1191255,1.1099671 0 0 1 0.5426517,0.1085303 l 5.85315169,2.7948425 A 1.1191255,1.1099671 0 0 1 0.15197811,7.9290648 L 1.598051,14.21035 a 1.1191255,1.1099671 0 0 1 -0.2163123,0.939348 l -4.0493032,5.037304 a 1.1191255,1.1099671 0 0 1 -0.8749789,0.416906 l -6.4961006,0.0015 a 1.1191255,1.1099671 0 0 1 -0.874979,-0.417652 l -4.0508,-5.036554 a 1.1191255,1.1099671 0 0 1 -0.06362,-0.08832 1.1191255,1.1099671 0 0 1 -0.151942,-0.851028 l 1.443827,-6.2812853 a 1.1191255,1.1099671 0 0 1 0.605524,-0.7529758 l 5.8524036,-2.7963395 a 1.1191255,1.1099671 0 0 1 0.4288819,-0.1085303 z" style="color:#000000;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:medium;line-height:normal;font-family:Sans;-inkscape-font-specification:Sans;text-indent:0;text-align:start;text-decoration:none;text-decoration-line:none;letter-spacing:normal;word-spacing:normal;text-transform:none;writing-mode:lr-tb;direction:ltr;baseline-shift:baseline;text-anchor:start;display:inline;overflow:visible;visibility:visible;fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:0;stroke-miterlimit:4;stroke-dasharray:none;marker:none;enable-background:accumulate"/></g><g id="k8s-pod-1-g3341" transform="translate(0.12766661,0.35147801)"><path style="fill:#ffffff;fill-rule:evenodd;stroke:none;stroke-width:0.26458332;stroke-linecap:square;stroke-miterlimit:10" d="M 6.2617914,7.036086 9.8826317,5.986087 13.503462,7.036086 9.8826317,8.086087 Z" id="k8s-pod-1-path910"/><path style="fill:#ffffff;fill-rule:evenodd;stroke:none;stroke-width:0.26458332;stroke-linecap:square;stroke-miterlimit:10" d="m 6.2617914,7.43817 0,3.852778 3.3736103,1.868749 0.0167,-4.713193 z" id="k8s-pod-1-path912"/><path style="fill:#ffffff;fill-rule:evenodd;stroke:none;stroke-width:0.26458332;stroke-linecap:square;stroke-miterlimit:10" d="m 13.503462,7.43817 0,3.852778 -3.37361,1.868749 -0.0167,-4.713193 z" id="k8s-pod-1-path914"/></g></g></svg>
+<text x="344" y="94" fill="#2d3142" font-size="11" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">데이터 준비 파이프라인</text>
+<text x="344" y="109" fill="#4f5d75" font-size="8.5" font-family="'Geist Mono', monospace" text-anchor="middle">수집 · 정제 · 분할 · QA</text>
+<rect x="486" y="58" width="186" height="72" rx="6" fill="#f5f5f5"/>
+<rect x="486" y="58" width="186" height="72" rx="6" fill="rgba(79,93,117,0.10)" stroke="#7a8399" stroke-width="1"/>
+<rect x="494" y="64" width="21" height="12" rx="2" fill="transparent" stroke="#7a8399" stroke-opacity="0.55" stroke-width="0.8"/>
+<text x="504.5" y="73" fill="#7a8399" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">S3</text>
+<svg x="604" y="65" width="60" height="10" viewBox="0 9.9 24 4.2" aria-hidden="true"><path fill="#0196d0" d="M0 9.997v4.006h1.086v-1.495h.773c.142.013.268.05.364.209l.621 1.286h1.238l-.611-1.225c-.187-.392-.369-.478-.718-.57.516-.08.965-.386.965-1.084 0-.306-.116-.661-.348-.851-.228-.19-.536-.276-.915-.276H1.86zm5.335 0-1.022.231v2.473c0 .502.158.83.458 1.016s.758.286 1.398.286c.616 0 1.073-.1 1.384-.286q.473-.28.473-.96v-2.76l-1.017.231v2.25c0 .31-.045.495-.177.631-.132.143-.373.193-.663.193-.3 0-.52-.056-.662-.193-.132-.13-.172-.405-.172-.708Zm4.74 0q-.864.002-1.337.297c-.315.195-.481.592-.481.972 0 .326.119.575.368.764q.365.265 1.32.433c.195.036.356.06.48.095q.19.053.28.1c.113.06.172.149.172.244q0 .186-.214.284c-.422.202-1.61.077-2.085-.136l-.202.764c.053.006.142.024.25.042.873.136 2.014.314 2.792-.178.333-.207.505-.504.505-.919a.93.93 0 0 0-.339-.729q-.321-.284-1.206-.438c-.178-.036-.339-.06-.47-.095-.873-.196-.748-.688.114-.688.463 0 .909.143 1.348.22l.095.017.096-.853c-.464-.142-1.01-.196-1.486-.196m2.079 0v.9h1.42v3.106h1.32v-3.105h1.413v-.9Zm4.39 0v4.006h1.321v-1.495h2.114l-.13-.771h-1.984v-.84h1.575l.124-.9zm5.546 0c-.596 0-1.056.1-1.37.302-.338.2-.51.59-.51.975 0 .325.13.573.381.75.258.19.713.332 1.364.444.135.018.245.036.344.06l.012-.208.909.61-.952.531.006-.183c-.559.041-1.363-.06-1.732-.23l-.203.762c.05.012.142.017.252.047.903.136 2.082.313 2.887-.183.35-.201.522-.509.522-.91a.92.92 0 0 0-.344-.733q-.332-.279-1.247-.432c-.19-.035-.35-.07-.491-.094q-.01.002-.012-.006v.23l-.94-.573.94-.567v.224h.129c.479 0 .94.148 1.4.225.061.006.086.006.092.006l.098-.852a6 6 0 0 0-1.535-.195m-21.034.748h.909q.339 0 .526.134c.116.086.171.22.171.417 0 .208-.07.361-.222.447-.131.08-.328.122-.58.135h-.804Z"/></svg>
+<text x="579" y="94" fill="#2d3142" font-size="11" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">오브젝트 스토리지</text>
+<text x="579" y="109" fill="#4f5d75" font-size="8.5" font-family="'Geist Mono', monospace" text-anchor="middle">RustFS · Parquet 5개</text>
+<rect x="720" y="58" width="202" height="72" rx="6" fill="#f5f5f5"/>
+<rect x="720" y="58" width="202" height="72" rx="6" fill="#ffffff" stroke="rgba(79,93,117,0.55)" stroke-width="1" stroke-dasharray="4 3"/>
+<rect x="728" y="64" width="48.5" height="12" rx="2" fill="transparent" stroke="#4f5d75" stroke-opacity="0.55" stroke-width="0.8"/>
+<text x="752.25" y="73" fill="#4f5d75" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">CH8 ~ 9</text>
+<text x="821" y="94" fill="#4f5d75" font-size="11" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">학습 · 검증 파이프라인</text>
+<text x="821" y="109" fill="#4f5d75" font-size="8.5" font-family="'Geist Mono', monospace" text-anchor="middle">PyTorch MF · Recall@10</text>
+<rect x="720" y="192" width="202" height="72" rx="6" fill="#f5f5f5"/>
+<rect x="720" y="192" width="202" height="72" rx="6" fill="#ffffff" stroke="rgba(79,93,117,0.55)" stroke-width="1" stroke-dasharray="4 3"/>
+<rect x="728" y="198" width="54" height="12" rx="2" fill="transparent" stroke="#4f5d75" stroke-opacity="0.55" stroke-width="0.8"/>
+<text x="755" y="207" fill="#4f5d75" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">REGISTRY</text>
+<svg x="898" y="198" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="#0194e2" d="M11.883.002a12.044 12.044 0 0 0-9.326 19.463l3.668-2.694A7.573 7.573 0 0 1 12.043 4.45v2.867l6.908-5.14A12.012 12.012 0 0 0 11.883.002zm9.562 4.533L17.777 7.23a7.573 7.573 0 0 1-5.818 12.322v-2.867l-6.908 5.14a12.046 12.046 0 0 0 16.394-17.29z"/></svg>
+<text x="821" y="228" fill="#4f5d75" font-size="11" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">MLflow 모델 레지스트리</text>
+<text x="821" y="243" fill="#4f5d75" font-size="8.5" font-family="'Geist Mono', monospace" text-anchor="middle">Production 모델 승격</text>
+<rect x="464" y="192" width="208" height="72" rx="6" fill="#f5f5f5"/>
+<rect x="464" y="192" width="208" height="72" rx="6" fill="#ffffff" stroke="#eb6c36" stroke-width="1.5"/>
+<rect x="472" y="198" width="43" height="12" rx="2" fill="transparent" stroke="#eb6c36" stroke-opacity="0.55" stroke-width="0.8"/>
+<text x="493.5" y="207" fill="#eb6c36" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">GO API</text>
+<svg x="648" y="198" width="16" height="16" viewBox="0 0 18.035334 17.500378" aria-hidden="true"><g id="k8s-deploy-1-layer1" transform="translate(-0.99262638,-1.174181)"><g id="k8s-deploy-1-g70" transform="matrix(1.0148887,0,0,1.0148887,16.902146,-2.698726)"><path id="k8s-deploy-1-path3055" d="m -6.8492015,4.2724668 a 1.1191255,1.1099671 0 0 0 -0.4288818,0.1085303 l -5.8524037,2.7963394 a 1.1191255,1.1099671 0 0 0 -0.605524,0.7529759 l -1.443828,6.2812846 a 1.1191255,1.1099671 0 0 0 0.151943,0.851028 1.1191255,1.1099671 0 0 0 0.06362,0.08832 l 4.0508,5.036555 a 1.1191255,1.1099671 0 0 0 0.874979,0.417654 l 6.4961011,-0.0015 a 1.1191255,1.1099671 0 0 0 0.8749788,-0.416906 L 1.3818872,15.149453 A 1.1191255,1.1099671 0 0 0 1.5981986,14.210104 L 0.15212657,7.9288154 A 1.1191255,1.1099671 0 0 0 -0.45339794,7.1758396 L -6.3065496,4.3809971 A 1.1191255,1.1099671 0 0 0 -6.8492015,4.2724668 Z" style="fill:#326ce5;fill-opacity:1;stroke:none;stroke-width:0;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"/><path id="k8s-deploy-1-path3054-2-9" d="M -6.8523435,3.8176372 A 1.1814304,1.171762 0 0 0 -7.3044284,3.932904 l -6.1787426,2.9512758 a 1.1814304,1.171762 0 0 0 -0.639206,0.794891 l -1.523915,6.6308282 a 1.1814304,1.171762 0 0 0 0.160175,0.89893 1.1814304,1.171762 0 0 0 0.06736,0.09281 l 4.276094,5.317236 a 1.1814304,1.171762 0 0 0 0.92363,0.440858 l 6.8576188,-0.0015 a 1.1814304,1.171762 0 0 0 0.9236308,-0.44011 l 4.2745966,-5.317985 a 1.1814304,1.171762 0 0 0 0.228288,-0.990993 L 0.53894439,7.6775738 A 1.1814304,1.171762 0 0 0 -0.10026101,6.8834313 L -6.2790037,3.9321555 A 1.1814304,1.171762 0 0 0 -6.8523435,3.8176372 Z m 0.00299,0.4550789 a 1.1191255,1.1099671 0 0 1 0.5426517,0.1085303 l 5.85315169,2.7948425 A 1.1191255,1.1099671 0 0 1 0.15197811,7.9290648 L 1.598051,14.21035 a 1.1191255,1.1099671 0 0 1 -0.2163123,0.939348 l -4.0493032,5.037304 a 1.1191255,1.1099671 0 0 1 -0.8749789,0.416906 l -6.4961006,0.0015 a 1.1191255,1.1099671 0 0 1 -0.874979,-0.417652 l -4.0508,-5.036554 a 1.1191255,1.1099671 0 0 1 -0.06362,-0.08832 1.1191255,1.1099671 0 0 1 -0.151942,-0.851028 l 1.443827,-6.2812853 a 1.1191255,1.1099671 0 0 1 0.605524,-0.7529758 l 5.8524036,-2.7963395 a 1.1191255,1.1099671 0 0 1 0.4288819,-0.1085303 z" style="color:#000000;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:medium;line-height:normal;font-family:Sans;-inkscape-font-specification:Sans;text-indent:0;text-align:start;text-decoration:none;text-decoration-line:none;letter-spacing:normal;word-spacing:normal;text-transform:none;writing-mode:lr-tb;direction:ltr;baseline-shift:baseline;text-anchor:start;display:inline;overflow:visible;visibility:visible;fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:0;stroke-miterlimit:4;stroke-dasharray:none;marker:none;enable-background:accumulate"/></g><g id="k8s-deploy-1-g3340" transform="translate(-0.65385546,0.63370063)"><path style="fill:#ffffff;fill-rule:evenodd;stroke:none;stroke-width:0.26458332;stroke-linecap:square;stroke-miterlimit:10" d="m 10.225062,13.731632 0,0 C 7.7824218,13.847177 5.7050116,11.968386 5.5753417,9.5264634 5.4456516,7.0845405 7.3124018,4.9962905 9.7535318,4.8524795 c 2.4411202,-0.143811 4.5401412,1.71081 4.6980812,4.1510682 l -1.757081,0.1137208 c -0.0954,-1.473818 -1.36311,-2.593935 -2.8374602,-2.50708 -1.47434,0.08686 -2.60178,1.3480761 -2.52346,2.8228991 0.0783,1.4748224 1.333,2.6095384 2.8082502,2.5397534 z" id="k8s-deploy-1-path1222"/><path style="fill:#ffffff;fill-rule:evenodd;stroke:none;stroke-width:0.26458332;stroke-linecap:square;stroke-miterlimit:10" d="m 11.135574,9.0088015 1.39745,3.4205085 3.2263,-3.4205085 z" id="k8s-deploy-1-path1224"/></g></g></svg>
+<text x="568" y="228" fill="#2d3142" font-size="11" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">추천 API (backend)</text>
+<text x="568" y="243" fill="#4f5d75" font-size="8.5" font-family="'Geist Mono', monospace" text-anchor="middle">GET /api/outfit/recommend</text>
+<text x="568" y="256" fill="#eb6c36" font-size="8.5" font-family="'Geist Mono', monospace" text-anchor="middle">기준선 model.json 장착</text>
+<rect x="240" y="192" width="180" height="72" rx="6" fill="#f5f5f5"/>
+<rect x="240" y="192" width="180" height="72" rx="6" fill="#ffffff" stroke="#eb6c36" stroke-width="1.5"/>
+<rect x="248" y="198" width="43" height="12" rx="2" fill="transparent" stroke="#eb6c36" stroke-opacity="0.55" stroke-width="0.8"/>
+<text x="269.5" y="207" fill="#eb6c36" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">VUE UI</text>
+<text x="330" y="228" fill="#2d3142" font-size="11" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">웹 화면 (OutfitPage)</text>
+<text x="330" y="243" fill="#4f5d75" font-size="8.5" font-family="'Geist Mono', monospace" text-anchor="middle">가운데 캐릭터 + 슬롯 추천</text>
+<line x1="24" y1="314" x2="936" y2="314" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+<rect x="28" y="322" width="16" height="10" rx="2" fill="#ffffff" stroke="#eb6c36" stroke-width="1.4"/>
+<text x="50" y="330" fill="#4f5d75" font-size="9" font-family="'Geist', sans-serif">이번 글에서 구현 (Ch7 · 서비스 뼈대)</text>
+<rect x="268" y="322" width="16" height="10" rx="2" fill="#ffffff" stroke="rgba(79,93,117,0.65)" stroke-width="1" stroke-dasharray="3 2"/>
+<text x="290" y="330" fill="#4f5d75" font-size="9" font-family="'Geist', sans-serif">다음 글에서 구현 (Ch8 ~ 9)</text>
+<rect x="468" y="322" width="16" height="10" rx="2" fill="rgba(79,93,117,0.10)" stroke="#7a8399" stroke-width="1"/>
+<text x="490" y="330" fill="#4f5d75" font-size="9" font-family="'Geist', sans-serif">외부 API · 스토리지</text>
+<line x1="620" y1="327" x2="636" y2="327" stroke="#4f5d75" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+<text x="642" y="330" fill="#4f5d75" font-size="9" font-family="'Geist', sans-serif">실시간 캐릭터 코디 조회</text>
+<!-- icons: Simple Icons(CC0), kubernetes/community(Apache-2.0) -->
+</svg>
+  </div>
+</body>
+</html>
