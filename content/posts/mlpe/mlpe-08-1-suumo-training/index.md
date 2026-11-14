@@ -1,10 +1,10 @@
 ---
-title: "MLPE 스터디 5주차 - Ch8.1 도쿄 23구 중고 맨션 호가 회귀 모델 학습과 검증 파이프라인"
+title: "MLPE 스터디 4주차 - Ch8.1 도쿄 23구 중고 맨션 호가 회귀 모델 학습과 검증 파이프라인"
 date: 2026-11-14T10:00:00+09:00
 draft: false
 tags: ["MLOps", "MLPE", "Kubeflow", "Kubeflow Pipelines", "KFP", "Regression", "LightGBM", "Model Training", "Capstone"]
 categories: ["MLOps"]
-series: ["MLPE 5주차"]
+series: ["MLPE 4주차"]
 featuredImage: images/banners/mlpe-08-1-suumo-training-6a6e5231.png
 ---
 7장에서는 데이터를 가져와 정제하고, 좌표를 붙여 train / val / test 로 나누는 작업까지 끝냈다. 8장에서는 이 데이터로 m²당 단가 회귀 모델을 학습하고 검증한다.

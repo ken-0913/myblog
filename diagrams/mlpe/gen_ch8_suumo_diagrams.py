@@ -1,4 +1,4 @@
-"""MLPE 5주차(8.1절, SUUMO 회귀 모델 학습) 글의 도식 SVG 생성.
+"""MLPE 4주차(8.1절, SUUMO 회귀 모델 학습) 글의 도식 SVG 생성.
 
 사용: python3 diagrams/mlpe/gen_ch8_suumo_diagrams.py
 출력: content/posts/mlpe/mlpe-08-1-suumo-training/*.svg

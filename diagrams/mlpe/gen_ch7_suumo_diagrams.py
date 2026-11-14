@@ -173,8 +173,8 @@ def problem_io():
 # ---------------------------------------------------------------- 3. RustFS 적재
 def rustfs_staging():
     d = D("rustfs-staging", 960, 200, "S3 호환 버킷에 미리 올려 둘 것",
-          "크롤러가 만든 통합 CSV 하나를 datasets 버킷의 suumo/raw/2026-11-13/tokyo_23ku_all.csv 로 올린다. A ~ E 모든 단계가 이 파일 하나를 읽는다. 좌표 데이터는 공개 URL 에서 파이프라인이 직접 받는다.")
-    s1 = d.node(20, 40, 190, 56, "크롤러 결과")
+          "매물 통합 CSV 하나를 datasets 버킷의 suumo/raw/2026-11-13/tokyo_23ku_all.csv 로 올린다. A ~ E 모든 단계가 이 파일 하나를 읽는다. 좌표 데이터는 공개 URL 에서 파이프라인이 직접 받는다.")
+    s1 = d.node(20, 40, 190, 56, "매물 CSV")
     d.group(300, 20, 360, 100, "버킷 datasets", "pipe")
     r1 = d.node(320, 48, 320, 56, "tokyo_23ku_all.csv", kind="pipe")
     c1 = d.node(760, 40, 180, 56, "A ~ E 단계")
