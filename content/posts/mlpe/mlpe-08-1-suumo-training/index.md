@@ -1,7 +1,7 @@
 ---
 title: "MLPE 스터디 5주차 - Ch8.1 도쿄 23구 중고 맨션 호가 회귀 모델 학습과 검증 파이프라인"
 date: 2026-11-14T10:00:00+09:00
-draft: true
+draft: false
 tags: ["MLOps", "MLPE", "Kubeflow", "Kubeflow Pipelines", "KFP", "Regression", "LightGBM", "Model Training", "Capstone"]
 categories: ["MLOps"]
 series: ["MLPE 5주차"]
