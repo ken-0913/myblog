@@ -24,6 +24,8 @@ featuredImage: images/banners/mlpe-08-1-suumo-training-6a6e5231.png
 
 세 데이터는 초메(丁目) 단위로 나뉘어 있어, 같은 초메의 매물이 두 곳에 함께 들어가지 않는다. 그래서 시험 점수는 **모델이 한 번도 보지 못한 동네**에서 얼마나 맞히는지를 뜻한다. "매물이 없는 자리의 호가를 알려 준다" 는 목표와 같은 상황이다.
 
+> **핸즈온ML 보강**: [테스트 세트 만들기](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#test-set) · [데이터 스누핑 편향](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#data-snooping) · [해시 기반 분할](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#hash-split)
+
 ### 1.2 만들 모델
 
 - **맞힐 값**
@@ -43,6 +45,8 @@ featuredImage: images/banners/mlpe-08-1-suumo-training-6a6e5231.png
 | 구간 적중률이 75 ~ 85% | 80% 구간이라고 했으면 실제로 열 번 중 여덟 번쯤 맞아야 한다 |
 
 오차는 MAPE 로 잰다. 실제 단가에서 평균 몇 % 벗어났는지를 뜻하고, 작을수록 좋다.
+
+> **핸즈온ML 보강**: [RMSE와 MAE](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#rmse-mae) · [문제 정의와 가정 검사](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#problem-framing)
 
 ### 1.3 진행 단계
 
@@ -94,6 +98,8 @@ preds = {
 
 MAE 의 단위는 만엔/m² 이다. 가장 나은 기준선은 동 중앙값이고, 모델이 넘어야 할 선은 **test MAPE 32.5%** 이다.
 
+> **핸즈온ML 보강**: [훈련 세트에서 먼저 재 보기](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#model-selection) · [k-폴드 교차 검증](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#cross-validation)
+
 ## 3. 학습 컴포넌트
 
 ### 3.1 피처 설정
@@ -119,6 +125,8 @@ quantiles: [0.1, 0.9]
 
 `keys` 는 학습에 넣지 않고 기준선과 리포트에서만 쓴다. 결측은 그대로 둔다. LightGBM 이 결측을 직접 다루기 때문이다.
 
+> **핸즈온ML 보강**: [결측치 처리(SimpleImputer)](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#imputer) · [범주형 특성 인코딩](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#categorical)
+
 구(区)와 가까운 역(最寄駅)을 범주로 넣을지는 노트북에서 비교해 정했다.
 
 | 피처 구성 | val MAPE | test MAPE |
@@ -129,6 +137,8 @@ quantiles: [0.1, 0.9]
 | 위에 구(区), 가까운 역(最寄駅) 추가 | 16.15% | 12.90% |
 
 네 구성의 차이는 1%p 안쪽이다. 구와 역은 좌표가 이미 담고 있는 정보라 더해도 나아지지 않았다. 그래서 주소와 매물 조건만 있으면 추론할 수 있는 두 번째 구성을 쓴다.
+
+> **핸즈온ML 보강**: [범주형 특성 인코딩](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#categorical) · [특성 조합](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#feature-combo) · [데이터 스누핑 편향](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#data-snooping)
 
 ### 3.2 학습 스크립트
 
@@ -155,6 +165,8 @@ for name, obj in objectives.items():
 
 모델을 읽고 예측하는 코드는 `suumo_model.py` 로 따로 두었다. 학습 스크립트, 검증 컴포넌트, 노트북이 이 파일 하나를 함께 쓴다.
 
+> **핸즈온ML 보강**: [타깃 변환(로그와 역변환)](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#transforms) · [사용자 정의 변환기와 파이프라인](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#custom-transformer)
+
 ### 3.3 구간 보정
 
 분위 모델이 낸 구간은 val 에서 실제 단가의 69.9% 만 담았다. 80% 구간이라고 부르기에는 좁다. 그래서 val 에서 구간을 벗어난 정도를 재고, 80% 가 들어오도록 양쪽을 같은 폭만큼 넓힌다.
@@ -172,6 +184,8 @@ offset = float(np.quantile(miss, min(1.0, level * (1 + 1 / len(miss)))))   # lev
 | test 적중률 | | 81.0% |
 
 보정값은 val 로 구했으므로 val 적중률이 80% 인 것은 당연하다. 보지 않은 test 에서도 81.0% 가 나온 것이 확인할 숫자이다.
+
+> **핸즈온ML 보강**: [테스트 세트로 평가(신뢰 구간)](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#test-evaluation) · [데이터 스누핑 편향](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#data-snooping)
 
 ## 4. 컨테이너 컴포넌트
 
@@ -242,6 +256,8 @@ $ docker push docker.io/hyeonjae0913/suumo-train:1.0.0
 | `python:3.11-slim` | 186MB | |
 | `suumo-train:1.0.0` | 868MB | 204MB |
 
+> **핸즈온ML 보강**: [재현 가능하게 남기기](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#reproducibility)
+
 ## 5. 검증 컴포넌트
 
 검증은 지표를 `Metrics` 로 기록해야 하므로 파이썬 컴포넌트로 만든다. `base_image` 를 학습 이미지로 두면 학습 때와 같은 LightGBM 으로 모델을 읽고, 이미지 안의 `suumo_model.py` 도 그대로 가져다 쓴다.
@@ -268,6 +284,8 @@ def validate_model(model: Input[Model], val: Input[Dataset], test: Input[Dataset
 - **리포트**: 검사표, 기준선과 모델 비교표, test 에서 구별 MAPE 를 `Markdown` 으로 남긴다
 - **통과 기준**: 두 검사 중 하나라도 어긋나면 `assert` 로 실패시켜 run 이 빨갛게 끝난다
 
+> **핸즈온ML 보강**: [테스트 세트로 평가](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#test-evaluation) · [최상의 모델 분석](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#error-analysis)
+
 ## 6. 파이프라인과 실행
 
 컴포넌트 네 개를 잇는다. `prepare_features` 의 출력이 학습과 기준선으로 갈라지고, 둘의 결과가 `validate_model` 에서 만난다.
@@ -285,6 +303,8 @@ def pipeline(num_boost_round: int = 5000, learning_rate: float = 0.05, num_leave
 ```
 
 하이퍼파라미터 세 개는 파이프라인 인자로 두었다. 값을 바꿔 다시 돌릴 때 코드를 고치지 않고 run 을 만들 때 넣는다.
+
+> **핸즈온ML 보강**: [그리드 서치와 랜덤 서치](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#grid-search)
 
 ```terminal {title="개발 PC: 컴파일, 등록, 실행"}
 $ python suumo_train.py
@@ -335,6 +355,8 @@ run 전체는 101초가 걸렸다. `train_model` 의 31초 가운데 13초는 �
 | 에도가와구(江戸川区) | 10.3% | 39 | 스미다구(墨田区) | 16.2% | 70 |
 | 도시마구(豊島区) | 10.8% | 105 | 아다치구(足立区) | 19.1% | 87 |
 
+> **핸즈온ML 보강**: [서브셋별 오차 분석](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#error-analysis) · [계층적 샘플링](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#stratified)
+
 **모델이 본 것**
 
 `p50` 모델의 피처 중요도(gain 비율)이다.
@@ -350,6 +372,8 @@ run 전체는 101초가 걸렸다. `train_model` 의 31초 가운데 13초는 �
 | 방 구조, 건물 구조, 방향 | 1.4% |
 
 위치와 준공 연도가 80% 이상을 차지한다. 7장에서 본 "위치가 가장 큰 변수" 와 같은 결과이다.
+
+> **핸즈온ML 보강**: [특성 중요도](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#error-analysis) · [지리적 산점도](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#geo-scatter) · [군집 유사도 변환기(ClusterSimilarity)](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#custom-transformer)
 
 **모델 아티팩트**
 
@@ -378,6 +402,8 @@ def estimate(addr, area=70, year=2015, floor=5, floors=10, walk=7, layout="3LDK"
 ```
 
 주소를 좌표로 바꾸는 코드는 7장의 `address.py`, 모델을 읽는 코드는 학습 이미지의 `suumo_model.py` 와 같은 파일이다.
+
+> **핸즈온ML 보강**: [모델 저장과 서빙](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#model-serving) · [모니터링과 재학습](../../hands-on-machine/hands-on-ml-02-2-split-to-launch/#monitoring)
 
 **같은 조건, 다른 동네**
 
@@ -424,9 +450,3 @@ def estimate(addr, area=70, year=2015, floor=5, floors=10, walk=7, layout="3LDK"
 | 에도가와구 시시보네(江戸川区鹿骨) 5초메 | 0 | 93.9 | 6,570 | 5,700 ~ 7,930 |
 
 ![JupyterLab 의 model_check.ipynb 아래쪽. 수집 매물이 있는 초메인지 확인한 출력이 네 곳 모두 False 이고, 그 아래 표에 스기나미구 젠푸쿠지(杉並区善福寺) 2초메 추정 호가 10,990만엔, 오타구 덴엔초후(大田区田園調布) 4초메 10,560만엔, 가쓰시카구 시바마타(葛飾区柴又) 4초메 6,390만엔, 에도가와구 시시보네(江戸川区鹿骨) 5초메 6,570만엔이 80% 구간과 함께 나온다.](run-model-check-empty.jpg)
-
-**남은 과제**
-
-- 고가 지역은 구간의 아래쪽이 느슨하다. 롯폰기 3초메는 추정 26,850만엔에 구간이 11,550 ~ 32,410만엔이다.
-- 아래쪽 모델(`p10`)이 86회에서 일찍 멈춘 것과 관련이 있다. 구간 전체의 적중률은 맞지만, 지역별로는 폭이 고르지 않다.
-- 하이퍼파라미터를 바꿔 가며 비교하는 일은 실험 추적을 붙이는 9장에서 이어서 한다.
