@@ -1,7 +1,7 @@
 ---
 title: "MLPE 스터디 4주차 - Ch7.2 ~ 7.3 도쿄 23구 중고 맨션 데이터로 따라 하는 KFP 데이터 준비 파이프라인"
 date: 2026-11-13T10:00:00+09:00
-draft: true
+draft: false
 tags: ["MLOps", "MLPE", "Kubeflow", "Kubeflow Pipelines", "KFP", "Artifact", "Regression", "Geocoding", "Capstone"]
 categories: ["MLOps"]
 series: ["MLPE 4주차"]
@@ -886,47 +886,3 @@ run_id=b49b8e5b-79f2-44af-8e69-6f15e5a03ea8 FINAL=SUCCEEDED took=161s
 `address.py` 를 쓰는 8번째 검사까지 모두 통과했다.
 
 ![KFP UI 에서 run suumo-e-image 의 qa-data report 아티팩트 Visualization. QA 결과: PASSED 아래에 대상 s3://datasets/suumo/prepared/2026-11-13-e/ 와 검사 여덟 개가 있다. D 와 같은 일곱 개에 chome_key 와 주소 불일치 0 이 더해졌고 모두 PASS 이다. 아래 표에 train 17,803행 73.8% 1,824 초메, val 3,878행 16.1% 364 초메가 보인다.](run-e-qa.jpg)
-
-## 8. 체크리스트
-
-**준비**
-
-- [ ] 버킷 `datasets`, 실험 `ch07-suumo` 생성
-- [ ] 통합 CSV 를 `suumo/raw/2026-11-13/` 에 업로드
-- [ ] 위치참조정보(位置参照情報) 이용 약관의 출처 표기 조건 확인
-
-**A 단계 (7.2.1 ~ 7.2.2)**
-
-- [ ] 컴포넌트 3개 작성 후 실행
-- [ ] `count_rows` 의 Input Artifacts 에서 앞 컴포넌트의 출력 URI 확인
-- [ ] 아티팩트는 `outputs[...]`, 반환값은 `.output` 으로 꺼내는 것 확인
-
-**B 단계 (7.2.3)**
-
-- [ ] 타입 8종을 내는 파이프라인 실행
-- [ ] 타입별 UI 렌더링 확인, `Metrics` 계열이 버킷에 파일로 남지 않는 것 확인
-- [ ] 기준선의 MAE, MAPE 기록 (8장 비교 기준)
-
-**C 단계 (7.3.1)**
-
-- [ ] 스크립트 → 함수 → 컴포넌트 → 단일 파이프라인 순서로 작성
-- [ ] 컴파일된 YAML 에서 함수 본문과 `pip install` 위치 확인
-- [ ] UI 로 업로드하고 Experiment 를 골라 실행
-- [ ] `split_dataset` 이 반환한 초메(丁目) 중복 수 확인 (예상: test 매물의 약 98%)
-
-**D 단계 (7.3.2)**
-
-- [ ] 정제 후 24,117행(가격 오류 2건 제외), 지오코딩 매칭 24,116건 확인 (원본 기준 32,592건)
-- [ ] 초메(丁目) 그룹 분할: 75 / 15 / 10 (±2%p), 초메(丁目) 중복 0
-- [ ] CSV 와 Parquet 의 크기, 읽기 시간 비교
-- [ ] `qa_data` 검사 7개 통과, `Markdown`, `Metrics`, `HTML` 확인
-- [ ] `datasets/suumo/prepared/2026-11-13/` 에 Parquet 4개 확인
-- [ ] SDK 로 등록하고 등록된 버전으로 실행, 일회성 run 과 Pipelines 메뉴 비교
-- [ ] 노트북에서 `kfp.Client()` 로 같은 작업
-
-**E 단계 (7.3.2)**
-
-- [ ] `kfp component build` 로 이미지 빌드, 레지스트리에 올리기
-- [ ] D 단계와 YAML, 실행 시간, Parquet 비교
-- [ ] 이미지 크기 확인, 코드 수정 후 태그를 올려야 반영되는 것 확인
-- [ ] 주소 정규화 함수를 모듈로 분리해 두 컴포넌트에서 공유
