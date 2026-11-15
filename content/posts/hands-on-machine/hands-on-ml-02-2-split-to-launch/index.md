@@ -7,7 +7,7 @@ categories: ["Machine Learning"]
 series: ["핸즈온ML 2주차"]
 featuredImage: images/banners/hands-on-ml-02-2-split-to-launch-4de916e9.png
 ---
-`핸즈온 머신러닝 with 사이킷런, 파이토치` 2장에서 [2.5.3절](../hands-on-ml-02-end-to-end-project/)을 뺀 나머지를 정리한 글이다. 캘리포니아 주택 가격 예제를 따라가되, 절마다 [MLPE 4주차 캡스톤](../../mlpe/mlpe-07-3-capstone-topics/)(도쿄 23구 중고 맨션 단가 회귀)과 이어지는 지점을 함께 적는다. 글 중간의 그림은 직접 눌러 볼 수 있고, 그림 속 숫자는 원리를 보여 주려고 만든 예시 값이다.
+`핸즈온 머신러닝 with 사이킷런, 파이토치` 2장에서 [2.5.3절](../hands-on-ml-02-end-to-end-project/)을 뺀 나머지를 정리한 글이다. 캘리포니아 주택 가격 예제를 따라가되, 절마다 [MLPE 4주차 캡스톤](../../mlpe/mlpe-07-3-capstone-topics/)(도쿄 23구 중고 맨션 단가 회귀)과 이어지는 지점을 함께 적는다. 글 중간의 그림은 직접 눌러 볼 수 있고, 그래프 애니메이션은 화면에 들어오면 재생된다. 그림 속 숫자는 원리를 보여 주려고 만든 예시 값이다.
 
 | 절 | 이 글의 소제목 | 캡스톤에서 이어지는 곳 |
 | --- | --- | --- |
@@ -47,6 +47,8 @@ featuredImage: images/banners/hands-on-ml-02-2-split-to-launch-4de916e9.png
 
 지금까지 세운 가정을 나열하고 검증한다. 예를 들어 하위 시스템이 가격을 그대로 쓰지 않고 "저가, 중가, 고가" 로 바꿔 쓴다면, 정확한 가격은 필요 없고 문제는 분류가 된다.
 
+{{< hml-demo output >}}
+
 캡스톤에서 이 질문은 "출력을 누가 어떻게 쓰는가" 이다. 출력이 추정 가격과 80% 구간이고, 사용자는 실제 호가가 그 구간의 어디에 있는지를 본다. 그래서 점 추정 하나가 아니라 구간을 내는 회귀로 정했다.
 
 ## 2. 성능 지표: RMSE와 MAE (2.2.2) {#rmse-mae}
@@ -74,6 +76,8 @@ $$
 
 노름의 지수가 클수록 큰 원소에 치우치고 작은 원소는 무시된다. 이상치가 종 모양 분포의 양 끝처럼 드물면 RMSE가 잘 맞아 기본값으로 많이 쓰인다.
 
+{{< hml-demo pball >}}
+
 {{< hml-demo rmse >}}
 
 **캡스톤과 연결.** 매물 가격은 650 ~ 216,800만엔으로 꼬리가 매우 길고, 사이트에 10배로 잘못 올라온 가격도 있었다. B 단계 기준선을 MAE와 MAPE(백분율 오차, 책에는 없다)로 잰 이유가 여기에 있다. 단가 수준이 구마다 4배 가까이 다르므로, 비싼 구의 큰 절대 오차가 지표를 지배하지 않게 하려면 백분율 지표를 함께 본다.
@@ -88,6 +92,8 @@ $$
 | `value_counts()` | 범주형 열의 카테고리별 개수 | `ocean_proximity` 는 5개 카테고리. `ISLAND` 는 5건뿐이다 |
 | `describe()` | 수치 열의 개수, 평균, 표준 편차, 백분위수 | 25%, 50%, 75% 는 각각 제1, 중간, 제3사분위수이다. 널은 계산에서 빠진다 |
 | `hist()` | 수치 열마다 히스토그램 | 아래 네 가지 |
+
+{{< hml-demo quartile >}}
 
 히스토그램에서 확인한 네 가지는 이렇다.
 
@@ -137,6 +143,8 @@ def in_test_set(key, test_ratio=0.2):
 ### 4.3 계층적 샘플링 {#stratified}
 
 데이터가 충분히 크지 않으면 순수 무작위 분할에 샘플링 편향이 생긴다. 전체를 **계층**이라는 동질 그룹으로 나누고, 계층마다 비율대로 뽑는 것을 **계층적 샘플링**이라 한다. 계층은 너무 잘게 나누지 않고, 각 계층에 샘플이 충분해야 한다.
+
+{{< hml-demo sampling >}}
 
 예제는 가격 예측에 중요한 중간 소득을 `pd.cut` 으로 5개 구간(`income_cat`)으로 나눠 계층으로 쓴다.
 
@@ -193,6 +201,8 @@ housing.plot(kind="scatter", x="longitude", y="latitude", grid=True, alpha=0.2,
 
 {{< hml-demo corr >}}
 
+{{< hml-demo slope >}}
+
 중간 주택 가격과 상관이 가장 높은 것은 중간 소득(0.688)이다. 둘의 산점도를 크게 그리면 두 가지가 더 보인다.
 
 - 상관이 강해 점들이 뚜렷하게 위로 향한다.
@@ -244,6 +254,8 @@ imputer.fit(housing.select_dtypes(include=[np.number]))
 
 전략은 `mean`, `most_frequent`, `constant` 도 있고, 뒤의 둘은 수치가 아닌 데이터도 받는다. 더 강력한 대체 방법으로 k-최근접 이웃 평균을 쓰는 `KNNImputer`, 특성마다 회귀 모델로 빈 값을 예측하고 반복해 다듬는 `IterativeImputer` 가 있다.
 
+{{< hml-demo fillspike >}}
+
 **캡스톤과 연결.** 캡스톤은 총 층수, 구조, 방향(総階数·構造·向き)이 빈 행을 지우지 않고 결측 그대로 둔다. 서빙 때 선택 입력이라 비어서 들어오기 때문이다. 8장에서 결측을 바로 받는 트리 계열을 쓰지 않는다면, 대체기를 파이프라인 안에 넣어 train에서 학습한 값으로 서빙 입력까지 채운다.
 
 ### 6.2 사이킷런의 설계 원칙 {#sklearn-design}
@@ -291,7 +303,11 @@ imputer.fit(housing.select_dtypes(include=[np.number]))
 | **버킷타이징** | 분포를 비슷한 크기의 구간으로 잘라 구간 번호로 바꾼다. 멀티모달 분포면 번호를 카테고리로 보고 원-핫 | `housing_median_age` |
 | **RBF 유사도** | 특정 값(모드) 근처라는 사실 자체가 의미 있을 때 | 연식 35년과의 가우스 RBF, \(\exp(-\gamma(x-35)^2)\) |
 
+{{< hml-demo logmorph >}}
+
 \(\gamma\) 가 클수록 35에서 멀어질 때 유사도가 빨리 0으로 떨어진다. `sklearn.metrics.pairwise.rbf_kernel` 로 계산한다.
+
+{{< hml-demo rbf >}}
 
 타깃도 꼬리가 길면 로그로 바꿀 수 있다. 이 경우 모델은 가격이 아니라 로그 가격을 예측하므로, 예측에 역변환(지수 함수)을 적용해야 한다. `TransformedTargetRegressor` 는 학습 때 레이블을 변환하고 예측 때 `inverse_transform()` 을 자동으로 적용한다.
 
@@ -379,6 +395,8 @@ preprocessing = ColumnTransformer([
     ("cat", cat_pipeline, make_column_selector(dtype_include=object)),
 ])
 ```
+
+{{< hml-demo scaler >}}
 
 | 기능 | 쓰는 법 |
 | --- | --- |
@@ -479,6 +497,8 @@ boot = stats.bootstrap([squared_errors], lambda e: np.sqrt(np.mean(e)),
 boot.confidence_interval   # 39,521 ~ 43,702
 ```
 
+{{< hml-demo bootstrap >}}
+
 하이퍼파라미터를 많이 튜닝했다면 테스트 성능은 교차 검증보다 조금 낮은 것이 보통이다. 이때 테스트 점수를 올리려고 다시 튜닝하면 안 된다. 그 개선은 새 데이터로 일반화되지 않는다.
 
 **캡스톤과 연결.** test 분할(2,435행, 244 초메)은 8장의 마지막에 한 번만 연다. 출력이 80% 구간이므로, 점 오차와 함께 실제 단가가 구간 안에 드는 비율(목표 80%)도 test에서 잰다.
@@ -515,6 +535,8 @@ boot.confidence_interval   # 39,521 ~ 43,702
 ### 10.3 모니터링과 재학습 {#monitoring}
 
 배포가 끝이 아니다. 컴포넌트 고장처럼 성능이 갑자기 떨어지기도 하지만, 세상이 바뀌어 천천히 떨어지는 **모델 드리프트**가 더 흔하다.
+
+{{< hml-demo decay >}}
 
 | 감시 대상 | 방법 |
 | --- | --- |

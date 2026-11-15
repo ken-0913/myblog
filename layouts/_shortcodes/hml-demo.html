@@ -5,6 +5,10 @@
            split(시드와 해시 분할) · stratify(계층적 샘플링) · geo(산점도 투명도) · corr(상관계수)
            impute(결측치 처리) · onehot(범주형 인코딩) · cluster(k-평균과 RBF 유사도) · fit(과소·과대적합)
            kfold(k-폴드 교차 검증) · search(그리드와 랜덤 서치) · drift(입력 분포 감시)
+  그래프 애니메이션(화면에 들어오면 자동 재생, 슬라이더로 직접 넘길 수 있다):
+           output(회귀 출력과 구간 출력) · pball(ℓp 단위 원) · quartile(사분위수와 평균) · sampling(표본 비율의 분포)
+           slope(기울기와 상관계수) · fillspike(중간값 대체와 분포) · logmorph(거듭제곱 변환) · rbf(가우스 RBF)
+           scaler(훈련 통계로 변환) · bootstrap(부트스트랩 신뢰 구간) · decay(재학습 주기와 오차)
   스타일과 스크립트는 페이지당 한 번만 출력한다. 모양은 scaling-demo 와 맞췄고 색은 사이트 토큰(--surface, --line 등)을 따른다.
   위젯의 숫자는 원리를 보여 주려고 만든 예시 값이다.
 */ -}}
@@ -124,6 +128,23 @@
   .hd-fold-c i.val { background: var(--hd-a); border-color: var(--hd-a); }
   .hd-fold.cur .hd-fold-c i.val { background: var(--hd-b); border-color: var(--hd-b); }
   .hd-fold-s { text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* 그래프 애니메이션 */
+  .hd-svg.sq { max-width: 300px; }
+  .hd-ln { fill: none; stroke: var(--hd-a); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .hd-ln.b { stroke: var(--hd-b); }
+  .hd-ln.c { stroke: var(--hd-c); }
+  .hd-ln.g { stroke: var(--hd-muted); stroke-width: 1; stroke-dasharray: 3 3; opacity: .8; }
+  .hd-area { fill: var(--hd-a); opacity: .16; }
+  .hd-area.b { fill: var(--hd-b); opacity: .3; }
+  .hd-area.c { fill: var(--hd-c); }
+  .hd-hist { fill: color-mix(in srgb, var(--hd-a) 28%, transparent); stroke: var(--hd-a); stroke-width: 1.5; stroke-linejoin: round; }
+  .hd-vl { stroke: var(--hd-ink); stroke-width: 1.5; }
+  .hd-vl.b { stroke: var(--hd-b); }
+  .hd-vl.d { stroke: var(--hd-muted); stroke-dasharray: 3 3; stroke-width: 1; }
+  .hd-dot { fill: var(--hd-a); }
+  .hd-dot.b { fill: var(--hd-b); }
+  .hd-dot.k { fill: var(--hd-ink); }
   @media (prefers-reduced-motion: reduce) { .hd * { transition: none !important; } }
 </style>
 <script>
@@ -152,6 +173,51 @@ window.hdInit = (function () {
     const g = el('div', 'hd-stats');
     const vs = labels.map((l) => { const c = el('div', 'hd-stat'); c.append(el('span', '', l)); const b = el('b'); c.append(b); g.append(c); return b; });
     root.append(g); return vs;
+  };
+
+  // ---- 그래프 애니메이션용 도구
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const Phi = (z) => { const k = 1 / (1 + 0.2316419 * Math.abs(z)), d = 0.3989423 * Math.exp((-z * z) / 2); const p = d * k * (0.3193815 + k * (-0.3565638 + k * (1.781478 + k * (-1.821256 + k * 1.330274)))); return z > 0 ? 1 - p : p; };
+  const add = (s, tag, cls, attrs) => { const e = S(tag, Object.assign({ class: cls }, attrs)); s.append(e); return e; };
+  const vl = (e, x, ya, yb) => { e.setAttribute('x1', x); e.setAttribute('x2', x); e.setAttribute('y1', ya); e.setAttribute('y2', yb); };
+  // 축이 있는 그림틀. X, Y 는 데이터 좌표를 화면 좌표로 바꾼다
+  const plot = (W, H, label, xr, yr, o = {}) => {
+    const m = { l: o.yl ? 46 : 34, r: 12, t: 10, b: o.xl ? 38 : 24 }; const s = svg(W, H, label);
+    const X = (x) => m.l + ((x - xr[0]) / (xr[1] - xr[0])) * (W - m.l - m.r), Y = (y) => H - m.b - ((y - yr[0]) / (yr[1] - yr[0])) * (H - m.t - m.b);
+    s.append(S('line', { x1: m.l, y1: H - m.b, x2: W - m.r, y2: H - m.b, class: 'ax' }), S('line', { x1: m.l, y1: m.t, x2: m.l, y2: H - m.b, class: 'ax' }));
+    (o.xt || []).forEach((v) => stext(s, X(v), H - m.b + 13, v)); (o.yt || []).forEach((v) => stext(s, m.l - 5, Y(v) + 4, v, 'end'));
+    if (o.xl) stext(s, (m.l + W - m.r) / 2, H - 5, o.xl);
+    if (o.yl) { const cy = (m.t + H - m.b) / 2; stext(s, 11, cy, o.yl).setAttribute('transform', 'rotate(-90 11 ' + cy + ')'); }
+    return { s, X, Y, top: m.t, bot: H - m.b };
+  };
+  const pathOf = (X, Y, f, a, b, n = 120) => { let d = ''; for (let i = 0; i <= n; i++) { const x = a + ((b - a) * i) / n; d += (i ? 'L' : 'M') + X(x).toFixed(1) + ' ' + Y(f(x)).toFixed(1); } return d; };
+  const areaOf = (X, Y, f, a, b, n = 60) => (b > a ? pathOf(X, Y, f, a, b, n) + 'L' + X(b).toFixed(1) + ' ' + Y(0).toFixed(1) + 'L' + X(a).toFixed(1) + ' ' + Y(0).toFixed(1) + 'Z' : '');
+  const stepOf = (X, Y, h, lo, bw) => { let d = 'M' + X(lo).toFixed(1) + ' ' + Y(0).toFixed(1); h.forEach((c, i) => { d += 'V' + Y(c).toFixed(1) + 'H' + X(lo + (i + 1) * bw).toFixed(1); }); return d + 'V' + Y(0).toFixed(1) + 'Z'; };
+  // 재생 버튼과 진행 슬라이더. draw(t) 는 0 ~ 1 의 t 로 그림을 그리고 슬라이더 옆에 적을 글자를 돌려준다.
+  // 화면에 들어오면 재생하고 벗어나면 멈춘다. 움직임 줄이기 설정이면 자동 재생하지 않는다.
+  const anim = (root, label, o = {}) => {
+    const ctl = el('div', 'hd-ctl'); root.append(ctl); const btn = el('button', 'hd-btn'); btn.type = 'button'; ctl.append(btn);
+    const dur = o.dur || 7000, still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let t = 0, dir = 1, raf = 0, last = 0, hold = 0, user = false, draw = () => '';
+    const paint = () => { sl.s.value = Math.round(t * 1000); sl.o.textContent = draw(t); };
+    const sync = () => { btn.textContent = raf ? '일시 정지' : '재생'; btn.setAttribute('aria-pressed', !!raf); };
+    const tick = (now) => {
+      const dt = Math.min(64, now - last); last = now;
+      if (hold > 0) { hold -= dt; if (hold <= 0 && o.loop && t >= 1) { t = 0; paint(); } }
+      else { t += (dir * dt) / dur; if (t >= 1) { t = 1; hold = o.hold || 900; if (!o.loop) dir = -1; } else if (t <= 0) { t = 0; dir = 1; hold = 500; } paint(); }
+      raf = requestAnimationFrame(tick);
+    };
+    const play = () => { if (raf) return; if (t >= 1 && o.loop) t = 0; last = performance.now(); raf = requestAnimationFrame(tick); sync(); };
+    const stop = () => { cancelAnimationFrame(raf); raf = 0; sync(); };
+    btn.onclick = () => { user = true; if (raf) stop(); else play(); };
+    const sl = slider(ctl, label, 0, 1000, 1, 0, (v) => { user = true; stop(); t = v / 1000; paint(); });
+    return {
+      redraw: paint,
+      run(fn, t0) {
+        draw = fn; t = t0 || 0; paint(); sync();
+        if (!still && 'IntersectionObserver' in window) new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { if (!user) play(); } else if (raf) stop(); }), { threshold: 0.4 }).observe(root);
+      },
+    };
   };
 
   const demos = {
@@ -487,6 +553,202 @@ window.hdInit = (function () {
         sl.o.textContent = m + '개월'; bt.bs[0].textContent = timer ? '멈춤' : '시간 흘리기'; bt.bs[0].setAttribute('aria-pressed', !!timer);
       };
       const sl = slider(ctl, '배포 후 지난 시간', 0, 24, 1, m, (v) => { m = v; draw(); }); draw();
+    },
+
+    // ---- 아래부터는 그래프 애니메이션
+    // 1.3 회귀 출력과 구간(분류) 출력
+    output(root) {
+      head(root, '같은 예측도 쓰는 쪽에 따라 문제가 달라진다', '파란 곡선은 가격을 그대로 내는 회귀 출력이고, 빨간 계단은 하위 시스템이 저가, 중가, 고가로 바꿔 쓰는 경우다. 계단 위에서는 같은 구간 안의 가격 차이가 사라진다.');
+      const a = anim(root, '중간 소득');
+      const h = (x) => 4 + 44 * (1 - Math.exp(-x / 4.2)), inv = (y) => -4.2 * Math.log(1 - (y - 4) / 44);
+      const cut = [15, 30], lv = [8, 22.5, 39], nm = ['저가', '중가', '고가'], rg = ['15만 달러 미만', '15만 ~ 30만 달러', '30만 달러 이상'];
+      const band = (y) => (y < cut[0] ? 0 : y < cut[1] ? 1 : 2);
+      const { s, X, Y, top, bot } = plot(320, 215, '중간 소득에 따른 예측 가격과 구간 출력', [0, 10], [0, 50], { xt: [0, 2, 4, 6, 8, 10], yt: [0, 15, 30, 50], xl: '중간 소득 (만 달러)', yl: '예측 가격 (만 달러)' });
+      cut.forEach((c) => add(s, 'path', 'hd-ln g', { d: 'M' + X(0) + ' ' + Y(c) + 'H' + X(10) }));
+      const xs = [0, inv(15), inv(30), 10]; let d = '';
+      lv.forEach((v, i) => { d += (i ? 'L' : 'M') + X(xs[i]).toFixed(1) + ' ' + Y(v) + 'H' + X(xs[i + 1]).toFixed(1); });
+      add(s, 'path', 'hd-ln b', { d }); add(s, 'path', 'hd-ln', { d: pathOf(X, Y, h, 0, 10) });
+      const g = add(s, 'line', 'hd-vl d'), p1 = add(s, 'circle', 'hd-dot', { r: 5 }), p2 = add(s, 'circle', 'hd-dot b', { r: 5 }); root.append(s);
+      root.append(el('div', 'hd-legend', '<span><i></i>회귀 출력 (연속값)</span><span><i class="b"></i>구간으로 바꾼 출력 (분류)</span>'));
+      const [v1, v2, v3] = stats(root, ['회귀 출력', '분류 출력', '같은 구간으로 묶이는 가격']);
+      a.run((t) => {
+        const x = 10 * t, y = h(x), k = band(y); vl(g, X(x), top, bot);
+        p1.setAttribute('cx', X(x)); p1.setAttribute('cy', Y(y)); p2.setAttribute('cx', X(x)); p2.setAttribute('cy', Y(lv[k]));
+        v1.textContent = fmt(y, 1) + '만 달러'; v2.textContent = nm[k]; v3.textContent = rg[k]; return fmt(x, 1);
+      });
+    },
+
+    // 2. ℓp 노름의 단위 원
+    pball(root) {
+      head(root, '지수 p 가 커지면 노름은 가장 큰 오차만 본다', '‖e‖p = 1 인 오차 벡터를 이은 선이다. p = 1 은 마름모(ℓ1), p = 2 는 원(ℓ2)이고, p 가 커질수록 정사각형(ℓ∞)에 붙는다. 정사각형 위에서는 큰 쪽 오차 하나가 길이를 정한다.');
+      const a = anim(root, '지수 p');
+      const W = 260, c = 130, u = 96; const s = svg(W, W, 'ℓp 노름이 1 인 점들의 모양'); s.classList.add('sq');
+      s.append(S('line', { x1: 14, y1: c, x2: W - 14, y2: c, class: 'ax' }), S('line', { x1: c, y1: 14, x2: c, y2: W - 14, class: 'ax' }));
+      stext(s, c + u, c + 14, '1'); stext(s, c - u, c + 14, '-1'); stext(s, c - 6, c - u - 4, '1', 'end'); stext(s, W - 14, c - 6, 'e1', 'end'); stext(s, c + 6, 20, 'e2', 'start');
+      const ball = (p) => { let d = ''; for (let i = 0; i <= 200; i++) { const th = (i / 200) * 2 * Math.PI, co = Math.cos(th), si = Math.sin(th); d += (i ? 'L' : 'M') + (c + u * Math.sign(co) * Math.abs(co) ** (2 / p)).toFixed(1) + ' ' + (c - u * Math.sign(si) * Math.abs(si) ** (2 / p)).toFixed(1); } return d + 'Z'; };
+      add(s, 'path', 'hd-ln g', { d: ball(1) }); add(s, 'path', 'hd-ln g', { d: ball(2) }); add(s, 'rect', 'hd-ln g', { x: c - u, y: c - u, width: 2 * u, height: 2 * u });
+      const live = add(s, 'path', 'hd-ln b'); root.append(s);
+      root.append(el('div', 'hd-legend', '<span><i class="b"></i>지금의 p</span><span><i class="g"></i>점선은 p = 1, 2, ∞</span>'));
+      const [v1, v2, v3] = stats(root, ['지수 p', '오차 (3, 1) 의 ℓp 노름', '작은 오차 1 이 더한 길이']);
+      a.run((t) => {
+        const p = Math.exp(t * Math.log(16)), n = (3 ** p + 1) ** (1 / p); live.setAttribute('d', ball(p));
+        v1.textContent = fmt(p, 1); v2.textContent = fmt(n); v3.textContent = fmt(n - 3); return fmt(p, 1);
+      });
+    },
+
+    // 3. 사분위수와 평균
+    quartile(root) {
+      head(root, '꼬리가 길어지면 평균과 중간값이 벌어진다', 'describe() 가 내는 25%, 50%, 75% 와 평균을 분포 위에 그렸다. 색칠한 구간에 데이터의 절반이 들어 있다. 오른쪽 꼬리가 길어질수록 평균만 꼬리 쪽으로 끌려간다.');
+      const a = anim(root, '꼬리 길이');
+      const mu = Math.log(3); const { s, X, Y, top, bot } = plot(320, 200, '오른쪽 꼬리가 긴 분포와 사분위수', [0, 12], [0, 1.08], { xt: [0, 3, 6, 9, 12], xl: '특성 값' });
+      const ar = add(s, 'path', 'hd-area'), cv = add(s, 'path', 'hd-ln'), q1 = add(s, 'line', 'hd-vl d'), q3 = add(s, 'line', 'hd-vl d'), md = add(s, 'line', 'hd-vl'), mn = add(s, 'line', 'hd-vl b'); root.append(s);
+      root.append(el('div', 'hd-legend', '<span><i class="l2" style="background:var(--hd-ink)"></i>50% (중간값)</span><span><i class="l2 b"></i>평균</span><span><i class="g"></i>점선은 25%, 75%</span>'));
+      const [v1, v2, v3] = stats(root, ['25% · 50% · 75%', '평균', '평균 ÷ 중간값']); v1.classList.add('small');
+      a.run((t) => {
+        const sg = lerp(0.12, 0.95, t), peak = Math.exp(-mu + (sg * sg) / 2);
+        const f = (x) => Math.exp(-((Math.log(x) - mu) ** 2) / (2 * sg * sg)) / x / peak;
+        const a1 = Math.exp(mu - 0.6745 * sg), a3 = Math.exp(mu + 0.6745 * sg), mean = Math.exp(mu + (sg * sg) / 2);
+        cv.setAttribute('d', pathOf(X, Y, f, 0.05, 12, 160)); ar.setAttribute('d', areaOf(X, Y, f, a1, a3));
+        vl(q1, X(a1), Y(f(a1)), bot); vl(q3, X(a3), Y(f(a3)), bot); vl(md, X(3), top, bot); vl(mn, X(mean), top, bot);
+        v1.textContent = fmt(a1) + ' · 3.00 · ' + fmt(a3); v2.textContent = fmt(mean); v3.textContent = fmt(mean / 3); return fmt(sg);
+      });
+    },
+
+    // 4.3 무작위 표본에서 계층 비율의 분포
+    sampling(root) {
+      head(root, '테스트 세트가 작을수록 계층 비율이 크게 흔들린다', '전체의 3.98% 인 소득 카테고리 1 이 무작위로 뽑은 테스트 세트에서 차지할 비율의 분포다(정규 근사). 가운데 띠는 비율 오차 ±10% 범위이고, 붉은 부분은 그 밖으로 벗어나는 경우다. 계층적 샘플링은 이 비율을 세로선 위에 고정한다.');
+      const a = anim(root, '테스트 세트 크기');
+      const p = 3.98; const { s, X, Y, top, bot } = plot(320, 200, '테스트 세트에서 카테고리 1 이 차지하는 비율의 분포', [0, 9], [0, 1.08], { xt: [0, 2, 4, 6, 8], xl: '테스트 세트에서 카테고리 1 의 비율 (%)' });
+      add(s, 'rect', 'hd-area c', { x: X(p * 0.9), y: top, width: X(p * 1.1) - X(p * 0.9), height: bot - top });
+      const tl = add(s, 'path', 'hd-area b'), tr = add(s, 'path', 'hd-area b'), cv = add(s, 'path', 'hd-ln'); vl(add(s, 'line', 'hd-vl'), X(p), top, bot); root.append(s);
+      root.append(el('div', 'hd-legend', '<span><i class="c"></i>오차 ±10% 범위</span><span><i class="b"></i>범위를 벗어나는 경우</span><span>세로선은 전체 비율 3.98%</span>'));
+      const [v1, v2, v3] = stats(root, ['테스트 세트 크기', '비율의 표준 편차', '오차 ±10% 를 벗어날 확률']);
+      a.run((t) => {
+        const n = Math.round(100 * 41.28 ** t), sd = 100 * Math.sqrt((0.0398 * 0.9602) / n), f = (x) => Math.exp(-(((x - p) / sd) ** 2) / 2);
+        cv.setAttribute('d', pathOf(X, Y, f, 0, 9, 180)); tl.setAttribute('d', areaOf(X, Y, f, 0, p * 0.9)); tr.setAttribute('d', areaOf(X, Y, f, p * 1.1, 9));
+        v1.textContent = num(n) + '개'; v2.textContent = fmt(sd) + '%p'; v3.textContent = fmt(200 * (1 - Phi((0.1 * p) / sd)), 0) + '%'; return num(n);
+      });
+    },
+
+    // 5.2 기울기와 상관계수
+    slope(root) {
+      head(root, '상관계수는 기울기가 아니라 직선에 붙은 정도를 잰다', '앞 절반에서는 기울기만 커지고 r 은 거의 그대로다. 뒤 절반에서는 기울기를 둔 채 점이 직선에 붙으면서 r 이 1 에 가까워진다.');
+      const a = anim(root, '진행');
+      const r0 = rng(17), N = 90; const zx = Array.from({ length: N }, () => normal(r0)), zy = Array.from({ length: N }, () => normal(r0));
+      const { s, X, Y } = plot(320, 220, '두 특성의 산점도와 회귀선', [-3, 3], [-6, 6], { xt: [-3, 0, 3], yt: [-6, 0, 6] });
+      const cs = zx.map(() => { const c = add(s, 'circle', 'hd-dot', { r: 2.8 }); c.style.opacity = 0.65; return c; }); const line = add(s, 'path', 'hd-ln b'); root.append(s);
+      root.append(el('div', 'hd-legend', '<span><i></i>샘플</span><span><i class="b"></i>회귀선</span>'));
+      const [v1, v2, v3] = stats(root, ['회귀선 기울기', '상관계수 r', '지금 바뀌는 것']); v3.classList.add('small');
+      a.run((t) => {
+        const first = t < 0.5, u = first ? t / 0.5 : (t - 0.5) / 0.5, k = first ? lerp(0.3, 1.6, u) : 1.6, sd = first ? 0.75 * k : lerp(1.2, 0.15, u);
+        const ys = zx.map((x, i) => k * x + sd * zy[i]); let mx = 0, my = 0; zx.forEach((x, i) => { mx += x / N; my += ys[i] / N; });
+        let sxy = 0, sxx = 0, syy = 0; zx.forEach((x, i) => { sxy += (x - mx) * (ys[i] - my); sxx += (x - mx) ** 2; syy += (ys[i] - my) ** 2; });
+        const b = sxy / sxx, c0 = my - b * mx, xe = Math.min(3, 5.8 / Math.abs(b));
+        cs.forEach((c, i) => { c.setAttribute('cx', X(Math.max(-3, Math.min(3, zx[i]))).toFixed(1)); c.setAttribute('cy', Y(Math.max(-6, Math.min(6, ys[i]))).toFixed(1)); });
+        line.setAttribute('d', 'M' + X(-xe) + ' ' + Y(c0 - b * xe) + 'L' + X(xe) + ' ' + Y(c0 + b * xe));
+        v1.textContent = fmt(b); v2.textContent = fmt(sxy / Math.sqrt(sxx * syy)); v3.textContent = first ? '기울기 (흩어진 비율은 그대로)' : '흩어진 정도 (기울기는 그대로)'; return Math.round(t * 100) + '%';
+      });
+    },
+
+    // 6.1 중간값 대체가 분포에 남기는 흔적
+    fillspike(root) {
+      head(root, '채운 값은 한 지점에 쌓인다', 'total_bedrooms 의 예시 분포에서 결측 비율을 0% 에서 20% 까지 늘리며 중간값으로 채운다. 채운 값이 한 칸에 쌓여 분포가 뾰족해지고 표준 편차가 줄어든다. 예제의 실제 결측은 약 1% 라 영향이 작다.');
+      const a = anim(root, '결측 비율');
+      const r = rng(31), N = 2000, lo = 0, hi = 1600, NB = 32, bw = (hi - lo) / NB; const v = Array.from({ length: N }, () => Math.min(hi - 1, Math.exp(6.1 + 0.55 * normal(r)))), pri = v.map(() => r());
+      const sdOf = (xs) => { const m = xs.reduce((p, q) => p + q, 0) / xs.length; return Math.sqrt(xs.reduce((p, q) => p + (q - m) ** 2, 0) / xs.length); }; const sd0 = sdOf(v);
+      const { s, X, Y, top, bot } = plot(320, 210, 'total_bedrooms 의 히스토그램', [lo, hi], [0, 640], { xt: [0, 400, 800, 1200, 1600], yt: [0, 200, 400, 600], xl: 'total_bedrooms', yl: '구역 수' });
+      const hs = add(s, 'path', 'hd-hist'); add(s, 'path', 'hd-ln g', { d: stepOf(X, Y, histo(v, lo, hi, NB), lo, bw) }); const md = add(s, 'line', 'hd-vl b'); root.append(s);
+      root.append(el('div', 'hd-legend', '<span><i></i>채운 뒤의 분포</span><span><i class="g"></i>점선은 원래 분포</span><span><i class="l2 b"></i>중간값</span>'));
+      const [v1, v2, v3] = stats(root, ['결측 비율', '중간값으로 채운 구역', '표준 편차 (원본 = 100%)']);
+      a.run((t) => {
+        const m = 0.2 * t, obs = v.filter((_, i) => pri[i] >= m).sort((p, q) => p - q), med = obs[Math.floor(obs.length / 2)], filled = v.map((x, i) => (pri[i] >= m ? x : med));
+        hs.setAttribute('d', stepOf(X, Y, histo(filled, lo, hi, NB).map((c) => Math.min(640, c)), lo, bw)); vl(md, X(med), top, bot);
+        v1.textContent = fmt(m * 100, 1) + '%'; v2.textContent = num(N - obs.length) + ' / ' + num(N); v3.textContent = fmt((100 * sdOf(filled)) / sd0, 1) + '%'; return fmt(m * 100, 0) + '%';
+      });
+    },
+
+    // 7. 거듭제곱 변환과 로그
+    logmorph(root) {
+      head(root, '거듭제곱을 낮추면 긴 꼬리가 접힌다', 'population 의 예시 분포에 (x^λ - 1) / λ 변환을 적용한다. λ = 1 은 원본, 0.5 는 제곱근, 0 은 로그에 해당한다. λ 가 0 에 가까워질수록 분포가 종 모양에 가까워진다.');
+      const a = anim(root, '지수 λ');
+      const r = rng(8), N = 3000, NB = 30; const v = Array.from({ length: N }, () => Math.exp(7 + 0.75 * normal(r)));
+      const { s, X, Y } = plot(320, 200, '변환한 값의 히스토그램', [0, 1], [0, 1.08], { xl: '변환한 값 (왼쪽이 작고 오른쪽이 크다)' });
+      const hs = add(s, 'path', 'hd-hist'); root.append(s);
+      const [v1, v2, v3] = stats(root, ['지수 λ', '해당하는 변환', '왜도 (0 이면 좌우 대칭)']);
+      a.run((t) => {
+        const L = 1 - t, y = v.map((x) => (L > 1e-3 ? (x ** L - 1) / L : Math.log(x))); let lo = Infinity, hi = -Infinity, m = 0; y.forEach((q) => { lo = Math.min(lo, q); hi = Math.max(hi, q); m += q / N; });
+        let m2 = 0, m3 = 0; y.forEach((q) => { m2 += (q - m) ** 2 / N; m3 += (q - m) ** 3 / N; });
+        const h = histo(y, lo, hi + 1e-9, NB), pk = Math.max(...h); hs.setAttribute('d', stepOf(X, Y, h.map((c) => c / pk), 0, 1 / NB));
+        v1.textContent = fmt(L); v2.textContent = L >= 0.99 ? '원본 x' : Math.abs(L - 0.5) < 0.03 ? '제곱근 √x' : L <= 0.01 ? '로그 log x' : 'x 의 ' + fmt(L) + ' 제곱'; v3.textContent = fmt(m3 / m2 ** 1.5); return fmt(L);
+      });
+    },
+
+    // 7. 가우스 RBF 유사도
+    rbf(root) {
+      head(root, 'γ 가 클수록 35년 근처만 높은 값을 받는다', '연식 35년과의 유사도 exp(-γ(x - 35)²) 이다. γ 가 작으면 넓은 범위가 비슷하다고 보고, γ 가 크면 35년에서 조금만 벗어나도 유사도가 0 으로 떨어진다.');
+      const a = anim(root, 'γ');
+      const { s, X, Y, top, bot } = plot(320, 200, '주택 연식에 따른 RBF 유사도', [0, 52], [0, 1.08], { xt: [0, 10, 20, 35, 50], yt: [0, 0.5, 1], xl: '주택 연식 (년)', yl: '35년과의 유사도' });
+      vl(add(s, 'line', 'hd-vl d'), X(35), top, bot); const ar = add(s, 'path', 'hd-area'), cv = add(s, 'path', 'hd-ln'), hw = add(s, 'path', 'hd-ln c'), pt = add(s, 'circle', 'hd-dot k', { r: 4.5, cx: X(25) }); root.append(s);
+      root.append(el('div', 'hd-legend', '<span><i class="l1"></i>유사도 0.5 이상인 폭</span><span><i style="background:var(--hd-ink)"></i>연식 25년인 구역</span>'));
+      const [v1, v2, v3] = stats(root, ['γ', '유사도가 0.5 로 떨어지는 거리', '연식 25년 구역의 유사도']);
+      a.run((t) => {
+        const g = Math.exp(lerp(Math.log(0.003), Math.log(0.5), t)), f = (x) => Math.exp(-g * (x - 35) ** 2), d = Math.sqrt(Math.LN2 / g), x0 = Math.max(0, 35 - d), x1 = Math.min(52, 35 + d);
+        cv.setAttribute('d', pathOf(X, Y, f, 0, 52, 200)); ar.setAttribute('d', areaOf(X, Y, f, x0, x1)); hw.setAttribute('d', 'M' + X(x0).toFixed(1) + ' ' + Y(0.5) + 'H' + X(x1).toFixed(1)); pt.setAttribute('cy', Y(f(25)));
+        v1.textContent = fmt(g, 3); v2.textContent = fmt(d, 1) + '년'; v3.textContent = fmt(f(25)); return fmt(g, 3);
+      });
+    },
+
+    // 8.3 변환기는 훈련 세트에서 배운 값으로 변환한다
+    scaler(root) {
+      head(root, '변환기는 훈련 세트에서 배운 값으로만 변환한다', '훈련 세트의 평균은 200, 표준 편차는 50 이다. 서빙 입력의 평균이 커질 때 훈련 때 배운 값으로 변환하면 그 차이가 모델에 그대로 전달된다. 서빙 데이터로 다시 fit 하면 차이가 지워져 훈련 때와 같은 분포로 보인다.');
+      const a = anim(root, '서빙 입력의 평균');
+      const { s, X, Y, top, bot } = plot(320, 200, '표준화한 뒤의 분포', [-4, 6], [0, 1.08], { xt: [-4, -2, 0, 2, 4, 6], xl: '표준화한 값 (z)' });
+      const nrm = (c) => (x) => Math.exp(-((x - c) ** 2) / 2); vl(add(s, 'line', 'hd-vl d'), X(0), top, bot);
+      const ar = add(s, 'path', 'hd-area'); add(s, 'path', 'hd-ln b', { d: pathOf(X, Y, nrm(0), -4, 6) }); const cv = add(s, 'path', 'hd-ln'), mk = add(s, 'line', 'hd-vl'); mk.style.stroke = 'var(--hd-a)'; root.append(s);
+      root.append(el('div', 'hd-legend', '<span><i></i>훈련 세트의 μ, σ 로 변환한 서빙 입력</span><span><i class="b"></i>서빙 데이터로 다시 fit 한 결과 (훈련 세트의 분포와 겹친다)</span>'));
+      const [v1, v2, v3] = stats(root, ['서빙 입력의 평균 (원래 단위)', '훈련 통계로 변환한 뒤 평균', '다시 fit 한 뒤 평균']);
+      a.run((t) => {
+        const z = 2 * t; cv.setAttribute('d', pathOf(X, Y, nrm(z), -4, 6)); ar.setAttribute('d', areaOf(X, Y, nrm(z), -4, 6)); vl(mk, X(z), Y(1), bot);
+        v1.textContent = num(200 + 100 * t); v2.textContent = fmt(z); v3.textContent = '0.00'; return num(200 + 100 * t);
+      });
+    },
+
+    // 9.5 부트스트랩 신뢰 구간
+    bootstrap(root) {
+      head(root, '재표본을 반복하면 RMSE 의 흔들림이 보인다', '테스트 세트의 제곱 오차에서 같은 개수만큼 복원 추출해 RMSE 를 다시 계산하기를 400번 반복한다. 쌓인 값의 2.5% 와 97.5% 지점이 95% 신뢰 구간이다. 오차 값은 예시다.');
+      const a = anim(root, '재표본 횟수', { loop: true, dur: 9000, hold: 2200 });
+      const r = rng(77), n = 600, B = 400, lo = 37, hi = 46, NB = 36, bw = (hi - lo) / NB; let se = Array.from({ length: n }, () => normal(r) ** 2); const sc = 41.4 ** 2 / (se.reduce((p, q) => p + q, 0) / n); se = se.map((e) => e * sc); // 표본 RMSE 를 41,400 에 맞춘다
+      const bs = Array.from({ length: B }, () => { let sum = 0; for (let i = 0; i < n; i++) sum += se[Math.floor(r() * n)]; return Math.sqrt(sum / n); });
+      const { s, X, Y, top, bot } = plot(320, 210, '부트스트랩 RMSE 의 히스토그램', [lo, hi], [0, 50], { xt: [38, 40, 42, 44, 46], yt: [0, 20, 40], xl: '재표본의 RMSE (천 달러)', yl: '횟수' });
+      const ar = add(s, 'rect', 'hd-area c', { y: top, height: bot - top }), hs = add(s, 'path', 'hd-hist'), c1 = add(s, 'line', 'hd-vl b'), c2 = add(s, 'line', 'hd-vl b'), mn = add(s, 'line', 'hd-vl'); root.append(s);
+      root.append(el('div', 'hd-legend', '<span><i class="l2" style="background:var(--hd-ink)"></i>평균</span><span><i class="l2 b"></i>2.5%, 97.5% 지점</span><span><i class="c"></i>95% 신뢰 구간</span>'));
+      const [v1, v2, v3] = stats(root, ['재표본 횟수', 'RMSE 평균', '95% 신뢰 구간']); v3.classList.add('small');
+      a.run((t) => {
+        const k = Math.max(1, Math.round(t * B)), d = bs.slice(0, k), srt = d.slice().sort((p, q) => p - q), m = d.reduce((p, q) => p + q, 0) / k;
+        const q = (f) => srt[Math.min(k - 1, Math.max(0, Math.round(f * (k - 1))))], a1 = q(0.025), a2 = q(0.975), show = k >= 20;
+        hs.setAttribute('d', stepOf(X, Y, histo(d, lo, hi, NB).map((c) => Math.min(50, c)), lo, bw)); vl(mn, X(m), top, bot);
+        [c1, c2, ar].forEach((e) => (e.style.display = show ? '' : 'none')); vl(c1, X(a1), top, bot); vl(c2, X(a2), top, bot); ar.setAttribute('x', X(a1)); ar.setAttribute('width', Math.max(0, X(a2) - X(a1)));
+        v1.textContent = k + ' / ' + B; v2.textContent = num(m * 1000); v3.textContent = show ? num(a1 * 1000) + ' ~ ' + num(a2 * 1000) : '재표본이 더 필요하다'; return k + '번';
+      }, 1);
+    },
+
+    // 10.3 재학습 주기와 오차
+    decay(root) {
+      head(root, '재학습 주기가 오차 곡선의 모양을 정한다', '세상이 바뀌면 오차는 배포 뒤로 서서히 커진다. 재학습하면 오차가 처음 수준으로 돌아간다. 주기가 길면 허용 한계를 넘은 채 운영하는 기간이 생긴다. 숫자는 예시다.');
+      const PS = [Infinity, 12, 3]; let mode = 0;
+      const bt = buttons(root, ['재학습 없음', '12개월마다 재학습', '3개월마다 재학습'], (i) => { mode = i; bt.set(i); a.redraw(); });
+      const a = anim(root, '지난 시간', { loop: true, dur: 8000, hold: 2000 });
+      const { s, X, Y } = plot(320, 215, '배포 후 시간에 따른 RMSE', [0, 24], [35, 80], { xt: [0, 6, 12, 18, 24], yt: [40, 50, 60, 70, 80], xl: '배포 후 지난 시간 (개월)', yl: 'RMSE (천 달러)' });
+      add(s, 'path', 'hd-ln c', { d: 'M' + X(0) + ' ' + Y(50) + 'H' + X(24), 'stroke-dasharray': '5 4' }); stext(s, X(24), Y(50) - 5, '허용 한계', 'end');
+      const cv = add(s, 'path', 'hd-ln b'), pt = add(s, 'circle', 'hd-dot b', { r: 4.5 }); root.append(s);
+      const [v1, v2, v3] = stats(root, ['지난 시간', '현재 RMSE', '허용 한계를 넘은 기간']);
+      const f = (m) => { const age = PS[mode] === Infinity ? m : m % PS[mode]; return 41 + 0.9 * age + 0.02 * age * age; };
+      bt.set(0);
+      a.run((t) => {
+        const end = 24 * t; let d = '', over = 0; for (let m = 0; m <= end + 1e-9; m += 0.05) { const y = f(m); d += (d ? 'L' : 'M') + X(m).toFixed(1) + ' ' + Y(y).toFixed(1); if (y > 50) over += 0.05; }
+        cv.setAttribute('d', d || 'M' + X(0) + ' ' + Y(41)); pt.setAttribute('cx', X(end)); pt.setAttribute('cy', Y(f(end)));
+        v1.textContent = fmt(end, 1) + '개월'; v2.textContent = num(f(end) * 1000); v3.textContent = fmt(over, 1) + '개월'; return Math.round(end) + '개월';
+      }, 1);
     },
   };
   return (root) => { const fn = demos[root.dataset.hd]; if (fn && !root.dataset.ready) { root.dataset.ready = '1'; fn(root); } };
