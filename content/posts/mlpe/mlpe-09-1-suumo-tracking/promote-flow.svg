@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="250" viewBox="0 0 960 250" font-family="'Pretendard','Noto Sans KR','Apple SD Gothic Neo',sans-serif" role="img" aria-labelledby="promote-flow-title promote-flow-desc">
+  <title id="promote-flow-title">승격 판단</title>
+  <desc id="promote-flow-desc">검증을 통과한 run 이 들어오면 먼저 레지스트리에 staging 별칭이 있는지 본다. 없으면 바로 새 버전으로 등록하고 staging 을 붙인다. 있으면 그 버전의 run 과 val MAPE 를 비교한다. 나빠지지 않았으면 새 버전을 등록하고 staging 을 옮긴다. 나빠졌으면 staging 은 그대로 두고 run 에 태그만 남긴다.</desc>
+  <defs>
+    <marker id="m-line" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#C9C8C2" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="m-emph" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#0F6E56" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="m-pipe" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#0E7C86" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="m-warn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#EB6C36" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="m-alt" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#534AB7" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+  </defs>
+  <rect width="960" height="250" fill="#FFFFFF"/>
+  <rect x="20" y="95" width="150" height="56" rx="8" fill="#E3F4F4" stroke="#0E7C86" stroke-width="1.4"/>
+  <text x="95" y="123" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#0E7C86">검증 통과한 run</text>
+  <polygon points="290,81 385,123 290,165 195,123" fill="#FDEEE6" stroke="#EB6C36" stroke-width="1.4"/>
+  <text x="290" y="123" text-anchor="middle" dominant-baseline="central" font-size="12" font-weight="600" fill="#EB6C36">@staging 이 있는가</text>
+  <polygon points="540,81 650,123 540,165 430,123" fill="#FDEEE6" stroke="#EB6C36" stroke-width="1.4"/>
+  <text x="540" y="123" text-anchor="middle" dominant-baseline="central" font-size="12" font-weight="600" fill="#EB6C36">val MAPE 가 나빠졌는가</text>
+  <rect x="740" y="30" width="200" height="56" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1.4"/>
+  <text x="840" y="58" text-anchor="middle" dominant-baseline="central" font-size="12" font-weight="600" fill="#0F6E56">새 버전 등록, @staging 이동</text>
+  <rect x="740" y="185" width="200" height="56" rx="8" fill="#F4F4F2" stroke="#C9C8C2" stroke-width="0.75"/>
+  <text x="840" y="213" text-anchor="middle" dominant-baseline="central" font-size="12" font-weight="600" fill="#444441">@staging 유지, run 에 태그</text>
+  <path d="M170 123.0 L193 123" fill="none" stroke="#0E7C86" stroke-width="1.2" marker-end="url(#m-pipe)"/>
+  <path d="M385 123 L428 123" fill="none" stroke="#C9C8C2" stroke-width="1.2" marker-end="url(#m-line)"/>
+  <rect x="398.245" y="116.25" width="16.51" height="13.5" rx="3" fill="#FFFFFF"/>
+  <text x="406.5" y="123" text-anchor="middle" dominant-baseline="central" font-size="10.5" fill="#5F5E5A">예</text>
+  <path d="M290 81 L290 44 L738 44" fill="none" stroke="#0F6E56" stroke-width="1.2" marker-end="url(#m-emph)"/>
+  <rect x="345.235" y="37.25" width="29.53" height="13.5" rx="3" fill="#FFFFFF"/>
+  <text x="360" y="44" text-anchor="middle" dominant-baseline="central" font-size="10.5" fill="#0F6E56">아니오</text>
+  <path d="M650 123 L700 123 L700 72 L738 72" fill="none" stroke="#0F6E56" stroke-width="1.2" marker-end="url(#m-emph)"/>
+  <rect x="685.235" y="93.25" width="29.53" height="13.5" rx="3" fill="#FFFFFF"/>
+  <text x="700" y="100" text-anchor="middle" dominant-baseline="central" font-size="10.5" fill="#0F6E56">아니오</text>
+  <path d="M540 165 L540 213 L738 213" fill="none" stroke="#C9C8C2" stroke-width="1.2" marker-end="url(#m-line)"/>
+  <rect x="611.745" y="206.25" width="16.51" height="13.5" rx="3" fill="#FFFFFF"/>
+  <text x="620" y="213" text-anchor="middle" dominant-baseline="central" font-size="10.5" fill="#5F5E5A">예</text>
+</svg>
