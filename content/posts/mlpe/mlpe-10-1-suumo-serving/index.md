@@ -5,6 +5,7 @@ draft: true
 tags: ["MLOps", "MLPE", "BentoML", "MLflow", "Model Serving", "Model Registry", "Docker", "KServe", "LightGBM", "Capstone"]
 categories: ["MLOps"]
 series: ["MLPE 5주차"]
+featuredImage: images/banners/mlpe-10-1-suumo-serving-4f4cafc0.png
 ---
 [9장](../mlpe-09-1-suumo-tracking/)에서 m²당 단가 모델을 MLflow 레지스트리에 `suumo-unit-price@prod` 로 올렸다. 10장에서는 이 모델을 주소와 매물 조건을 보내면 추정 호가를 돌려주는 HTTP 서비스로 만든다.
 

@@ -5,6 +5,7 @@ draft: true
 tags: ["MLOps", "MLPE", "Kubeflow", "Kubeflow Pipelines", "KFP", "PersistentVolumeClaim", "TensorBoard", "MLflow", "Model Registry", "LightGBM", "Capstone"]
 categories: ["MLOps"]
 series: ["MLPE 5주차"]
+featuredImage: images/banners/mlpe-09-1-suumo-tracking-6a67c759.png
 ---
 [8장](../mlpe-08-1-suumo-training/)에서는 m²당 단가 회귀 모델을 학습하고 검증하는 파이프라인을 만들었다. 9장에서는 모델은 그대로 두고, 같은 파이프라인에 데이터 공유(PVC), 학습 과정 시각화(TensorBoard), 실험 추적과 모델 버전 관리(MLflow)를 더한다.
 
