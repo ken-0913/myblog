@@ -7,26 +7,9 @@ categories: ["MLOps"]
 series: ["MLPE 5주차"]
 featuredImage: images/banners/mlpe-09-1-suumo-tracking-6a67c759.png
 ---
-[8장](../mlpe-08-1-suumo-training/)에서는 m²당 단가 회귀 모델을 학습하고 검증하는 파이프라인을 만들었다. 9장에서는 모델은 그대로 두고, 같은 파이프라인에 데이터 공유(PVC), 학습 과정 시각화(TensorBoard), 실험 추적과 모델 버전 관리(MLflow)를 더한다.
+[8장](../mlpe-08-1-suumo-training/)에서는 m²당 단가 회귀 모델을 학습하고 검증하는 파이프라인을 만들었다. 9장에서는 모델은 그대로 두고, 같은 파이프라인에 데이터 공유(PVC), 학습 과정 시각화(TensorBoard), 실험 추적과 모델 버전 관리(MLflow)를 진행한다.
 
 ## 1. 한눈에 보기
-
-### 1.1 8장에서 달라지는 것
-
-모델, 피처, 통과 기준은 8장과 같다. 달라지는 것은 데이터와 모델이 컴포넌트 사이를 오가는 길이다.
-
-| | 8장 | 9장 |
-| --- | --- | --- |
-| 데이터 전달 | `Dataset` 아티팩트. 컴포넌트마다 버킷에서 다시 받는다 | PVC 에 한 번 받아 두고 모두 같은 경로를 읽는다 |
-| 실행 순서 | 아티팩트 연결에서 KFP 가 추론한다 | `.after()` 로 직접 정한다 |
-| 학습 과정 | 로그에 찍힌 조기 종료 회차만 남는다 | 회차별 손실 곡선을 TensorBoard 로 본다 |
-| 하이퍼파라미터와 지표 | run 을 하나씩 열어 본다 | MLflow 실험 하나에 모여 표로 비교한다 |
-| 모델 보관 | run 의 `Model` 아티팩트 경로 | MLflow 모델 레지스트리의 이름과 버전 |
-| 다음 단계가 모델을 찾는 법 | run ID 와 버킷 경로를 알아야 한다 | `suumo-unit-price@staging` 별칭 하나 |
-
-책은 두 도구의 역할을 나눈다. TensorBoard 는 run 하나의 학습 과정을 들여다보는 데 쓰고, MLflow 는 여러 run 을 기록하고 찾고 모델 버전을 관리하는 데 쓴다.
-
-### 1.2 진행 단계
 
 ![9장 전체 흐름. 위쪽 Kubeflow Pipelines 묶음 안에서 데이터 받기(fetch_dataset), 학습 전 QA(qa_data), 학습(train_model), 검증(validate_model), 승격(promote_model)이 파란 화살표로 이어지고, 기준선(baseline)은 QA 에서 갈라져 검증으로 들어간다. 왼쪽 S3 호환 버킷의 train, val, test 가 데이터 받기로 들어간다. 아래 왼쪽 PVC 묶음에는 dataset 과 tensorboard 폴더가 있다. 데이터 받기가 dataset 에 한 번 저장하고 학습이 그것을 읽으며, 학습은 회차별 손실을 tensorboard 폴더에 쓰고 TensorBoard 가 그 폴더를 읽는다. 아래 오른쪽 MLflow 묶음에는 run 과 모델 레지스트리가 있다. 학습은 run 에 파라미터, 지표, 모델을 기록하고, 검증은 run 에서 모델을 읽고 지표를 더하며, 승격은 비교 후 모델 레지스트리의 staging 에 등록한다.](ch9-overview-stack.png)
 
