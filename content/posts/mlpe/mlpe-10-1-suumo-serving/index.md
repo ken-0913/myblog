@@ -1,7 +1,7 @@
 ---
 title: "MLPE 스터디 5주차 - Ch10 도쿄 23구 중고 맨션 호가 모델을 BentoML 과 MLflow 로 서빙하기"
 date: 2026-11-19T11:00:00+09:00
-draft: true
+draft: false
 tags: ["MLOps", "MLPE", "BentoML", "MLflow", "Model Serving", "Model Registry", "Docker", "KServe", "LightGBM", "Capstone"]
 categories: ["MLOps"]
 series: ["MLPE 5주차"]

@@ -1,7 +1,7 @@
 ---
 title: "MLPE 스터디 5주차 - Ch9 도쿄 23구 중고 맨션 호가 모델 학습에 PVC, TensorBoard, MLflow 더하기"
 date: 2026-11-19T10:00:00+09:00
-draft: true
+draft: false
 tags: ["MLOps", "MLPE", "Kubeflow", "Kubeflow Pipelines", "KFP", "PersistentVolumeClaim", "TensorBoard", "MLflow", "Model Registry", "LightGBM", "Capstone"]
 categories: ["MLOps"]
 series: ["MLPE 5주차"]
@@ -432,7 +432,7 @@ def validate_model(run_id: str, metrics: Output[Metrics], report: Output[Markdow
 
 run 은 실험할 때마다 쌓인다. 그 가운데 "지금 쓰는 모델" 이 어느 것인지는 run 목록이 알려 주지 않는다. 모델 레지스트리는 고른 모델에 이름과 버전을 붙이고, 그중 하나에 **별칭**(alias)을 건다.
 
-![승격 판단. 검증을 통과한 run 이 들어오면 먼저 레지스트리에 staging 별칭이 있는지 본다. 없으면 바로 새 버전으로 등록하고 staging 을 붙인다. 있으면 그 버전의 run 과 val MAPE 를 비교한다. 나빠지지 않았으면 새 버전을 등록하고 staging 을 옮긴다. 나빠졌으면 staging 은 그대로 두고 run 에 태그만 남긴다.](promote-flow.svg)
+![승격 판단. 파이프라인의 검증 컴포넌트가 통과한 run ID 를 승격 컴포넌트에 넘긴다. 승격 컴포넌트는 먼저 레지스트리에서 staging 별칭이 가리키는 현재 버전을 찾아 val MAPE 를 비교한다. 나빠지지 않았으면 새 버전을 등록하고 staging 을 새 버전으로 옮긴다. 나빠졌으면 레지스트리는 그대로 두고 이번 run 에 태그만 남긴다. staging 이 아직 없으면 비교 없이 바로 등록한다.](promote-stack.png)
 
 ```python {title="suumo_train_pvc.py (promote_model 핵심 부분)"}
 @dsl.component(base_image="python:3.11", packages_to_install=MLFLOW_PACKAGES)
