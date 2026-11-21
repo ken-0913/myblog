@@ -26,7 +26,7 @@ $ curl -s http://192.168.0.248/v1/models/suumo-unit-price:predict \
 
 ### 1.2 진행 단계
 
-![10장 전체 흐름. 사용자가 주소와 조건을 보내면 Kubernetes 안의 Gateway(Istio, Gateway API)가 받아 HTTPRoute 에 따라 InferenceService suumo-unit-price 의 transformer 로 넘긴다. transformer 는 주소를 좌표로 바꿔 피처 행을 predictor 로 보내고, 돌아온 단가를 호가로 바꾼다. predictor 는 MLflow pyfunc 모델을 돌린다. 아래쪽 S3 호환 버킷에서 transformer 는 초메 표(chome.parquet)를, predictor 는 모델 폴더를 Pod 가 뜰 때 내려받는다. 모델 폴더는 MLflow 모델 레지스트리의 prod 별칭이 가리키는 v4 의 저장 경로이다. Gateway 는 같은 요청을 비교용 InferenceService suumo-unit-price-v1 에도 보낼 수 있다.](ch10-overview-stack.png)
+![10장 전체 흐름. 사용자가 주소와 조건을 보내면 Kubernetes 의 suumo-serving namespace 앞에 있는 Gateway(Istio, Gateway API)가 받아 HTTPRoute 에 따라 InferenceService suumo-unit-price 로 넘긴다. InferenceService 는 Pod 가 아니라 선언이고, KServe controller 가 이를 보고 transformer 와 predictor 마다 Deployment, Service, HPA, HTTPRoute 를 만든다. 요청은 transformer Pod 에서 주소가 좌표로 바뀐 뒤 피처 행으로 predictor Pod 에 전달되고, 돌아온 단가가 호가로 바뀐다. 아래쪽 S3 호환 버킷에서 transformer Pod 는 초메(丁目) 표(chome.parquet)를, predictor Pod 는 모델 폴더를 뜰 때 내려받는다. 모델 폴더는 MLflow 모델 레지스트리의 prod 별칭이 가리키는 v4 의 저장 경로이다. 비교용 InferenceService suumo-unit-price-v1 도 같은 구조로 transformer Pod 와 predictor Pod 를 따로 가지며, Gateway 는 Host 가 -v1 인 요청을 이쪽으로 보낸다.](ch10-overview-stack.png)
 
 - **A. 서비스의 구조 이해하기**
   - KServe 에서는 서비스 하나를 `InferenceService` 라는 리소스 하나로 적는다. 그 안에서 모델을 돌리는 부분(predictor)과 입력과 출력을 다듬는 부분(transformer)이 나뉜다. 왜 둘로 나누는지를 먼저 본다.
@@ -634,15 +634,15 @@ MLflow 서빙은 준비할 것이 거의 없다. 대신 주소를 좌표로 바�
 
 모델 서빙 도구로 [6장](../mlpe-06-1-bentoml-yatai/)에서는 BentoML 을 썼다. BentoML 은 서비스 코드, 모델, 패키지를 Bento 라는 꾸러미로 묶고, Yatai 가 그것을 클러스터에 띄운다. 세 도구를 나란히 놓으면 이렇다.
 
-| | KServe | MLflow | BentoML |
-| --- | --- | --- | --- |
-| 중심 | Kubernetes 위의 서빙 운영 | 실험부터 서빙까지 ML 수명주기 전체 | 모델을 서비스로 묶어 배포하기 |
-| 서비스 코드 | 기본 런타임은 쓰지 않는다. 필요하면 SDK 로 쓴다 | 쓰지 않는다 (pyfunc 에 넣어야 한다) | Python 으로 자유롭게 쓴다 |
-| 배포를 적는 곳 | `InferenceService` 매니페스트 | 명령의 인자 | `bentofile.yaml` |
-| Kubernetes 지식 | 필요하다 | 없어도 된다 | 없어도 된다 (Yatai 가 맡는다) |
-| 실험 추적 | 없다 | 있다 | 없다 |
-| 스케일링 | 처음부터 들어 있다 (Knative 모드는 0 까지) | 직접 만든다 | Yatai 나 직접 만든 Deployment |
-| 이 스터디에서 | 10장 (이 글) | 9장, 10장 | 6장 |
+|               | KServe                        | MLflow                   | BentoML                  |
+| ------------- | ----------------------------- | ------------------------ | ------------------------ |
+| 중심            | Kubernetes 위의 서빙 운영           | 실험부터 서빙까지 ML 수명주기 전체     | 모델을 서비스로 묶어 배포하기         |
+| 서비스 코드        | 기본 런타임은 쓰지 않는다. 필요하면 SDK 로 쓴다 | 쓰지 않는다 (pyfunc 에 넣어야 한다) | Python 으로 자유롭게 쓴다        |
+| 배포를 적는 곳      | `InferenceService` 매니페스트      | 명령의 인자                   | `bentofile.yaml`         |
+| Kubernetes 지식 | 필요하다                          | 없어도 된다                   | 없어도 된다 (Yatai 가 맡는다)     |
+| 실험 추적         | 없다                            | 있다                       | 없다                       |
+| 스케일링          | 처음부터 들어 있다 (Knative 모드는 0 까지) | 직접 만든다                   | Yatai 나 직접 만든 Deployment |
+| 이 스터디에서       | 10장 (이 글)                     | 9장, 10장                  | 6장                       |
 
 이 프로젝트는 주소를 좌표로 바꾸는 코드가 모델 앞에 꼭 있어야 한다. KServe 에서는 그 코드를 transformer 로 떼어 내고, 모델의 버전과 출처는 MLflow 가 맡는 구성이 됐다. 모델에 좌표를 그대로 넣는 내부 배치 작업이라면 MLflow 서빙만으로 충분하다.
 
